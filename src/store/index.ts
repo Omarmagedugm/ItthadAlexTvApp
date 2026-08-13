@@ -492,6 +492,10 @@ interface AppState {
     liveViewMode?: 'both' | 'football' | 'basketball';
     libraryBanner?: string;
     facebookPageUrl?: string;
+    maintenanceEnabled?: boolean;
+    maintenanceTitle?: string;
+    maintenanceMessage?: string;
+    maintenanceEstimatedTime?: string;
     socialLinks?: {
       facebook?: string;
       youtube?: string;
@@ -726,6 +730,10 @@ export const useAppStore = create<AppState>()(
         defaultSport: 'auto',
         liveViewMode: 'both',
         facebookPageUrl: 'https://www.facebook.com/Itthadalexchannel',
+        maintenanceEnabled: false,
+        maintenanceTitle: 'سنعود بعد قليل انتظرونا',
+        maintenanceMessage: 'نقوم حالياً بإجراء بعض التحديثات وأعمال الصيانة لتحسين تجربة استخدام قناة الاتحاد السكندري. سنعود بعد قليل، انتظرونا!',
+        maintenanceEstimatedTime: '',
         socialLinks: {
           facebook: 'https://www.facebook.com/Itthadalexchannel',
           youtube: 'https://youtube.com/@itthadalexchannel',

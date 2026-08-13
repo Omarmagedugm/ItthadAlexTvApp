@@ -8,6 +8,7 @@ import { useFirestoreSync } from './hooks/useFirestore';
 import { auth, requestNotificationPermission } from './lib/firebase';
 
 import Home from './pages/Home';
+import MaintenanceScreen from './components/MaintenanceScreen';
 
 function safeLazy<T extends React.ComponentType<any>>(
   factory: () => Promise<{ default: T }>
@@ -202,6 +203,46 @@ class GlobalErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBound
   }
 }
 
+function MainContentWrapper({ children, showGoal, showWin, activeMatch, scoredTeam, handleGoalComplete, setShowWin }: any) {
+  const location = useLocation();
+  const profile = useAppStore(state => state.profile);
+  const appSettings = useAppStore(state => state.appSettings);
+
+  const isOmar = profile.email?.toLowerCase() === 'omarmagedugm@ittihad.club';
+  const isDev = profile.email?.toLowerCase() === 'copyrightofficialco@gmail.com';
+  const isAdmin = profile.role === 'admin' || (profile.roles && profile.roles.includes('admin')) || profile.role === 'moderator' || isOmar || isDev;
+
+  const isAllowedPath = location.pathname === '/admin' || location.pathname === '/auth';
+  const isMaintenanceActive = Boolean(appSettings?.maintenanceEnabled);
+
+  if (isMaintenanceActive && !isAdmin && !isAllowedPath) {
+    return <MaintenanceScreen />;
+  }
+
+  return (
+    <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-[calc(100vh-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex flex-col font-display antialiased transition-colors duration-200">
+      <TopHeader />
+      <Suspense fallback={<PageLoader />}>
+        {children}
+        <MusicPlayer />
+        <PWAInstallPrompt />
+        <WinCelebration
+          show={showWin}
+          onComplete={() => setShowWin(false)}
+          match={activeMatch}
+        />
+        <GoalCelebration 
+          show={showGoal} 
+          onComplete={handleGoalComplete} 
+          teamName={scoredTeam} 
+          match={activeMatch}
+        />
+      </Suspense>
+      <AppNav />
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <GlobalErrorBoundary>
@@ -378,60 +419,50 @@ function AppContent() {
         }}
       />
       <VercelAnalytics />
-      <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-[calc(100vh-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex flex-col font-display antialiased transition-colors duration-200">
-        <TopHeader />
-        <PullToRefresh onRefresh={handlePullRefresh}>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={<Home />} />
-              <Route path="/feed" element={<FanZone />} />
-              <Route path="/news" element={<News />} />
-              <Route path="/news/:id" element={<NewsDetail />} />
-              <Route path="/media" element={<Media />} />
-              <Route path="/live" element={<Live />} />
-              <Route path="/matches" element={<Matches />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/fan-zone" element={<FanZone />} />
-              <Route path="/jersey-tryon" element={<JerseyTryOn />} />
-              <Route path="/history" element={<History />} />
-              <Route path="/store" element={<Store />} />
-              <Route path="/bookmarks" element={<Bookmarks />} />
-              <Route path="/library" element={<Library />} />
-              <Route path="/club-members" element={<ClubMembers />} />
-              <Route path="/club-members/discounts" element={<DiscountsPage />} />
-              <Route path="/club-members/discounts/:id" element={<DiscountDetailPage />} />
-              <Route path="/discounts" element={<DiscountsPage />} />
-              <Route path="/discounts/:id" element={<DiscountDetailPage />} />
-              <Route path="/business" element={<BusinessDirectory />} />
-              <Route path="/business/:id" element={<BusinessDetail />} />
-              <Route path="/social" element={<SocialMedia />} />
-              <Route path="/social-media" element={<SocialMedia />} />
-              <Route path="/facebook" element={<SocialMedia />} />
-              <Route path="/page/:slug" element={<CustomPage />} />
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-              <Route path="/terms" element={<TermsOfService />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-            <MusicPlayer />
-            <PWAInstallPrompt />
-            <WinCelebration
-              show={showWin}
-              onComplete={() => setShowWin(false)}
-              match={activeMatch}
-            />
-            <GoalCelebration 
-              show={showGoal} 
-              onComplete={handleGoalComplete} 
-              teamName={scoredTeam} 
-              match={activeMatch}
-            />
-          </Suspense>
-        </PullToRefresh>
-        <AppNav />
-      </div>
+      <PullToRefresh onRefresh={handlePullRefresh}>
+        <MainContentWrapper
+          showGoal={showGoal}
+          showWin={showWin}
+          activeMatch={activeMatch}
+          scoredTeam={scoredTeam}
+          handleGoalComplete={handleGoalComplete}
+          setShowWin={setShowWin}
+        >
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/" element={<Home />} />
+            <Route path="/feed" element={<FanZone />} />
+            <Route path="/news" element={<News />} />
+            <Route path="/news/:id" element={<NewsDetail />} />
+            <Route path="/media" element={<Media />} />
+            <Route path="/live" element={<Live />} />
+            <Route path="/matches" element={<Matches />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/fan-zone" element={<FanZone />} />
+            <Route path="/jersey-tryon" element={<JerseyTryOn />} />
+            <Route path="/history" element={<History />} />
+            <Route path="/store" element={<Store />} />
+            <Route path="/bookmarks" element={<Bookmarks />} />
+            <Route path="/library" element={<Library />} />
+            <Route path="/club-members" element={<ClubMembers />} />
+            <Route path="/club-members/discounts" element={<DiscountsPage />} />
+            <Route path="/club-members/discounts/:id" element={<DiscountDetailPage />} />
+            <Route path="/discounts" element={<DiscountsPage />} />
+            <Route path="/discounts/:id" element={<DiscountDetailPage />} />
+            <Route path="/business" element={<BusinessDirectory />} />
+            <Route path="/business/:id" element={<BusinessDetail />} />
+            <Route path="/social" element={<SocialMedia />} />
+            <Route path="/social-media" element={<SocialMedia />} />
+            <Route path="/facebook" element={<SocialMedia />} />
+            <Route path="/page/:slug" element={<CustomPage />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </MainContentWrapper>
+      </PullToRefresh>
     </BrowserRouter>
   );
 }

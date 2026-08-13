@@ -142,7 +142,27 @@ export function useFirestoreSync() {
         }
       }, 'settings/sidebar_layout', OperationType.GET);
 
-      unsubs.push(unsubNewsCategories, unsubNewsTags, unsubSidebarLayout);
+      const unsubGlobalSettings = subscribeSnapshot(doc(db, 'settings', 'global'), (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data) {
+            setSettings({ id: snap.id, ...data });
+          }
+        }
+      }, 'settings/global', OperationType.GET);
+
+      unsubs.push(unsubNewsCategories, unsubNewsTags, unsubSidebarLayout, unsubGlobalSettings);
+
+      // Realtime listeners for Ittihad Business, updates, and reports
+      unsubs.push(subscribeSnapshot(collection(db, 'businesses'), s => {
+        setBusinesses(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+      }, 'businesses'));
+      unsubs.push(subscribeSnapshot(collection(db, 'business_updates'), s => {
+        setBusinessUpdates(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+      }, 'business_updates'));
+      unsubs.push(subscribeSnapshot(collection(db, 'business_reports'), s => {
+        setBusinessReports(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+      }, 'business_reports'));
 
       const currentUser = auth.currentUser;
       if (currentUser) {
@@ -238,7 +258,12 @@ export function useFirestoreSync() {
       };
 
       try {
-        if (typeof window !== 'undefined') localStorage.removeItem('fs_cache_users');
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('fs_cache_users');
+          localStorage.removeItem('fs_cache_businesses');
+          localStorage.removeItem('fs_cache_business_updates');
+          localStorage.removeItem('fs_cache_business_reports');
+        }
       } catch (e) {}
 
       await Promise.allSettled([
@@ -285,10 +310,7 @@ export function useFirestoreSync() {
         fetchCol('club_announcements', setClubAnnouncements),
         fetchCol('club_services', setClubServices),
         fetchCol('club_trips', setClubTrips),
-        fetchCol('member_discounts', setMemberDiscounts),
-        fetchCol('businesses', setBusinesses),
-        fetchCol('business_updates', setBusinessUpdates),
-        fetchCol('business_reports', setBusinessReports)
+        fetchCol('member_discounts', setMemberDiscounts)
       ]);
       
       isFetchedRef.current = true;

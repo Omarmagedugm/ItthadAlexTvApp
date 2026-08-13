@@ -28,7 +28,15 @@ import toast from 'react-hot-toast';
 import ImageUploader from './ImageUploader';
 
 export default function AdminBusiness() {
-  const { businesses, businessUpdates, businessReports, profile } = useAppStore();
+  const { 
+    businesses, 
+    businessUpdates, 
+    businessReports, 
+    profile,
+    setBusinesses,
+    setBusinessUpdates,
+    setBusinessReports
+  } = useAppStore();
 
   const [activeSubTab, setActiveSubTab] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'suspended' | 'updates' | 'reports'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
@@ -80,11 +88,20 @@ export default function AdminBusiness() {
   // Actions
   const handleApprove = async (bus: BusinessItem) => {
     try {
-      const busRef = doc(db, 'businesses', bus.id);
-      await updateDoc(busRef, {
+      const updatedItem: BusinessItem = {
+        ...bus,
         status: 'approved',
         approvedAt: new Date().toISOString(),
         approvedBy: profile?.name || 'مدير المنصة',
+        rejectionReason: ''
+      };
+      setBusinesses(businesses.map(b => b.id === bus.id ? updatedItem : b));
+
+      const busRef = doc(db, 'businesses', bus.id);
+      await updateDoc(busRef, {
+        status: 'approved',
+        approvedAt: updatedItem.approvedAt,
+        approvedBy: updatedItem.approvedBy,
         rejectionReason: ''
       });
 
@@ -114,11 +131,19 @@ export default function AdminBusiness() {
     }
 
     try {
+      const updatedItem: BusinessItem = {
+        ...rejectingBusiness,
+        status: 'rejected',
+        rejectionReason: rejectionReason.trim(),
+        updatedAt: new Date().toISOString()
+      };
+      setBusinesses(businesses.map(b => b.id === rejectingBusiness.id ? updatedItem : b));
+
       const busRef = doc(db, 'businesses', rejectingBusiness.id);
       await updateDoc(busRef, {
         status: 'rejected',
         rejectionReason: rejectionReason.trim(),
-        updatedAt: new Date().toISOString()
+        updatedAt: updatedItem.updatedAt
       });
 
       // Send notification
@@ -144,10 +169,17 @@ export default function AdminBusiness() {
   const handleToggleSuspend = async (bus: BusinessItem) => {
     try {
       const newStatus = bus.status === 'suspended' ? 'approved' : 'suspended';
+      const updatedItem: BusinessItem = {
+        ...bus,
+        status: newStatus,
+        updatedAt: new Date().toISOString()
+      };
+      setBusinesses(businesses.map(b => b.id === bus.id ? updatedItem : b));
+
       const busRef = doc(db, 'businesses', bus.id);
       await updateDoc(busRef, {
         status: newStatus,
-        updatedAt: new Date().toISOString()
+        updatedAt: updatedItem.updatedAt
       });
       toast.success(newStatus === 'suspended' ? 'تم إيقاف المشروع' : 'تم إعادة تفعيل المشروع');
     } catch (err) {
@@ -158,10 +190,17 @@ export default function AdminBusiness() {
 
   const handleToggleFeatured = async (bus: BusinessItem) => {
     try {
+      const updatedItem: BusinessItem = {
+        ...bus,
+        featured: !bus.featured,
+        updatedAt: new Date().toISOString()
+      };
+      setBusinesses(businesses.map(b => b.id === bus.id ? updatedItem : b));
+
       const busRef = doc(db, 'businesses', bus.id);
       await updateDoc(busRef, {
         featured: !bus.featured,
-        updatedAt: new Date().toISOString()
+        updatedAt: updatedItem.updatedAt
       });
       toast.success(!bus.featured ? 'تم تمييز المشروع ⭐' : 'تم إزالة التمييز عن المشروع');
     } catch (err) {
@@ -174,6 +213,7 @@ export default function AdminBusiness() {
     if (!window.confirm(`هل أنت تأكد من إزالة مشروع (${bus.businessName}) نهائياً؟`)) return;
 
     try {
+      setBusinesses(businesses.filter(b => b.id !== bus.id));
       await deleteDoc(doc(db, 'businesses', bus.id));
       toast.success('تم حذف المشروع بنجاح');
     } catch (err) {
@@ -187,10 +227,17 @@ export default function AdminBusiness() {
     if (!editingBusiness) return;
 
     try {
+      const updatedItem: BusinessItem = {
+        ...editingBusiness,
+        ...editFormData,
+        updatedAt: new Date().toISOString()
+      };
+      setBusinesses(businesses.map(b => b.id === editingBusiness.id ? updatedItem : b));
+
       const busRef = doc(db, 'businesses', editingBusiness.id);
       await updateDoc(busRef, {
         ...editFormData,
-        updatedAt: new Date().toISOString()
+        updatedAt: updatedItem.updatedAt
       });
       toast.success('تم تحديث بيانات المشروع مباشرة 💚');
       setEditingBusiness(null);
@@ -204,6 +251,12 @@ export default function AdminBusiness() {
   const handleApproveUpdate = async (upd: BusinessUpdate) => {
     try {
       // Apply changes to target business
+      const targetBus = businesses.find(b => b.id === upd.businessId);
+      if (targetBus) {
+        setBusinesses(businesses.map(b => b.id === upd.businessId ? { ...b, ...upd.requestedData, updatedAt: new Date().toISOString() } : b));
+      }
+      setBusinessUpdates(businessUpdates.map(u => u.id === upd.id ? { ...u, status: 'approved', reviewedAt: new Date().toISOString(), reviewedBy: profile?.name || 'مدير المنصة' } : u));
+
       const busRef = doc(db, 'businesses', upd.businessId);
       await updateDoc(busRef, {
         ...upd.requestedData,
@@ -228,6 +281,8 @@ export default function AdminBusiness() {
 
   const handleRejectUpdate = async (upd: BusinessUpdate) => {
     try {
+      setBusinessUpdates(businessUpdates.map(u => u.id === upd.id ? { ...u, status: 'rejected', reviewedAt: new Date().toISOString(), reviewedBy: profile?.name || 'مدير المنصة' } : u));
+
       const updRef = doc(db, 'business_updates', upd.id);
       await updateDoc(updRef, {
         status: 'rejected',
@@ -247,12 +302,15 @@ export default function AdminBusiness() {
   const handleResolveReport = async (reportId: string, businessId: string, action: 'suspend' | 'dismiss') => {
     try {
       if (action === 'suspend') {
+        setBusinesses(businesses.map(b => b.id === businessId ? { ...b, status: 'suspended', updatedAt: new Date().toISOString() } : b));
         const busRef = doc(db, 'businesses', businessId);
         await updateDoc(busRef, {
           status: 'suspended',
           updatedAt: new Date().toISOString()
         });
       }
+
+      setBusinessReports(businessReports.map(r => r.id === reportId ? { ...r, status: action === 'suspend' ? 'resolved' : 'dismissed' } : r));
 
       const repRef = doc(db, 'business_reports', reportId);
       await updateDoc(repRef, {

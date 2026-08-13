@@ -73,6 +73,7 @@ import {
   Download,
   Database,
   Shield,
+  Wrench,
   Copy,
   Pin,
   Maximize2,
@@ -1081,6 +1082,10 @@ export default function Admin() {
           defaultSport: formData.defaultSport || appSettings.defaultSport || 'auto',
           liveViewMode: formData.liveViewMode || appSettings.liveViewMode || 'both',
           libraryBanner: formData.libraryBanner !== undefined ? formData.libraryBanner : (appSettings.libraryBanner || ''),
+          maintenanceEnabled: formData.maintenanceEnabled !== undefined ? formData.maintenanceEnabled : (appSettings.maintenanceEnabled || false),
+          maintenanceTitle: formData.maintenanceTitle !== undefined ? formData.maintenanceTitle : (appSettings.maintenanceTitle || 'سنعود بعد قليل انتظرونا'),
+          maintenanceMessage: formData.maintenanceMessage !== undefined ? formData.maintenanceMessage : (appSettings.maintenanceMessage || 'نقوم حالياً بإجراء بعض التحديثات وأعمال الصيانة لتحسين تجربة استخدام قناة الاتحاد السكندري. سنعود بعد قليل، انتظرونا!'),
+          maintenanceEstimatedTime: formData.maintenanceEstimatedTime !== undefined ? formData.maintenanceEstimatedTime : (appSettings.maintenanceEstimatedTime || ''),
           facebookPageUrl: facebookUrl,
           socialLinks: {
             facebook: facebookUrl,
@@ -4426,6 +4431,86 @@ export default function Admin() {
 
           {activeTab === 'settings' && (
             <div className="bg-white dark:bg-card-dark rounded-xl p-5 shadow-sm space-y-5 border border-border-light dark:border-border-dark">
+              
+              {/* Maintenance Mode Card */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 dark:bg-amber-950/25 border-2 border-amber-500/40 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-md">
+                      <Wrench size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>وضع الصيانة</span>
+                        {(formData.maintenanceEnabled !== undefined ? formData.maintenanceEnabled : (appSettings.maintenanceEnabled || false)) ? (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black animate-pulse">
+                            مُفعل حالياً
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-surface-dark text-slate-500 text-[10px] font-black">
+                            معطل (التطبيق متاح للجميع)
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold">
+                        عند التفعيل، تظهر شاشة صيانة لجميع الزوار مع استثناء المسؤولين للإشراف
+                      </p>
+                    </div>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={formData.maintenanceEnabled !== undefined ? formData.maintenanceEnabled : (appSettings.maintenanceEnabled || false)}
+                      onChange={(e) => setFormData({...formData, maintenanceEnabled: e.target.checked})}
+                      className="sr-only peer"
+                    />
+                    <div className="w-12 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-amber-500"></div>
+                  </label>
+                </div>
+
+                <div className="pt-2 border-t border-amber-500/20 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 mb-1 block">
+                      عنوان شاشة الصيانة
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.maintenanceTitle !== undefined ? formData.maintenanceTitle : (appSettings.maintenanceTitle || 'سنعود بعد قليل انتظرونا')}
+                      onChange={(e) => setFormData({...formData, maintenanceTitle: e.target.value})}
+                      placeholder="سنعود بعد قليل انتظرونا"
+                      className="w-full p-2.5 rounded-xl border border-amber-300/60 dark:border-amber-900/60 bg-white dark:bg-card-dark text-xs font-bold text-slate-900 dark:text-white focus:border-amber-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 mb-1 block">
+                      الوقت المتوقع للعودة (اختياري)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.maintenanceEstimatedTime !== undefined ? formData.maintenanceEstimatedTime : (appSettings.maintenanceEstimatedTime || '')}
+                      onChange={(e) => setFormData({...formData, maintenanceEstimatedTime: e.target.value})}
+                      placeholder="مثال: خلال 30 دقيقة / الساعة 10:00 مساءً"
+                      className="w-full p-2.5 rounded-xl border border-amber-300/60 dark:border-amber-900/60 bg-white dark:bg-card-dark text-xs font-bold text-slate-900 dark:text-white focus:border-amber-500 outline-none"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="text-[10px] font-black text-slate-700 dark:text-slate-300 mb-1 block">
+                      رسالة الصيانة والتوضيح
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={formData.maintenanceMessage !== undefined ? formData.maintenanceMessage : (appSettings.maintenanceMessage || 'نقوم حالياً بإجراء بعض التحديثات وأعمال الصيانة لتحسين تجربة استخدام قناة الاتحاد السكندري. سنعود بعد قليل، انتظرونا!')}
+                      onChange={(e) => setFormData({...formData, maintenanceMessage: e.target.value})}
+                      placeholder="اكتب تفاصيل الرسالة المعروضة للجماهير..."
+                      className="w-full p-2.5 rounded-xl border border-amber-300/60 dark:border-amber-900/60 bg-white dark:bg-card-dark text-xs font-bold text-slate-900 dark:text-white focus:border-amber-500 outline-none resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="pb-4 border-b border-border-light dark:border-border-dark">
                  <h3 className="text-sm font-black mb-1">الهوية البصرية</h3>
                  <p className="text-[10px] text-slate-500 font-bold">تحكم في اسم وشعار التطبيق الذي يظهر لجميع المستخدمين</p>
