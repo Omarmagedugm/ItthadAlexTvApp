@@ -1,0 +1,21 @@
+{
+  "headers": [
+    {
+      "source": "/firebase-messaging-sw.js",
+      "headers": [
+        { "key": "Content-Type", "value": "text/javascript" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Content-Type", "value": "text/javascript" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
