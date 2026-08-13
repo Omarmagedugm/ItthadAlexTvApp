@@ -15,6 +15,7 @@ import {
   deleteDoc, 
   doc, 
   setDoc,
+  writeBatch,
   query,
   orderBy,
   limit,
@@ -85,7 +86,9 @@ import {
   CheckCircle2,
   Layers,
   ShieldCheck,
-  FileSpreadsheet
+  FileSpreadsheet,
+  RefreshCw,
+  Upload
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import AdminSidebar from '../components/AdminSidebar';
@@ -558,6 +561,71 @@ export default function Admin() {
     }
   };
 
+  const [isRestoring, setIsRestoring] = useState(false);
+  const restoreFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleRestoreDatabase = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!window.confirm('تحذير: هل أنت متأكد من استعادة النسخة الاحتياطية ومزامنتها في قاعدة البيانات؟')) {
+      if (restoreFileInputRef.current) restoreFileInputRef.current.value = '';
+      return;
+    }
+
+    setIsRestoring(true);
+    const toastId = toast.loading('جاري قراءة واستعادة ملف النسخة الاحتياطية...');
+    try {
+      const text = await file.text();
+      const backupData = JSON.parse(text);
+
+      let restoredCollections = 0;
+      let restoredDocs = 0;
+
+      for (const [collName, items] of Object.entries<any>(backupData)) {
+        if (!Array.isArray(items) || items.length === 0) continue;
+
+        let batch = writeBatch(db);
+        let batchCount = 0;
+
+        for (const item of items) {
+          const { id, ...data } = item;
+          const docId = id || item.uid;
+          if (!docId) continue;
+
+          const ref = doc(db, collName, String(docId));
+          batch.set(ref, cleanPayload({ id: docId, ...data }), { merge: true });
+          batchCount++;
+          restoredDocs++;
+
+          if (batchCount === 400) {
+            await batch.commit();
+            batch = writeBatch(db);
+            batchCount = 0;
+          }
+        }
+
+        if (batchCount > 0) {
+          await batch.commit();
+        }
+        restoredCollections++;
+      }
+
+      toast.success(`تمت استعادة النسخة بنجاح! (${restoredCollections} جداول، ${restoredDocs} سجل)`, { id: toastId });
+      
+      // Refresh local state if users are restored
+      if (backupData.users && Array.isArray(backupData.users)) {
+        useAppStore.getState().setUsers(backupData.users);
+      }
+    } catch (err: any) {
+      console.error('Restore error:', err);
+      toast.error('حدث خطأ أثناء استعادة النسخة الاحتياطية: ' + (err.message || 'خطأ غير معروف'), { id: toastId });
+    } finally {
+      setIsRestoring(false);
+      if (restoreFileInputRef.current) restoreFileInputRef.current.value = '';
+    }
+  };
+
   const [notificationForm, setNotificationForm] = useState({ title: '', body: '', target: 'all' });
   const [isSending, setIsSending] = useState(false);
 
@@ -780,17 +848,28 @@ export default function Admin() {
     return () => unsub();
   }, []);
 
-  // Sync users with Auth whenever admin opens the users management tab
+  const [syncingUsers, setSyncingUsers] = useState(false);
+
+  const handleSyncUsers = async (showToast = true) => {
+    setSyncingUsers(true);
+    if (showToast) toast.loading('جاري تحديث قائمة الأعضاء...', { id: 'sync-users' });
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      const freshUsers = snap.docs.map(d => ({ id: d.id, uid: d.id, ...(d.data() as any) }));
+      useAppStore.getState().setUsers(freshUsers);
+      if (showToast) toast.success(`تم تحديث قائمة الأعضاء بنجاح (${freshUsers.length} عضو)`, { id: 'sync-users' });
+    } catch (err: any) {
+      console.warn('Error syncing users:', err);
+      if (showToast) toast.error('حدث خطأ أثناء تحديث قائمة الأعضاء', { id: 'sync-users' });
+    } finally {
+      setSyncingUsers(false);
+    }
+  };
+
+  // Sync users whenever admin opens the users management tab
   useEffect(() => {
     if (activeTab === 'users') {
-      fetch('/api/users/sync-auth', { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-             console.log(`Successfully synced users with Auth. Created ${data.createdCount} documents. Total: ${data.totalNow}`);
-          }
-        })
-        .catch(err => console.error('Error syncing auth users:', err));
+      handleSyncUsers(false);
     }
   }, [activeTab]);
 
@@ -1896,6 +1975,7 @@ export default function Admin() {
              activeTab === 'city' ? 'طقس الإسكندرية' :
              activeTab === 'live' ? 'البث المباشر' :
              activeTab === 'ai-studio' ? 'إعدادات استوديو الصور (AI)' :
+             activeTab === 'backup' ? 'النسخ الاحتياطي واستعادة البيانات' :
              activeTab === 'comments' ? 'تعليقات البث المباشر' : 'لوحة التحكم'}
           </h1>
           <div className="flex items-center gap-2">
@@ -4068,6 +4148,21 @@ export default function Admin() {
 
           {activeTab === 'users' && (
             <div className="flex flex-col gap-6">
+              <div className="flex items-center justify-between flex-wrap gap-3 bg-white dark:bg-card-dark p-4 rounded-3xl border border-border-light dark:border-border-dark shadow-sm">
+                <div>
+                  <h3 className="font-black text-sm text-slate-800 dark:text-white">إدارة أعضاء وحسابات التطبيق</h3>
+                  <p className="text-xs text-slate-400 font-bold">مزامنة الأعضاء المسجلين والتحكم بالصلاحيات والرتب</p>
+                </div>
+                <button
+                  onClick={() => handleSyncUsers(true)}
+                  disabled={syncingUsers}
+                  className="px-5 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-2xl text-xs font-black flex items-center gap-2 shadow-md transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <RefreshCw size={15} className={syncingUsers ? 'animate-spin' : ''} />
+                  <span>{syncingUsers ? 'جاري المزامنة والتحديث...' : 'تحديث ومزامنة الأعضاء'}</span>
+                </button>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                  <div className="bg-white dark:bg-card-dark p-6 rounded-[32px] border border-border-light dark:border-border-dark shadow-sm">
                     <div className="flex items-center gap-4">
@@ -5184,6 +5279,79 @@ export default function Admin() {
            )}
 
            {activeTab === 'business' && <AdminBusiness />}
+
+           {activeTab === 'backup' && (
+             <div className="flex flex-col gap-6 max-w-4xl mx-auto">
+               <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 md:p-8 rounded-[32px] shadow-lg border border-slate-700">
+                 <div className="flex items-center gap-4 mb-4">
+                   <div className="w-14 h-14 rounded-2xl bg-primary/20 text-primary flex items-center justify-center border border-primary/30">
+                     <Database size={28} />
+                   </div>
+                   <div>
+                     <h2 className="text-xl font-black">النسخ الاحتياطي واستعادة البيانات</h2>
+                     <p className="text-xs text-slate-300 font-bold">تصدير واسترجاع بيانات الأعضاء، الأخبار، الميديا، والمباريات بالكامل</p>
+                   </div>
+                 </div>
+                 <p className="text-xs text-slate-400 leading-relaxed font-bold">
+                   يمكنك تحميل نسخة كاملة من كافة بيانات التطبيق بصيغة JSON، أو استعادة نسخة احتياطية سابقة لمزامنتها مع قاعدة بيانات التطبيق.
+                 </p>
+               </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 {/* Export */}
+                 <div className="bg-white dark:bg-card-dark p-6 rounded-[32px] border border-border-light dark:border-border-dark shadow-sm flex flex-col justify-between">
+                   <div className="space-y-3">
+                     <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                       <Download size={24} />
+                     </div>
+                     <h3 className="font-black text-base text-slate-800 dark:text-white">تصدير نسخة احتياطية</h3>
+                     <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
+                       تحميل ملف يحتوي على كافة الجداول (الأعضاء، المنشورات، الأخبار، التاريخ، الإعدادات).
+                     </p>
+                   </div>
+                   <button
+                     onClick={handleExportDatabase}
+                     disabled={isExporting}
+                     className="mt-6 w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 disabled:opacity-50"
+                   >
+                     {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                     <span>{isExporting ? 'جاري تصدير البيانات...' : 'تحميل نسخة احتياطية (JSON)'}</span>
+                   </button>
+                 </div>
+
+                 {/* Import / Restore */}
+                 <div className="bg-white dark:bg-card-dark p-6 rounded-[32px] border border-border-light dark:border-border-dark shadow-sm flex flex-col justify-between">
+                   <div className="space-y-3">
+                     <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                       <Upload size={24} />
+                     </div>
+                     <h3 className="font-black text-base text-slate-800 dark:text-white">استعادة نسخة احتياطية</h3>
+                     <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
+                       رفع ملف النسخة الاحتياطية (JSON) واسترجاع كافة الأعضاء والبيانات المفقودة فوراً.
+                     </p>
+                   </div>
+
+                   <div>
+                     <input
+                       type="file"
+                       ref={restoreFileInputRef}
+                       accept=".json"
+                       onChange={handleRestoreDatabase}
+                       className="hidden"
+                     />
+                     <button
+                       onClick={() => restoreFileInputRef.current?.click()}
+                       disabled={isRestoring}
+                       className="mt-6 w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 disabled:opacity-50"
+                     >
+                       {isRestoring ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                       <span>{isRestoring ? 'جاري استعادة البيانات...' : 'اختيار واستعادة ملف النسخة (JSON)'}</span>
+                     </button>
+                   </div>
+                 </div>
+               </div>
+             </div>
+           )}
         </div>
       </main>
 

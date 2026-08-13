@@ -107,11 +107,11 @@ export function useFirestoreSync() {
         }
       }, 'settings/homeLayout', OperationType.GET);
 
-      // Realtime listeners strictly for frequently changing social/interactive data
-      unsubs.push(subscribeSnapshot(query(collection(db, 'fan_posts'), orderBy('createdAt', 'desc'), limit(20)), s => setFanPosts(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'fan_posts'));
-      unsubs.push(subscribeSnapshot(query(collection(db, 'polls'), orderBy('createdAt', 'desc'), limit(10)), s => setPolls(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'polls'));
-      unsubs.push(subscribeSnapshot(query(collection(db, 'predictions'), orderBy('createdAt', 'desc'), limit(25)), s => setPredictions(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'predictions'));
-      unsubs.push(subscribeSnapshot(query(collection(db, 'users'), limit(200)), s => setUsers(s.docs.map(d => ({id: d.id, uid: d.id, ...(d.data() as any)})) as any), 'users'));
+      // Realtime listeners strictly for frequently changing social/interactive and core member data
+      unsubs.push(subscribeSnapshot(query(collection(db, 'fan_posts'), orderBy('createdAt', 'desc'), limit(100)), s => setFanPosts(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'fan_posts'));
+      unsubs.push(subscribeSnapshot(query(collection(db, 'polls'), orderBy('createdAt', 'desc'), limit(20)), s => setPolls(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'polls'));
+      unsubs.push(subscribeSnapshot(query(collection(db, 'predictions'), orderBy('createdAt', 'desc'), limit(100)), s => setPredictions(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'predictions'));
+      unsubs.push(subscribeSnapshot(collection(db, 'users'), s => setUsers(s.docs.map(d => ({id: d.id, uid: d.id, ...(d.data() as any)})) as any), 'users'));
       
       unsubs.push(unsubLiveFootball, unsubLiveBasketball, unsubMatches, unsubNews, unsubMedia, unsubLayout);
 
@@ -237,12 +237,15 @@ export function useFirestoreSync() {
         } catch (e) { console.warn(`Fetch doc ${path} failed`, e); }
       };
 
+      try {
+        if (typeof window !== 'undefined') localStorage.removeItem('fs_cache_users');
+      } catch (e) {}
+
       await Promise.allSettled([
         fetchDocItem('settings/global', setSettings),
         fetchDocItem('settings/ai_config', setAiConfig),
         fetchDocItem('city_info/alexandria', setCityInfo),
         fetchDocItem('club_members_settings/main', setClubMembersSettings),
-        fetchCol('users', setUsers),
         fetchCol('clubs', setClubs),
         fetchCol('products', setProducts),
         fetchCol('ads', setAds, query(collection(db, 'ads'), where('active', '==', true), orderBy('order', 'asc'))),
