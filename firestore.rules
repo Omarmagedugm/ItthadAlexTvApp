@@ -421,8 +421,8 @@ service cloud.firestore {
     }
 
     match /world_applications/{applicationId} {
-      allow read: if isAdmin() || isUserManager() || (isSignedIn() && resource.data.applicantUid == request.auth.uid);
-      allow create: if isSignedIn();
+      allow read: if true;
+      allow create: if true;
       allow update, delete: if isAdmin() || isUserManager();
     }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { 
   Globe, 
@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { WorldGroup, WorldCountry, WorldApplication, WorldEvent, WorldHelpRequest, WorldGroupMember } from '../../types/worldFans';
-import { doc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { db, cleanFirestoreData } from '../../lib/firebase';
 import { defaultWorldGroups, defaultWorldCountries } from '../../data/defaultWorldFansData';
 import { CountryFlag } from '../worldFans/CountryFlag';
@@ -48,6 +48,26 @@ export const AdminWorldFans: React.FC = () => {
 
   const [activeSubTab, setActiveSubTab] = useState<'groups' | 'applications' | 'countries' | 'events'>('groups');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Real-time synchronization for applications
+  useEffect(() => {
+    try {
+      const unsub = onSnapshot(collection(db, 'world_applications'), (snapshot) => {
+        const apps = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as WorldApplication[];
+        apps.sort((a, b) => {
+          if (a.status === 'pending' && b.status !== 'pending') return -1;
+          if (a.status !== 'pending' && b.status === 'pending') return 1;
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        });
+        setWorldApplications(apps);
+      }, (err) => {
+        console.warn('Applications snapshot listener warning:', err);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.warn(e);
+    }
+  }, [setWorldApplications]);
 
   // Group Modal State
   const [editingGroup, setEditingGroup] = useState<WorldGroup | null>(null);
@@ -531,17 +551,6 @@ export const AdminWorldFans: React.FC = () => {
 
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between">
                     <div className="flex items-center gap-1">
-                      {group.whatsappGroupUrl && (
-                        <a
-                          href={group.whatsappGroupUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 hover:scale-105"
-                          title="جروب الواتساب"
-                        >
-                          <MessageCircle size={14} />
-                        </a>
-                      )}
                       <a
                         href={`/world-fans/group/${group.id}`}
                         target="_blank"
@@ -1024,7 +1033,7 @@ export const AdminWorldFans: React.FC = () => {
                       onChange={(e) => setGroupForm({ ...groupForm, status: e.target.checked ? 'official' : 'community' })}
                       className="rounded text-emerald-600 focus:ring-emerald-500"
                     />
-                    <span className="whitespace-nowrap">رابطة رسمية معتمدة 👑</span>
+                    <span className="whitespace-nowrap">رابطة رسمية 👑</span>
                   </label>
 
                   <label className="inline-flex items-center gap-2 cursor-pointer font-bold text-slate-700 dark:text-slate-300 text-xs shrink-0 whitespace-nowrap">

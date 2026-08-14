@@ -128,20 +128,20 @@ export default function TopHeader() {
   return (
     <>
       {/* Added a spacer to prevent content from going under the fixed header */}
-      <div style={{ height: 'calc(env(safe-area-inset-top) + 58px)' }} className="w-full"></div>
-      <header id="global-header" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8px)' }} className="fixed top-0 inset-x-0 w-full z-50 bg-background-light/85 dark:bg-background-dark/85 backdrop-blur-xl border-b border-border-light/40 dark:border-border-dark/40 px-4 md:px-8 pb-2.5 shadow-sm">
+      <div style={{ height: 'calc(env(safe-area-inset-top) + 68px)' }} className="w-full"></div>
+      <header id="global-header" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8px)' }} className="fixed top-0 inset-x-0 w-full z-50 bg-background-light/85 dark:bg-background-dark/85 backdrop-blur-xl border-b border-border-light/40 dark:border-border-dark/40 px-3 sm:px-4 md:px-8 pb-2.5 shadow-sm">
         <div className="flex items-center justify-between w-full max-w-7xl mx-auto">
           {/* Right Section: Mobile Menu / Back + Logo */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {isHome ? (
               <motion.button 
                 id="menu-button"
                 aria-label="القائمة الرئيسية"
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setIsMenuOpen(true)}
-                className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all duration-300"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all duration-300"
               >
-                <Menu size={20} strokeWidth={2.5} />
+                <Menu size={22} strokeWidth={2.5} />
               </motion.button>
             ) : (
               <motion.button 
@@ -149,23 +149,23 @@ export default function TopHeader() {
                 aria-label="الرجوع للصفحة السابقة"
                 whileTap={{ scale: 0.9 }}
                 onClick={() => navigate(-1)}
-                className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all duration-300"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all duration-300"
               >
-                <ChevronRight size={24} className="rotate-180" />
+                <ChevronRight size={26} className="rotate-180" />
               </motion.button>
             )}
 
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" className="flex items-center gap-2 py-0.5">
               {currentLogo && !imageError ? (
                 <img 
                   src={currentLogo} 
                   alt={title} 
-                  className="h-10 sm:h-12 w-auto max-w-[140px] sm:max-w-[180px] object-contain drop-shadow-sm transition-all duration-300" 
+                  className="h-14 sm:h-16 w-auto max-w-[200px] sm:max-w-[260px] object-contain drop-shadow-md transition-all duration-300" 
                   referrerPolicy="no-referrer"
                   onError={() => setImageError(true)}
                 />
               ) : (
-                <h1 className="text-sm font-black tracking-tight text-primary-dark dark:text-white uppercase line-clamp-1 max-w-[160px]">
+                <h1 className="text-lg sm:text-xl font-black tracking-tight text-primary-dark dark:text-white uppercase line-clamp-1 max-w-[200px]">
                   {appSettings?.logoText || title}
                 </h1>
               )}

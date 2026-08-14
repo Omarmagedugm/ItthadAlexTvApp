@@ -8,7 +8,6 @@ import {
   MapPin, 
   ShieldCheck, 
   Calendar, 
-  MessageCircle, 
   Share2, 
   Sparkles, 
   CheckCircle2, 
@@ -339,7 +338,6 @@ export const WorldGroupDetail: React.FC = () => {
   };
 
   const isOfficial = group.verified || group.status === 'approved' || group.status === 'official';
-  const whatsappUrl = group.whatsappGroupUrl || group.socialLinks?.whatsapp;
 
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark pb-28 pt-2">
@@ -504,20 +502,20 @@ export const WorldGroupDetail: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="mt-2 flex items-center gap-2">
+                  <div className="mt-2 flex items-center gap-2 flex-wrap sm:flex-nowrap">
                     {isOfficial ? (
-                      <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-md">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-md shrink-0 whitespace-nowrap">
                         <ShieldCheck size={13} />
-                        <span>رابطة رسمية معتمدة</span>
+                        <span>رابطة رسمية</span>
                       </span>
                     ) : (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-emerald-200 border border-white/10">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-emerald-200 border border-white/10 shrink-0 whitespace-nowrap">
                         مجتمع جماهيري
                       </span>
                     )}
 
                     {group.adminName && (
-                      <span className="text-[10px] text-emerald-200/80 font-medium">
+                      <span className="text-[10px] text-emerald-200/90 font-medium whitespace-nowrap truncate max-w-[200px] sm:max-w-xs">
                         المشرف: {group.adminName}
                       </span>
                     )}
@@ -525,33 +523,20 @@ export const WorldGroupDetail: React.FC = () => {
                 </div>
               </div>
 
-              {/* Action Buttons: Join & WhatsApp */}
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+              {/* Action Button: Join Group */}
+              <div className="w-full sm:w-auto">
                 <button
                   onClick={handleToggleJoin}
                   disabled={isJoining}
-                  className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-2xl font-black text-xs shadow-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all ${
+                  className={`w-full sm:w-auto px-6 py-3 rounded-2xl font-black text-xs shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all ${
                     hasJoined
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
-                      : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white'
+                      ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/40 hover:bg-emerald-500/30'
+                      : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 shadow-amber-500/20'
                   }`}
                 >
-                  <CheckCircle2 size={15} />
+                  <CheckCircle2 size={16} />
                   <span>{hasJoined ? 'أنت عضو في الرابطة ✓' : 'انضم للرابطة'}</span>
                 </button>
-
-                {whatsappUrl && (
-                  <a
-                    href={whatsappUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all shrink-0"
-                    title="جروب الواتساب الرسمي للرابطة"
-                  >
-                    <MessageCircle size={16} />
-                    <span className="hidden sm:inline">جروب الواتساب</span>
-                  </a>
-                )}
               </div>
             </div>
 
@@ -583,7 +568,7 @@ export const WorldGroupDetail: React.FC = () => {
                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
             }`}
           >
-            📜 حائط الرابطة ({groupPosts.length})
+            💬 المنتدى ({groupPosts.length})
           </button>
           <button
             onClick={() => setActiveTab('events')}
@@ -847,21 +832,6 @@ export const WorldGroupDetail: React.FC = () => {
                       <span className="text-xs font-black text-slate-800 dark:text-white">{group.adminName}</span>
                     </div>
                   )}
-
-                  {whatsappUrl && (
-                    <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50">
-                      <span className="text-[10px] text-slate-400 font-bold block mb-1">التواصل الرسمي</span>
-                      <a
-                        href={whatsappUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs font-black text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
-                      >
-                        <span>مجموعة الواتساب المعتمدة</span>
-                        <ExternalLink size={12} />
-                      </a>
-                    </div>
-                  )}
                 </div>
               </div>
             </motion.div>
@@ -1089,7 +1059,7 @@ export const WorldGroupDetail: React.FC = () => {
                       className="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4"
                     />
                     <span className="font-bold text-slate-800 dark:text-white text-xs whitespace-nowrap">
-                      🟢 رابطة رسمية معتمدة
+                      🟢 رابطة رسمية
                     </span>
                   </label>
 
