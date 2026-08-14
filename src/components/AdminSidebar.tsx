@@ -55,7 +55,7 @@ export default function AdminSidebar({ activeTab, setActiveTab, onClose }: Admin
   
   const hasRole = (role: AppRole | AppRole[]) => {
     if (isDev) return true;
-    if (profile.role === 'admin') return true;
+    if (profile.role === 'admin' || profile.role === 'superadmin') return true;
     const userRoles = [...(profile.roles || [])];
     
     // Legacy support
@@ -66,7 +66,7 @@ export default function AdminSidebar({ activeTab, setActiveTab, onClose }: Admin
     return requiredRoles.some(r => userRoles.includes(r));
   };
 
-  const isAdmin = isDev || profile.role === 'admin';
+  const isAdmin = isDev || profile.role === 'admin' || profile.role === 'superadmin';
 
   const groupedTabs = [
     { title: 'الرئيسية', items: [

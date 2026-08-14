@@ -24,10 +24,11 @@ import {
   X
 } from 'lucide-react';
 import { useAppStore } from '../../store';
-import { WorldGroup, WorldCountry, WorldApplication, WorldEvent, WorldHelpRequest } from '../../types/worldFans';
-import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { WorldGroup, WorldCountry, WorldApplication, WorldEvent, WorldHelpRequest, WorldGroupMember } from '../../types/worldFans';
+import { doc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
+import toast from 'react-hot-toast';
 import ImageUploader from '../ImageUploader';
 
 export const AdminWorldFans: React.FC = () => {
@@ -59,6 +60,65 @@ export const AdminWorldFans: React.FC = () => {
   const [editingEvent, setEditingEvent] = useState<WorldEvent | null>(null);
   const [isEventModalOpen, setIsEventModalOpen] = useState<boolean>(false);
   const [eventForm, setEventForm] = useState<Partial<WorldEvent>>({});
+
+  // Members Management Modal State
+  const [selectedGroupForMembers, setSelectedGroupForMembers] = useState<WorldGroup | null>(null);
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState<boolean>(false);
+  const [groupMembersList, setGroupMembersList] = useState<WorldGroupMember[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState<boolean>(false);
+  const [memberSearchQuery, setMemberSearchQuery] = useState<string>('');
+
+  // Open Members Modal & fetch from Firestore
+  const handleOpenMembersModal = async (group: WorldGroup) => {
+    setSelectedGroupForMembers(group);
+    setIsMembersModalOpen(true);
+    setLoadingMembers(true);
+    setMemberSearchQuery('');
+
+    try {
+      const q = query(
+        collection(db, 'world_group_members'),
+        where('groupId', '==', group.id)
+      );
+      const snapshot = await getDocs(q);
+      const members = snapshot.docs.map(d => ({
+        id: d.id,
+        ...(d.data() as Omit<WorldGroupMember, 'id'>)
+      }));
+      setGroupMembersList(members);
+    } catch (err) {
+      console.warn('Error fetching group members:', err);
+      toast.error('تعذر جلب قائمة الأعضاء');
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  // Remove member from group
+  const handleRemoveGroupMember = async (memberId: string) => {
+    if (!selectedGroupForMembers) return;
+    if (!window.confirm('هل أنت متأكد من إزالة هذا العضو من الرابطة؟')) return;
+
+    try {
+      await deleteDoc(doc(db, 'world_group_members', memberId));
+      const updatedList = groupMembersList.filter(m => m.id !== memberId);
+      setGroupMembersList(updatedList);
+
+      const newCount = Math.max(0, (Number(selectedGroupForMembers.memberCount) || 1) - 1);
+      const updatedGroups = worldGroups.map(g => g.id === selectedGroupForMembers.id ? { ...g, memberCount: newCount } : g);
+      setWorldGroups(updatedGroups);
+
+      await updateDoc(doc(db, 'world_groups', selectedGroupForMembers.id), {
+        memberCount: newCount
+      });
+
+      setSelectedGroupForMembers(prev => prev ? { ...prev, memberCount: newCount } : null);
+      toast.success('تمت إزالة العضو بنجاح');
+    } catch (err) {
+      console.error('Error removing member:', err);
+      toast.error('حدث خطأ أثناء إزالة العضو');
+    }
+  };
 
   // Save Group
   const handleSaveGroup = async (e: React.FormEvent) => {
@@ -322,8 +382,18 @@ export const AdminWorldFans: React.FC = () => {
                     </p>
 
                     <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-2xl mb-3">
-                      <div>الأعضاء: <span className="text-slate-800 dark:text-white font-black">{group.memberCount}</span></div>
+                      <div>الأعضاء: <span className="text-slate-800 dark:text-white font-black">{group.memberCount || 0} عضو</span></div>
                       <div>المسؤول: <span className="text-slate-800 dark:text-white font-black">{group.adminName || 'غير محدد'}</span></div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-3">
+                      <button
+                        onClick={() => handleOpenMembersModal(group)}
+                        className="flex-1 py-1.5 px-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 text-[11px] font-bold flex items-center justify-center gap-1.5 border border-emerald-500/20 active:scale-95 transition-all"
+                      >
+                        <Users size={13} />
+                        <span>إدارة الأعضاء ({group.memberCount || 0})</span>
+                      </button>
                     </div>
                   </div>
 
@@ -340,6 +410,15 @@ export const AdminWorldFans: React.FC = () => {
                           <MessageCircle size={14} />
                         </a>
                       )}
+                      <a
+                        href={`/world-fans/group/${group.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:scale-105"
+                        title="معاينة الرابطة في التطبيق"
+                      >
+                        <ExternalLink size={14} />
+                      </a>
                     </div>
 
                     <div className="flex items-center gap-1.5">
@@ -776,6 +855,143 @@ export const AdminWorldFans: React.FC = () => {
                 </button>
               </div>
             </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* 5. MEMBERS MANAGEMENT MODAL */}
+      {isMembersModalOpen && selectedGroupForMembers && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm overflow-y-auto">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-2xl rounded-3xl bg-white dark:bg-slate-800 p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto flex flex-col"
+          >
+            <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-700 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold">
+                  <Users size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 dark:text-white flex items-center gap-2">
+                    <span>أعضاء رابطة: {selectedGroupForMembers.name}</span>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                      {selectedGroupForMembers.memberCount || 0} عضو
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
+                    {selectedGroupForMembers.city}، {selectedGroupForMembers.countryName} {selectedGroupForMembers.countryFlag}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsMembersModalOpen(false)}
+                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-500"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Quick search input */}
+            <div className="relative mb-4">
+              <input
+                type="text"
+                value={memberSearchQuery}
+                onChange={(e) => setMemberSearchQuery(e.target.value)}
+                placeholder="بحث في أسماء الأعضاء..."
+                className="w-full text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pr-9 pl-3 text-slate-800 dark:text-white"
+              />
+              <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            </div>
+
+            {/* Members List */}
+            <div className="flex-1 overflow-y-auto min-h-[250px] space-y-2">
+              {loadingMembers ? (
+                <div className="py-16 text-center">
+                  <div className="w-8 h-8 border-3 border-emerald-500/30 border-t-emerald-600 rounded-full animate-spin mx-auto mb-2" />
+                  <span className="text-xs font-bold text-slate-400">جاري تحميل الأعضاء من قاعدة البيانات...</span>
+                </div>
+              ) : groupMembersList.length > 0 ? (
+                <div className="space-y-2">
+                  {groupMembersList
+                    .filter(m => {
+                      if (!memberSearchQuery.trim()) return true;
+                      const q = memberSearchQuery.toLowerCase();
+                      return m.userName.toLowerCase().includes(q) || (m.userEmail && m.userEmail.toLowerCase().includes(q));
+                    })
+                    .map((member) => (
+                      <div
+                        key={member.id}
+                        className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700/60 flex items-center justify-between gap-3"
+                      >
+                        <div className="flex items-center gap-3">
+                          {member.userAvatar ? (
+                            <img
+                              src={member.userAvatar}
+                              alt=""
+                              className="w-9 h-9 rounded-full object-cover border border-emerald-500/30"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 font-black text-xs flex items-center justify-center">
+                              {member.userName?.charAt(0) || 'U'}
+                            </div>
+                          )}
+
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h5 className="text-xs font-black text-slate-800 dark:text-white">
+                                {member.userName}
+                              </h5>
+                              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                {member.userRole || 'عضو'}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1 mt-0.5">
+                              <Clock size={10} />
+                              <span>انضم {new Date(member.joinedAt).toLocaleDateString('ar-EG')}</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleRemoveGroupMember(member.id)}
+                          className="p-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 hover:bg-red-100 text-red-600 dark:text-red-400 text-xs font-bold"
+                          title="إزالة العضو من الرابطة"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="py-16 text-center space-y-2">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-700/60 text-slate-400 flex items-center justify-center mx-auto">
+                    <Users size={24} />
+                  </div>
+                  <h4 className="text-xs font-black text-slate-700 dark:text-slate-300">
+                    لا يوجد أعضاء منضمين عبر التطبيق حتى الآن
+                  </h4>
+                  <p className="text-[11px] text-slate-400 font-medium">
+                    العدد المسجل للرابطة: {selectedGroupForMembers.memberCount || 0} عضو
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+              <span className="text-xs text-slate-400 font-bold">
+                إجمالي الأعضاء المنضمين بالتطبيق: {groupMembersList.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsMembersModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 font-bold text-xs"
+              >
+                إغلاق
+              </button>
+            </div>
           </motion.div>
         </div>
       )}

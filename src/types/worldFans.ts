@@ -58,6 +58,22 @@ export interface WorldGroup {
   updatedAt?: string;
 }
 
+export interface WorldGroupMember {
+  id: string; // `${groupId}_${userId}`
+  groupId: string;
+  groupName?: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  userEmail?: string;
+  userCity?: string;
+  userRole?: string;
+  role?: 'group_admin' | 'moderator' | 'member' | string;
+  badges?: string[];
+  countryId?: string;
+  joinedAt: string;
+}
+
 export type WorldPostType = 'text' | 'image' | 'gallery' | 'video' | 'announcement' | 'match_watch' | 'event' | string;
 
 export interface WorldPostComment {
@@ -155,19 +171,6 @@ export interface WorldGalleryItem {
   uploadedBy?: string;
   uploadedByName?: string;
   createdAt: string;
-}
-
-export interface WorldGroupMember {
-  id: string; // `${groupId}_${userId}`
-  groupId: string;
-  groupName: string;
-  userId: string;
-  userName: string;
-  userAvatar: string;
-  userCity?: string;
-  role: 'group_admin' | 'moderator' | 'member';
-  badges: string[];
-  joinedAt: string;
 }
 
 export interface WorldHelpReply {

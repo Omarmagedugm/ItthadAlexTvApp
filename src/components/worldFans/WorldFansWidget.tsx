@@ -1,16 +1,123 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Globe, Users, ShieldCheck, ChevronLeft, MapPin, Sparkles, Plus } from 'lucide-react';
+import { Globe, Users, ChevronLeft, MapPin, Sparkles, Plus, Flag } from 'lucide-react';
 import { useAppStore } from '../../store';
+import { defaultWorldCountries, defaultWorldGroups } from '../../data/defaultWorldFansData';
+
+// Helper to guarantee accurate country emoji flag for any country
+export const getCountryFlag = (countryIdOrName?: string, fallbackFlag?: string): string => {
+  if (!countryIdOrName && !fallbackFlag) return '🌍';
+  const val = (countryIdOrName || '').toLowerCase().trim();
+
+  const flagMap: Record<string, string> = {
+    ae: '🇦🇪', uae: '🇦🇪', 'الإمارات': '🇦🇪', 'الإمارات العربية المتحدة': '🇦🇪',
+    sa: '🇸🇦', ksa: '🇸🇦', 'السعودية': '🇸🇦', 'المملكة العربية السعودية': '🇸🇦',
+    kw: '🇰🇼', kuwait: '🇰🇼', 'الكويت': '🇰🇼',
+    gb: '🇬🇧', uk: '🇬🇧', 'المملكة المتحدة': '🇬🇧', 'بريطانيا': '🇬🇧', 'انجلترا': '🇬🇧', 'إنجلترا': '🇬🇧',
+    us: '🇺🇸', usa: '🇺🇸', 'الولايات المتحدة': '🇺🇸', 'الولايات المتحدة الأمريكية': '🇺🇸', 'امريكا': '🇺🇸', 'أمريكا': '🇺🇸',
+    de: '🇩🇪', germany: '🇩🇪', 'ألمانيا': '🇩🇪', 'المانيا': '🇩🇪',
+    qa: '🇶🇦', qatar: '🇶🇦', 'قطر': '🇶🇦',
+    om: '🇴🇲', oman: '🇴🇲', 'عمان': '🇴🇲', 'سلطنة عمان': '🇴🇲', 'سلطنة عُمان': '🇴🇲',
+    bh: '🇧🇭', bahrain: '🇧🇭', 'البحرين': '🇧🇭',
+    eg: '🇪🇬', egypt: '🇪🇬', 'مصر': '🇪🇬',
+    fr: '🇫🇷', france: '🇫🇷', 'فرنسا': '🇫🇷',
+    it: '🇮🇹', italy: '🇮🇹', 'إيطاليا': '🇮🇹', 'ايطاليا': '🇮🇹',
+    es: '🇪🇸', spain: '🇪🇸', 'إسبانيا': '🇪🇸', 'اسبانيا': '🇪🇸',
+    ca: '🇨🇦', canada: '🇨🇦', 'كندا': '🇨🇦',
+    au: '🇦🇺', australia: '🇦🇺', 'أستراليا': '🇦🇺', 'استراليا': '🇦🇺',
+    tr: '🇹🇷', turkey: '🇹🇷', 'تركيا': '🇹🇷',
+    jo: '🇯🇴', jordan: '🇯🇴', 'الأردن': '🇯🇴', 'الاردن': '🇯🇴',
+    lb: '🇱🇧', lebanon: '🇱🇧', 'لبنان': '🇱🇧',
+    iq: '🇮🇶', iraq: '🇮🇶', 'العراق': '🇮🇶',
+    sd: '🇸🇩', sudan: '🇸🇩', 'السودان': '🇸🇩',
+    nl: '🇳🇱', netherlands: '🇳🇱', 'هولندا': '🇳🇱',
+    se: '🇸🇪', sweden: '🇸🇪', 'السويد': '🇸🇪',
+  };
+
+  if (flagMap[val]) return flagMap[val];
+
+  if (fallbackFlag && fallbackFlag !== '🏳️' && fallbackFlag !== '🌍') {
+    return fallbackFlag;
+  }
+
+  return '🌍';
+};
 
 export default function WorldFansWidget() {
   const navigate = useNavigate();
-  const { worldCountries, worldGroups } = useAppStore();
+  const { worldCountries, worldGroups, worldEvents } = useAppStore();
 
-  const activeCountries = worldCountries.filter(c => c.active);
-  const approvedGroups = worldGroups.filter(g => g.status === 'approved');
-  const totalFans = activeCountries.reduce((acc, c) => acc + (c.fanCount || 0), 0);
+  // Active groups fallback to default groups if empty
+  const allGroups = (worldGroups && worldGroups.length > 0) ? worldGroups : defaultWorldGroups;
+  const activeGroups = allGroups.filter(g => g.active !== false && g.status !== 'rejected');
+
+  // Active countries fallback to default countries if empty
+  const allCountries = (worldCountries && worldCountries.length > 0) ? worldCountries : defaultWorldCountries;
+  const activeCountries = allCountries.filter(c => c.active !== false);
+
+  // Group actual groups by country to get exact dynamic numbers
+  const countryStatsMap = React.useMemo(() => {
+    const map = new Map<string, {
+      countryId: string;
+      countryName: string;
+      countryFlag: string;
+      groupsCount: number;
+      fanCount: number;
+    }>();
+
+    // First populate from active countries
+    activeCountries.forEach(c => {
+      map.set(c.id, {
+        countryId: c.id,
+        countryName: c.name,
+        countryFlag: getCountryFlag(c.id, c.flag),
+        groupsCount: 0,
+        fanCount: 0,
+      });
+    });
+
+    // Aggregate actual group counts and member sums
+    activeGroups.forEach(g => {
+      const cId = g.countryId || 'other';
+      const flag = getCountryFlag(g.countryId || g.countryName, g.countryFlag);
+      const name = g.countryName || 'دولة أخرى';
+      const members = Number(g.memberCount) || 0;
+
+      if (!map.has(cId)) {
+        map.set(cId, {
+          countryId: cId,
+          countryName: name,
+          countryFlag: flag,
+          groupsCount: 0,
+          fanCount: 0,
+        });
+      }
+
+      const entry = map.get(cId)!;
+      entry.groupsCount += 1;
+      entry.fanCount += members;
+    });
+
+    return map;
+  }, [activeGroups, activeCountries]);
+
+  // Actual dynamic list of countries that have actual groups or fans
+  const dynamicCountriesList = React.useMemo(() => {
+    const list = Array.from(countryStatsMap.values());
+    
+    // Sort so countries with active groups appear first, then by fan count
+    return list
+      .filter(item => item.groupsCount > 0 || item.fanCount > 0)
+      .sort((a, b) => (b.groupsCount - a.groupsCount) || (b.fanCount - a.fanCount));
+  }, [countryStatsMap]);
+
+  // Dynamic Metrics
+  const approvedGroupsCount = activeGroups.length;
+  const representedCountriesCount = dynamicCountriesList.length > 0 ? dynamicCountriesList.length : activeCountries.length;
+  
+  const totalFans = activeGroups.reduce((acc, g) => acc + (Number(g.memberCount) || 0), 0) ||
+    dynamicCountriesList.reduce((acc, c) => acc + (c.fanCount || 0), 0);
 
   return (
     <div id="world-fans-widget" className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#064e3b] via-[#065f46] to-[#042f2e] text-white p-5 shadow-xl border border-emerald-500/20">
@@ -50,15 +157,15 @@ export default function WorldFansWidget() {
         </button>
       </div>
 
-      {/* Stats Quick Bar */}
+      {/* Stats Quick Bar (Real Dynamic Numbers) */}
       <div className="relative z-10 grid grid-cols-3 gap-2 bg-black/25 backdrop-blur-md rounded-2xl p-2.5 mb-4 border border-white/10 text-center">
         <div>
           <div className="text-[10px] text-emerald-200/80 font-bold">الدول الممثلة</div>
-          <div className="text-sm font-black text-white tabular-nums">{activeCountries.length} دولة</div>
+          <div className="text-sm font-black text-white tabular-nums">{representedCountriesCount} دولة</div>
         </div>
         <div className="border-r border-l border-white/10">
           <div className="text-[10px] text-emerald-200/80 font-bold">الروابط المعتمدة</div>
-          <div className="text-sm font-black text-amber-300 tabular-nums">{approvedGroups.length} رابطة</div>
+          <div className="text-sm font-black text-amber-300 tabular-nums">{approvedGroupsCount} رابطة</div>
         </div>
         <div>
           <div className="text-[10px] text-emerald-200/80 font-bold">جمهور الاغتراب</div>
@@ -66,10 +173,10 @@ export default function WorldFansWidget() {
         </div>
       </div>
 
-      {/* Featured Countries Horizontal Scroll */}
+      {/* Featured Countries / Groups Horizontal Scroll */}
       <div className="relative z-10">
         <div className="flex items-center justify-between text-[11px] font-bold text-emerald-200/90 mb-2 px-1">
-          <span>أبرز الروابط والدول</span>
+          <span>أبرز الروابط والدول المعتمدة</span>
           <button 
             onClick={() => navigate('/world-fans')} 
             className="text-amber-300 hover:underline flex items-center gap-0.5 text-[10px]"
@@ -79,20 +186,20 @@ export default function WorldFansWidget() {
         </div>
 
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1">
-          {activeCountries.slice(0, 6).map((country) => (
+          {dynamicCountriesList.slice(0, 8).map((country) => (
             <motion.button
-              key={country.id}
+              key={country.countryId}
               whileTap={{ scale: 0.95 }}
-              onClick={() => navigate(`/world-fans?country=${country.id}`)}
+              onClick={() => navigate(`/world-fans?country=${country.countryId}`)}
               className="shrink-0 flex items-center gap-2 bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-md border border-white/15 rounded-2xl px-3 py-2 text-right transition-all group"
             >
-              <span className="text-xl">{country.flag}</span>
+              <span className="text-xl shrink-0 drop-shadow-sm">{country.countryFlag}</span>
               <div className="min-w-0">
                 <div className="text-xs font-black text-white group-hover:text-amber-300 transition-colors whitespace-nowrap">
-                  {country.name}
+                  {country.countryName}
                 </div>
                 <div className="text-[9px] text-emerald-200/80 font-medium whitespace-nowrap">
-                  {country.groupsCount || 1} رابطة • {country.fanCount || 0} مشجع
+                  {country.groupsCount > 0 ? `${country.groupsCount} رابطة` : 'تجمع جماهيري'} • {country.fanCount || 0} مشجع
                 </div>
               </div>
             </motion.button>

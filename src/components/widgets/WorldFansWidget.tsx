@@ -1,20 +1,27 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { Globe, Users, Calendar, MapPin, ChevronLeft, Sparkles, Flag, ArrowLeft } from 'lucide-react';
+import { Globe, Users, Calendar, MapPin, ChevronLeft, Sparkles, Plus, ArrowLeft } from 'lucide-react';
 import { useAppStore } from '../../store';
+import { defaultWorldCountries, defaultWorldGroups } from '../../data/defaultWorldFansData';
+import { getCountryFlag } from '../worldFans/WorldFansWidget';
 
 export const WorldFansWidget: React.FC = () => {
   const navigate = useNavigate();
   const { worldGroups, worldCountries, worldEvents } = useAppStore();
 
-  const activeGroups = worldGroups.filter(g => g.active !== false);
-  const featuredGroups = activeGroups.filter(g => g.featured || g.status === 'official').slice(0, 4);
-  const upcomingEvents = worldEvents.filter(e => e.status === 'upcoming');
+  const allGroups = (worldGroups && worldGroups.length > 0) ? worldGroups : defaultWorldGroups;
+  const activeGroups = allGroups.filter(g => g.active !== false && g.status !== 'rejected');
+
+  const allCountries = (worldCountries && worldCountries.length > 0) ? worldCountries : defaultWorldCountries;
+  const activeCountries = allCountries.filter(c => c.active !== false);
+
+  const featuredGroups = activeGroups.slice(0, 6);
+  const upcomingEvents = (worldEvents || []).filter(e => e.status === 'upcoming');
   const nextEvent = upcomingEvents.length > 0 ? upcomingEvents[0] : null;
 
-  const totalMembers = activeGroups.reduce((acc, g) => acc + (g.memberCount || 0), 0);
-  const totalCountries = worldCountries.filter(c => c.active !== false).length;
+  const totalMembers = activeGroups.reduce((acc, g) => acc + (Number(g.memberCount) || 0), 0);
+  const totalCountries = activeCountries.length;
 
   return (
     <div className="w-full">
@@ -63,26 +70,26 @@ export const WorldFansWidget: React.FC = () => {
         <div className="relative z-10 grid grid-cols-3 gap-2 p-2.5 rounded-2xl bg-black/25 backdrop-blur-md border border-white/10 mb-4">
           <div className="text-center">
             <div className="text-sm font-black text-amber-300 leading-tight">
-              {totalCountries || 8}+
+              {totalCountries} دولة
             </div>
             <div className="text-[10px] text-emerald-200/70 font-semibold">
-              دولة مشاركة
+              الدول الممثلة
             </div>
           </div>
           <div className="text-center border-x border-white/10">
             <div className="text-sm font-black text-white leading-tight">
-              {activeGroups.length || 10}
+              {activeGroups.length} رابطة
             </div>
             <div className="text-[10px] text-emerald-200/70 font-semibold">
-              رابطة نشطة
+              الروابط المعتمدة
             </div>
           </div>
           <div className="text-center">
             <div className="text-sm font-black text-emerald-300 leading-tight">
-              {totalMembers || 1500}+
+              +{totalMembers.toLocaleString('ar-EG')}
             </div>
             <div className="text-[10px] text-emerald-200/70 font-semibold">
-              مشجع مغترب
+              جمهور الاغتراب
             </div>
           </div>
         </div>
@@ -122,7 +129,7 @@ export const WorldFansWidget: React.FC = () => {
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] font-black text-emerald-200">
-              أبرز روابط المغتربين الرسمية
+              أبرز روابط المغتربين المعتمدة
             </span>
             <button
               onClick={() => navigate('/world-fans')}
@@ -133,39 +140,42 @@ export const WorldFansWidget: React.FC = () => {
           </div>
 
           <div className="flex gap-2.5 overflow-x-auto pb-1 no-scrollbar">
-            {featuredGroups.map((group) => (
-              <div
-                key={group.id}
-                onClick={() => navigate(`/world-fans/group/${group.id}`)}
-                className="shrink-0 w-36 p-2.5 rounded-2xl bg-white/10 hover:bg-white/15 active:scale-95 border border-white/10 cursor-pointer transition-all flex flex-col items-center text-center"
-              >
-                <div className="relative mb-2">
-                  <img
-                    src={group.logo || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80'}
-                    alt={group.name}
-                    className="w-12 h-12 rounded-xl object-cover border-2 border-emerald-400/50 shadow-md"
-                    referrerPolicy="no-referrer"
-                  />
-                  <span className="absolute -bottom-1 -right-1 text-sm drop-shadow">
-                    {group.countryFlag || '🌍'}
-                  </span>
+            {featuredGroups.map((group) => {
+              const flag = getCountryFlag(group.countryId || group.countryName, group.countryFlag);
+              return (
+                <div
+                  key={group.id}
+                  onClick={() => navigate(`/world-fans/group/${group.id}`)}
+                  className="shrink-0 w-36 p-2.5 rounded-2xl bg-white/10 hover:bg-white/15 active:scale-95 border border-white/10 cursor-pointer transition-all flex flex-col items-center text-center"
+                >
+                  <div className="relative mb-2">
+                    <img
+                      src={group.logo || 'https://upload.wikimedia.org/wikipedia/ar/thumb/0/0e/Al_Ittihad_Alexandria_Club_Logo.svg/1024px-Al_Ittihad_Alexandria_Club_Logo.svg.png'}
+                      alt={group.name}
+                      className="w-12 h-12 rounded-xl object-cover border-2 border-emerald-400/50 shadow-md bg-white/5"
+                      referrerPolicy="no-referrer"
+                    />
+                    <span className="absolute -bottom-1 -right-1 text-sm drop-shadow">
+                      {flag}
+                    </span>
+                  </div>
+                  <h4 className="text-xs font-bold text-white line-clamp-1">
+                    {group.name}
+                  </h4>
+                  <p className="text-[10px] text-emerald-200/80 mt-0.5 line-clamp-1">
+                    {group.city}، {group.countryName}
+                  </p>
+                  <div className="mt-2 text-[9px] font-bold text-amber-300/90 flex items-center gap-1">
+                    <Users size={10} />
+                    <span>{group.memberCount || 0} عضو</span>
+                  </div>
                 </div>
-                <h4 className="text-xs font-bold text-white line-clamp-1">
-                  {group.name}
-                </h4>
-                <p className="text-[10px] text-emerald-200/80 mt-0.5 line-clamp-1">
-                  {group.city}
-                </p>
-                <div className="mt-2 text-[9px] font-bold text-amber-300/90 flex items-center gap-1">
-                  <Users size={10} />
-                  <span>{group.memberCount || 0} عضو</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
 
             {/* CTA to Found a League */}
             <div
-              onClick={() => navigate('/world-fans?tab=found')}
+              onClick={() => navigate('/world-fans?action=found')}
               className="shrink-0 w-32 p-2.5 rounded-2xl bg-emerald-900/40 hover:bg-emerald-900/60 active:scale-95 border border-dashed border-emerald-400/40 cursor-pointer transition-all flex flex-col items-center justify-center text-center group/btn"
             >
               <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center mb-1.5 group-hover/btn:scale-110 transition-transform">

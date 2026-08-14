@@ -82,7 +82,7 @@ export const WorldFans: React.FC = () => {
           <div className="flex items-center gap-2">
             {isAdmin && (
               <button
-                onClick={() => navigate('/admin?tab=world_fans')}
+                onClick={() => navigate('/admin?tab=world-fans')}
                 className="flex items-center gap-1.5 text-[11px] font-black text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/50 px-3 py-1 rounded-xl border border-amber-400/40 shadow-sm active:scale-95 transition-all"
               >
                 <Settings size={13} />
@@ -123,7 +123,7 @@ export const WorldFans: React.FC = () => {
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => navigate('/admin?tab=world_fans')}
+                onClick={() => navigate('/admin?tab=world-fans')}
                 className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow flex items-center gap-1.5 active:scale-95 transition-all"
               >
                 <Settings size={14} />

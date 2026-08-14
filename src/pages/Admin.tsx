@@ -435,7 +435,7 @@ export default function Admin() {
 
   const isOmar = profile.email?.toLowerCase() === 'omarmagedugm@ittihad.club';
   const isDev = profile.email?.toLowerCase() === 'copyrightofficialco@gmail.com';
-  const isAdminUser = profile.role === 'admin' || (profile.roles && profile.roles.includes('admin'));
+  const isAdminUser = profile.role === 'admin' || profile.role === 'superadmin' || (profile.roles && profile.roles.includes('admin'));
   const isModeratorUser = profile.role === 'moderator' || (profile.roles && profile.roles.includes('moderator'));
   const hasAdminAccess = isAdminUser || isModeratorUser || isOmar || isDev;
 
@@ -5370,7 +5370,7 @@ export default function Admin() {
            )}
 
            {activeTab === 'business' && <AdminBusiness />}
-           {activeTab === 'world-fans' && <AdminWorldFans />}
+           {(activeTab === 'world-fans' || activeTab === 'world_fans') && <AdminWorldFans />}
 
            {activeTab === 'backup' && (
              <div className="flex flex-col gap-6 max-w-4xl mx-auto">

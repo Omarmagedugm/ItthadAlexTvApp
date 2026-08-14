@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import toast from 'react-hot-toast';
 import { 
   ArrowRight, 
   Users, 
@@ -24,13 +25,16 @@ import {
   X,
   Phone,
   Mail,
-  Globe
+  Globe,
+  UserCheck,
+  UserPlus,
+  Clock
 } from 'lucide-react';
 import { useAppStore } from '../store';
 import { WorldFeedTab } from '../components/worldFans/WorldFeedTab';
 import { WorldEventsTab } from '../components/worldFans/WorldEventsTab';
-import { WorldGroup } from '../types/worldFans';
-import { doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
+import { WorldGroup, WorldGroupMember } from '../types/worldFans';
+import { doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import ImageUploader from '../components/ImageUploader';
 
@@ -46,9 +50,11 @@ export const WorldGroupDetail: React.FC = () => {
     worldCountries 
   } = useAppStore();
 
-  const [activeTab, setActiveTab] = useState<'feed' | 'events' | 'about'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'events' | 'members' | 'about'>('feed');
   const [hasJoined, setHasJoined] = useState<boolean>(false);
   const [isJoining, setIsJoining] = useState<boolean>(false);
+  const [joinedMembers, setJoinedMembers] = useState<WorldGroupMember[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState<boolean>(true);
 
   // Admin edit state
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
@@ -61,6 +67,42 @@ export const WorldGroupDetail: React.FC = () => {
   // Admin permission check
   const isAdmin = profile?.role === 'admin' || profile?.role === 'superadmin';
   const isGroupAdmin = isAdmin || (currentUser?.uid && group?.adminUid === currentUser.uid);
+
+  // Realtime subscription to actual group members in Firestore
+  useEffect(() => {
+    if (!group?.id) return;
+
+    setLoadingMembers(true);
+    const membersQuery = query(
+      collection(db, 'world_group_members'),
+      where('groupId', '==', group.id)
+    );
+
+    const unsubscribe = onSnapshot(
+      membersQuery,
+      (snapshot) => {
+        const members = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...(docSnap.data() as Omit<WorldGroupMember, 'id'>)
+        }));
+        setJoinedMembers(members);
+        
+        if (currentUser?.uid) {
+          const isMember = members.some((m) => m.userId === currentUser.uid);
+          setHasJoined(isMember);
+        } else {
+          setHasJoined(false);
+        }
+        setLoadingMembers(false);
+      },
+      (error) => {
+        console.warn('Could not listen to group members:', error);
+        setLoadingMembers(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [group?.id, currentUser?.uid]);
 
   if (!group) {
     return (
@@ -83,28 +125,78 @@ export const WorldGroupDetail: React.FC = () => {
 
   const groupEvents = worldEvents.filter((e) => e.groupId === group.id);
   const groupPosts = worldPosts.filter((p) => p.groupId === group.id);
+  
+  // Calculate true actual members count
+  const actualMemberCount = Math.max(Number(group.memberCount) || 0, joinedMembers.length);
 
   // Handle Join League Toggle
   const handleToggleJoin = async () => {
+    if (!currentUser) {
+      toast.error('يرجى تسجيل الدخول أولاً للانضمام للرابطة');
+      navigate('/auth');
+      return;
+    }
+
     setIsJoining(true);
     try {
       const nextJoined = !hasJoined;
-      setHasJoined(nextJoined);
+      const memberDocId = `${group.id}_${currentUser.uid}`;
 
-      const newMemberCount = nextJoined 
-        ? (Number(group.memberCount) || 0) + 1 
-        : Math.max(0, (Number(group.memberCount) || 1) - 1);
+      if (nextJoined) {
+        // Add member record to Firestore
+        const newMemberRecord: WorldGroupMember = {
+          id: memberDocId,
+          groupId: group.id,
+          groupName: group.name,
+          countryId: group.countryId,
+          userId: currentUser.uid,
+          userName: profile.name || currentUser.displayName || 'مشجع اتحادي',
+          userAvatar: profile.avatar || currentUser.photoURL || '',
+          userEmail: profile.email || currentUser.email || '',
+          userRole: profile.role || 'member',
+          joinedAt: new Date().toISOString(),
+        };
 
-      const updated = worldGroups.map(g => g.id === group.id ? { ...g, memberCount: newMemberCount } : g);
-      setWorldGroups(updated);
+        await setDoc(doc(db, 'world_group_members', memberDocId), newMemberRecord);
+        setJoinedMembers((prev) => [newMemberRecord, ...prev.filter(m => m.userId !== currentUser.uid)]);
+        setHasJoined(true);
 
-      try {
-        await updateDoc(doc(db, 'world_groups', group.id), {
-          memberCount: newMemberCount
-        });
-      } catch (err) {
-        console.warn('Group member count local updated:', err);
+        const newCount = (Number(group.memberCount) || 0) + 1;
+        const updated = worldGroups.map(g => g.id === group.id ? { ...g, memberCount: newCount } : g);
+        setWorldGroups(updated);
+
+        try {
+          await updateDoc(doc(db, 'world_groups', group.id), {
+            memberCount: newCount
+          });
+        } catch (err) {
+          console.warn('Group member count updated:', err);
+        }
+
+        toast.success(`أهلاً بك! تم انضمامك بنجاح لرابطة ${group.name} 💚`);
+      } else {
+        // Remove member record from Firestore
+        await deleteDoc(doc(db, 'world_group_members', memberDocId));
+        setJoinedMembers((prev) => prev.filter(m => m.userId !== currentUser.uid));
+        setHasJoined(false);
+
+        const newCount = Math.max(0, (Number(group.memberCount) || 1) - 1);
+        const updated = worldGroups.map(g => g.id === group.id ? { ...g, memberCount: newCount } : g);
+        setWorldGroups(updated);
+
+        try {
+          await updateDoc(doc(db, 'world_groups', group.id), {
+            memberCount: newCount
+          });
+        } catch (err) {
+          console.warn('Group member count updated:', err);
+        }
+
+        toast.success('تم إلغاء الانضمام للرابطة');
       }
+    } catch (error) {
+      console.error('Error toggling group membership:', error);
+      toast.error('حدث خطأ أثناء تحديث الانضمام، حاول مرة أخرى');
     } finally {
       setIsJoining(false);
     }
@@ -432,8 +524,8 @@ export const WorldGroupDetail: React.FC = () => {
             {/* Quick Metrics Bar */}
             <div className="grid grid-cols-3 gap-2 p-3 rounded-2xl bg-black/30 backdrop-blur-md border border-white/10 text-center">
               <div>
-                <div className="text-base font-black text-white">{group.memberCount || 0}</div>
-                <div className="text-[10px] text-emerald-200/70 font-semibold">عضو مسجل</div>
+                <div className="text-base font-black text-white">{actualMemberCount}</div>
+                <div className="text-[10px] text-emerald-200/70 font-semibold">عضو منضم</div>
               </div>
               <div className="border-x border-white/10">
                 <div className="text-base font-black text-amber-300">{groupEvents.length}</div>
@@ -468,6 +560,16 @@ export const WorldGroupDetail: React.FC = () => {
             }`}
           >
             ☕ تجمعاتنا ({groupEvents.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('members')}
+            className={`flex-1 min-w-[100px] py-2 px-3 rounded-xl font-bold text-xs transition-all active:scale-95 ${
+              activeTab === 'members'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+            }`}
+          >
+            👥 الأعضاء ({actualMemberCount})
           </button>
           <button
             onClick={() => setActiveTab('about')}
@@ -510,6 +612,150 @@ export const WorldGroupDetail: React.FC = () => {
                 groups={worldGroups}
                 selectedGroupId={group.id}
               />
+            </motion.div>
+          )}
+
+          {activeTab === 'members' && (
+            <motion.div
+              key="members"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-4"
+            >
+              {/* Header and Stats */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm sm:text-base font-black text-slate-800 dark:text-white flex items-center gap-2">
+                    <Users size={20} className="text-emerald-600" />
+                    <span>أعضاء رابطة {group.name}</span>
+                    <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 rounded-xl border border-emerald-500/20">
+                      {actualMemberCount} عضو
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
+                    قائمة الأعضاء المنضمين والمشتركين رسمياً في هذه الرابطة
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleToggleJoin}
+                  disabled={isJoining}
+                  className={`px-4 py-2 rounded-2xl font-black text-xs shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all self-start sm:self-auto ${
+                    hasJoined
+                      ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/40 hover:bg-red-100'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  }`}
+                >
+                  {hasJoined ? (
+                    <>
+                      <X size={14} />
+                      <span>إلغاء الانضمام للرابطة</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={14} />
+                      <span>انضم الآن للرابطة</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Members Grid / List */}
+              {loadingMembers ? (
+                <div className="py-12 text-center">
+                  <div className="w-8 h-8 border-3 border-emerald-500/30 border-t-emerald-600 rounded-full animate-spin mx-auto mb-2" />
+                  <span className="text-xs font-bold text-slate-400">جاري تحميل قائمة الأعضاء...</span>
+                </div>
+              ) : joinedMembers.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {joinedMembers.map((member) => {
+                    const isSelf = member.userId === currentUser?.uid;
+                    const isLeader = group.adminUid === member.userId || member.userName === group.adminName;
+
+                    return (
+                      <div
+                        key={member.id}
+                        className={`p-3 rounded-2xl bg-white dark:bg-slate-800 border transition-all flex items-center justify-between gap-3 shadow-sm ${
+                          isSelf
+                            ? 'border-emerald-500/50 bg-emerald-50/20 dark:bg-emerald-950/20'
+                            : 'border-slate-200/80 dark:border-slate-700/70'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="relative shrink-0">
+                            {member.userAvatar ? (
+                              <img
+                                src={member.userAvatar}
+                                alt={member.userName}
+                                className="w-10 h-10 rounded-full object-cover border-2 border-emerald-500/40 shadow-sm"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 font-black text-sm flex items-center justify-center border border-emerald-500/30">
+                                {member.userName?.charAt(0) || 'U'}
+                              </div>
+                            )}
+                            {isLeader && (
+                              <span className="absolute -top-1 -right-1 text-xs" title="مسؤول الرابطة">
+                                👑
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <h4 className="text-xs font-black text-slate-800 dark:text-white truncate">
+                                {member.userName}
+                              </h4>
+                              {isSelf && (
+                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-emerald-500 text-white shrink-0">
+                                  أنت
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1 mt-0.5">
+                              <Clock size={10} />
+                              <span>انضم {new Date(member.joinedAt).toLocaleDateString('ar-EG', { month: 'short', year: 'numeric' })}</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        {isLeader ? (
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 shrink-0">
+                            المسؤول
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 shrink-0">
+                            عضو
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-8 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto">
+                    <Users size={24} />
+                  </div>
+                  <h4 className="text-sm font-black text-slate-800 dark:text-white">
+                    تضم الرابطة {actualMemberCount} مشجعاً مسجلاً
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto font-medium">
+                    كن أول المنضمين في التطبيق للظهور في قائمة الأعضاء الرسمية لرابطة {group.name}!
+                  </p>
+                  {!hasJoined && (
+                    <button
+                      onClick={handleToggleJoin}
+                      className="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md inline-flex items-center gap-1.5 active:scale-95 transition-all"
+                    >
+                      <UserPlus size={15} />
+                      <span>انضم الآن للرابطة</span>
+                    </button>
+                  )}
+                </div>
+              )}
             </motion.div>
           )}
 
