@@ -33,6 +33,10 @@ import {
   Dumbbell, 
   GraduationCap, 
   Plane, 
+  Tag,
+  Percent,
+  PercentSquare,
+  Gift,
   Grid,
   Loader2
 } from 'lucide-react';
@@ -83,7 +87,9 @@ export default function BusinessDirectory() {
     websiteUrl: '',
     ownerName: '',
     coverImage: '',
-    gallery: [] as string[]
+    gallery: [] as string[],
+    discountPercentage: '',
+    discountNote: ''
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -133,7 +139,9 @@ export default function BusinessDirectory() {
       websiteUrl: '',
       ownerName: profile?.name || '',
       coverImage: '',
-      gallery: []
+      gallery: [],
+      discountPercentage: '',
+      discountNote: ''
     });
     setEditingBusiness(null);
   };
@@ -164,7 +172,9 @@ export default function BusinessDirectory() {
       websiteUrl: bus.websiteUrl || '',
       ownerName: bus.ownerName || '',
       coverImage: bus.coverImage || '',
-      gallery: bus.gallery || []
+      gallery: bus.gallery || [],
+      discountPercentage: bus.discountPercentage !== undefined && bus.discountPercentage !== null ? String(bus.discountPercentage) : '',
+      discountNote: bus.discountNote || ''
     });
     setShowAddModal(true);
   };
@@ -225,6 +235,8 @@ export default function BusinessDirectory() {
           previousData: editingBusiness,
           requestedData: {
             ...formData,
+            discountPercentage: formData.discountPercentage ? Number(formData.discountPercentage) : '',
+            discountNote: formData.discountNote.trim(),
             description: formData.description.trim() || 'لا يوجد وصف مضاف حالياً.',
             address: formData.address.trim() || 'الإسكندرية',
             mapsUrl: cleanedMapsUrl,
@@ -245,7 +257,7 @@ export default function BusinessDirectory() {
         resetForm();
       } else {
         // Create new business submission (pending status)
-        const newDoc = {
+        const newDoc: any = {
           ownerId: currentUid,
           ownerName: formData.ownerName.trim() || profile?.name || 'عضو مجتمع الاتحاد',
           businessName: formData.businessName.trim(),
@@ -260,6 +272,8 @@ export default function BusinessDirectory() {
           websiteUrl: cleanedWebsiteUrl,
           coverImage: finalCoverImage,
           gallery: formData.gallery,
+          discountPercentage: formData.discountPercentage ? Number(formData.discountPercentage) : null,
+          discountNote: formData.discountNote.trim() || null,
           status: 'pending',
           featured: false,
           createdAt: new Date().toISOString(),
@@ -425,7 +439,7 @@ export default function BusinessDirectory() {
                     <div
                       key={bus.id}
                       onClick={() => navigate(`/business/${bus.id}`)}
-                      className="bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-primary/10 dark:from-amber-950/20 dark:to-primary/20 rounded-3xl p-4 border border-amber-500/30 shadow-lg hover:shadow-xl transition-all cursor-pointer group flex gap-4 items-center"
+                      className="bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-primary/10 dark:from-amber-950/20 dark:to-primary/20 rounded-3xl p-4 border border-amber-500/30 shadow-lg hover:shadow-xl transition-all cursor-pointer group flex gap-4 items-center relative overflow-hidden"
                     >
                       <img
                         src={bus.coverImage}
@@ -433,9 +447,17 @@ export default function BusinessDirectory() {
                         className="w-24 h-24 rounded-2xl object-cover shrink-0 border border-white/20 group-hover:scale-105 transition-transform"
                       />
                       <div className="min-w-0 flex-1 space-y-1">
-                        <span className="inline-block bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-md">
-                          مميز
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="inline-block bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-md">
+                            مميز
+                          </span>
+                          {bus.discountPercentage && (
+                            <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow-sm animate-pulse">
+                              <Percent className="w-3 h-3" />
+                              <span>خصم {bus.discountPercentage}% للاتحادوية</span>
+                            </span>
+                          )}
+                        </div>
                         <h3 className="font-black text-base truncate text-slate-900 dark:text-white group-hover:text-primary transition-colors">
                           {bus.businessName}
                         </h3>
@@ -472,15 +494,26 @@ export default function BusinessDirectory() {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
                         
-                        <div className="absolute top-3 right-3 bg-primary/90 text-white text-[11px] font-black px-2.5 py-1 rounded-lg backdrop-blur-md">
-                          {bus.category}
+                        <div className="absolute top-3 right-3 flex items-center gap-1.5 flex-wrap">
+                          <span className="bg-primary/90 text-white text-[11px] font-black px-2.5 py-1 rounded-lg backdrop-blur-md">
+                            {bus.category}
+                          </span>
                         </div>
 
-                        {bus.featured && (
-                          <div className="absolute top-3 left-3 bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full shadow-md">
-                            ⭐ مميز
-                          </div>
-                        )}
+                        {/* Top Left Badges */}
+                        <div className="absolute top-3 left-3 flex flex-col gap-1 items-start">
+                          {bus.featured && (
+                            <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full shadow-md">
+                              ⭐ مميز
+                            </span>
+                          )}
+                          {bus.discountPercentage && (
+                            <span className="bg-emerald-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-md flex items-center gap-1">
+                              <Percent className="w-3 h-3" />
+                              <span>خصم {bus.discountPercentage}% للاتحادوية</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Content */}
@@ -598,6 +631,11 @@ export default function BusinessDirectory() {
                           {bus.status === 'suspended' && (
                             <span className="px-2.5 py-0.5 rounded-full bg-slate-500/10 text-slate-600 font-black text-[10px] border border-slate-500/20">
                               متوقف
+                            </span>
+                          )}
+                          {bus.discountPercentage && (
+                            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-black text-[10px] border border-emerald-500/20 flex items-center gap-1">
+                              <Percent className="w-3 h-3" /> خصم {bus.discountPercentage}% للاتحادوية
                             </span>
                           )}
                         </div>
@@ -741,6 +779,60 @@ export default function BusinessDirectory() {
                       <option key={cat.name} value={cat.name}>{cat.name}</option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              {/* Discount Percentage Section */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-amber-500/10 to-primary/10 border border-emerald-500/30 dark:border-emerald-500/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-emerald-600 text-white shadow-sm">
+                      <Percent className="w-4 h-4" />
+                    </span>
+                    <div>
+                      <h4 className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <span>خصم خاص للاتحادوية 💚</span>
+                        <span className="text-[10px] bg-amber-400/90 text-slate-950 px-2 py-0.5 rounded-full font-black">ميزة مميزة</span>
+                      </h4>
+                      <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                        قدم خصماً حصرياً لجمهور وأعضاء الاتحاد السكندري لتمييز مشروعك وزيادة الإقبال
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-200 mb-1">نسبة الخصم</label>
+                    <select
+                      value={formData.discountPercentage}
+                      onChange={(e) => setFormData({ ...formData, discountPercentage: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-card-dark border border-emerald-500/40 dark:border-border-dark text-sm font-black text-emerald-600 dark:text-emerald-400 focus:ring-2 focus:ring-emerald-500/30"
+                    >
+                      <option value="">بدون خصم حالياً</option>
+                      <option value="5">خصم 5%</option>
+                      <option value="10">خصم 10%</option>
+                      <option value="15">خصم 15%</option>
+                      <option value="20">خصم 20%</option>
+                      <option value="25">خصم 25%</option>
+                      <option value="30">خصم 30%</option>
+                      <option value="35">خصم 35%</option>
+                      <option value="40">خصم 40%</option>
+                      <option value="45">خصم 45%</option>
+                      <option value="50">خصم 50% 🔥</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-200 mb-1">تفاصيل أو شرط الخصم (اختياري)</label>
+                    <input
+                      type="text"
+                      value={formData.discountNote}
+                      onChange={(e) => setFormData({ ...formData, discountNote: e.target.value })}
+                      placeholder="مثال: عند إظهار تطبيق قناة الاتحاد أو كارنيه العضوية"
+                      className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-card-dark border border-slate-200 dark:border-border-dark text-xs font-bold text-slate-800 dark:text-white"
+                    />
+                  </div>
                 </div>
               </div>
 

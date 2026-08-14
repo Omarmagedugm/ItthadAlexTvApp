@@ -834,6 +834,39 @@ export default function AdminBusiness() {
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-500/30">
+                <div>
+                  <label className="block mb-1 font-black text-xs text-emerald-700 dark:text-emerald-300">نسبة الخصم للاتحادوية</label>
+                  <select
+                    value={editFormData.discountPercentage || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, discountPercentage: e.target.value ? Number(e.target.value) : undefined })}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 text-sm font-bold text-emerald-600 dark:text-emerald-400"
+                  >
+                    <option value="">بدون خصم</option>
+                    <option value="5">خصم 5%</option>
+                    <option value="10">خصم 10%</option>
+                    <option value="15">خصم 15%</option>
+                    <option value="20">خصم 20%</option>
+                    <option value="25">خصم 25%</option>
+                    <option value="30">خصم 30%</option>
+                    <option value="35">خصم 35%</option>
+                    <option value="40">خصم 40%</option>
+                    <option value="45">خصم 45%</option>
+                    <option value="50">خصم 50% 🔥</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block mb-1 font-black text-xs text-emerald-700 dark:text-emerald-300">تفاصيل الخصم</label>
+                  <input
+                    type="text"
+                    value={editFormData.discountNote || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, discountNote: e.target.value })}
+                    placeholder="مثال: خصم خاص للاتحادوية"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-surface-dark border border-slate-200 text-xs"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block mb-1 font-black">صورة الغلاف</label>
                 <ImageUploader

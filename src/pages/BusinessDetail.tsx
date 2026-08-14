@@ -27,6 +27,10 @@ import {
   Maximize2,
   ChevronLeft,
   ChevronRight,
+  Tag,
+  Percent,
+  Gift,
+  Sparkles,
   Image as ImageIcon
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -256,11 +260,19 @@ export default function BusinessDetail() {
               <span>تكبير صورة الغلاف</span>
             </div>
 
-            {business.featured && (
-              <div className="absolute top-4 right-4 bg-amber-400 text-slate-950 text-xs font-black px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 z-10">
-                <span>⭐ مشروع مميز</span>
-              </div>
-            )}
+            <div className="absolute top-4 right-4 flex flex-col items-end gap-2 z-10">
+              {business.featured && (
+                <div className="bg-amber-400 text-slate-950 text-xs font-black px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
+                  <span>⭐ مشروع مميز</span>
+                </div>
+              )}
+              {business.discountPercentage && (
+                <div className="bg-emerald-600 text-white text-xs font-black px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 border border-white/20">
+                  <Percent className="w-3.5 h-3.5" />
+                  <span>خصم {business.discountPercentage}% للاتحادوية</span>
+                </div>
+              )}
+            </div>
 
             <div className="absolute bottom-4 right-4 left-4 text-white">
               <div className="inline-block bg-primary/90 text-white text-xs font-black px-3 py-1 rounded-lg mb-2 backdrop-blur-md">
@@ -318,6 +330,53 @@ export default function BusinessDetail() {
                   <div className="bg-white dark:bg-card-dark p-2.5 rounded-xl border border-slate-100 dark:border-border-dark">
                     <span className="block text-lg font-black text-blue-500">{business.stats?.mapClicks ?? 0}</span>
                     <span className="text-[10px] text-slate-400 font-bold">نقرات الخريطة</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Special Ittihad Community Discount Card */}
+            {business.discountPercentage && (
+              <div className="relative overflow-hidden p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-900 text-white shadow-xl border border-emerald-400/40">
+                {/* Decorative background glow */}
+                <div className="absolute -top-12 -left-12 w-40 h-40 bg-emerald-400/20 rounded-full blur-2xl pointer-events-none" />
+                <div className="absolute -bottom-10 -right-10 w-36 h-36 bg-amber-400/20 rounded-full blur-2xl pointer-events-none" />
+
+                <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex flex-col items-center justify-center shrink-0 shadow-inner">
+                      <span className="text-xl font-black text-amber-300">%{business.discountPercentage}</span>
+                      <span className="text-[9px] font-black uppercase text-emerald-100">خصم</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="bg-amber-400 text-slate-950 text-xs font-black px-2.5 py-0.5 rounded-full shadow-sm flex items-center gap-1">
+                          <Gift className="w-3.5 h-3.5" />
+                          <span>خصم خاص للاتحادوية</span>
+                        </span>
+                        <span className="text-[11px] font-bold text-emerald-100 flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-300" /> عرض حصري
+                        </span>
+                      </div>
+
+                      <h3 className="text-lg sm:text-xl font-black text-white">
+                        وفر {business.discountPercentage}% عند تعاملك مع هذا المشروع!
+                      </h3>
+
+                      <p className="text-xs sm:text-sm font-medium text-emerald-50 leading-relaxed">
+                        {business.discountNote 
+                          ? business.discountNote 
+                          : 'يسري هذا الخصم الحصري لجمهور وأعضاء نادي الاتحاد السكندري ومتابعي قناة الاتحاد.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 flex items-center justify-end sm:justify-center">
+                    <div className="px-4 py-2 rounded-2xl bg-black/25 backdrop-blur-md border border-white/15 text-center">
+                      <span className="block text-[10px] font-bold text-emerald-200">طريقة الاستفادة</span>
+                      <span className="text-xs font-black text-white">أظهر تطبيق الاتحاد السكندري 📱</span>
+                    </div>
                   </div>
                 </div>
               </div>

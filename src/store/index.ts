@@ -131,6 +131,8 @@ export interface BusinessItem {
   websiteUrl?: string;
   coverImage: string;
   gallery?: string[];
+  discountPercentage?: number | string;
+  discountNote?: string;
   status: 'pending' | 'approved' | 'rejected' | 'suspended' | 'deleted';
   featured?: boolean;
   rejectionReason?: string;
