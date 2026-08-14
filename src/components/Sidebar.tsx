@@ -70,6 +70,9 @@ export default function Sidebar({ isOpen, onClose, profile }: SidebarProps) {
     if (item.icon === 'ShieldCheck' || item.id === 'club-members') {
       return <ShieldCheck size={20} className="text-amber-500 shrink-0" />;
     }
+    if (item.icon === 'Globe' || item.id === 'world-fans') {
+      return <Globe size={20} className="text-emerald-500 shrink-0" />;
+    }
     if (item.icon === 'Building2' || item.id === 'business') {
       return <Building2 size={20} className="text-emerald-600 dark:text-emerald-400 shrink-0" />;
     }
@@ -112,6 +115,9 @@ export default function Sidebar({ isOpen, onClose, profile }: SidebarProps) {
   const getItemCardClasses = (item: SidebarMenuItem) => {
     if (item.id === 'club-members') {
       return 'bg-amber-500/10 hover:bg-amber-500/20 text-slate-800 dark:text-white border border-amber-500/30';
+    }
+    if (item.id === 'world-fans') {
+      return 'bg-emerald-500/10 hover:bg-emerald-500/20 text-slate-800 dark:text-white border border-emerald-500/30';
     }
     if (item.id === 'business') {
       return 'bg-emerald-500/10 hover:bg-emerald-500/20 text-slate-800 dark:text-white border border-emerald-500/30';

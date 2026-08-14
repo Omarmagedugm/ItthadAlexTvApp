@@ -69,6 +69,8 @@ const DiscountsPage = safeLazy(() => import('./pages/DiscountsPage'));
 const DiscountDetailPage = safeLazy(() => import('./pages/DiscountDetailPage'));
 const BusinessDirectory = safeLazy(() => import('./pages/BusinessDirectory'));
 const BusinessDetail = safeLazy(() => import('./pages/BusinessDetail'));
+const WorldFans = safeLazy(() => import('./pages/WorldFans'));
+const WorldGroupDetail = safeLazy(() => import('./pages/WorldGroupDetail'));
 const CustomPage = safeLazy(() => import('./pages/CustomPage'));
 const SocialMedia = safeLazy(() => import('./pages/SocialMedia'));
 const PrivacyPolicy = safeLazy(() => import('./pages/PrivacyPolicy'));
@@ -452,6 +454,9 @@ function AppContent() {
             <Route path="/discounts/:id" element={<DiscountDetailPage />} />
             <Route path="/business" element={<BusinessDirectory />} />
             <Route path="/business/:id" element={<BusinessDetail />} />
+            <Route path="/world-fans" element={<WorldFans />} />
+            <Route path="/world-fans/group/:id" element={<WorldGroupDetail />} />
+            <Route path="/world-association" element={<WorldFans />} />
             <Route path="/social" element={<SocialMedia />} />
             <Route path="/social-media" element={<SocialMedia />} />
             <Route path="/facebook" element={<SocialMedia />} />

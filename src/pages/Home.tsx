@@ -49,6 +49,7 @@ import TicketsWidget from "../components/TicketsWidget";
 import HtmlWidget from "../components/HtmlWidget";
 import ClubMembersWidget from "../components/ClubMembersWidget";
 import BusinessWidget from "../components/BusinessWidget";
+import WorldFansWidget from "../components/worldFans/WorldFansWidget";
 import { SafeImage } from "../components/SafeImage";
 import { getOptimizedImage } from "../lib/cloudinary";
 
@@ -1230,6 +1231,14 @@ export default function Home() {
           </motion.section>
         );
 
+      case "world_fans":
+      case "world_association":
+        return (
+          <motion.section key={section.id} variants={itemVariants}>
+            <WorldFansWidget />
+          </motion.section>
+        );
+
       case "business":
       case "business_directory":
       case "ittihad_business":
@@ -1849,11 +1858,15 @@ export default function Home() {
   };
 
   const hasClubMembersSection = homeSections.some(s => s.type === 'club_members' || s.type === 'club_members_ad' || s.type === 'club_members_banner');
+  const hasWorldFansSection = homeSections.some(s => s.type === 'world_fans' || s.type === 'world_association');
   const hasBusinessSection = homeSections.some(s => s.type === 'business' || s.type === 'business_directory' || s.type === 'ittihad_business');
   
   let baseSections = [...homeSections];
   if (!hasClubMembersSection) {
     baseSections.push({ id: 'club_members_auto', type: 'club_members', active: true, order: 1.2, title: 'بوابة الأعضاء والأنشطة', pinned: false, spacing: 16 });
+  }
+  if (!hasWorldFansSection) {
+    baseSections.push({ id: 'world_fans_auto', type: 'world_fans', active: true, order: 1.25, title: 'رابطة اتحاداوية العالم', pinned: false, spacing: 16 });
   }
   if (!hasBusinessSection) {
     baseSections.push({ id: 'business_auto', type: 'business', active: true, order: 1.3, title: 'اتحاداوي بيزنس', pinned: false, spacing: 16 });

@@ -448,6 +448,146 @@
         "status": { "type": "string", "enum": ["pending", "resolved", "dismissed"] },
         "createdAt": { "type": "string" }
       }
+    },
+    "WorldCountry": {
+      "title": "World Country",
+      "description": "Country where Ittihad fans reside",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nameAr": { "type": "string" },
+        "nameEn": { "type": "string" },
+        "code": { "type": "string" },
+        "flag": { "type": "string" },
+        "region": { "type": "string" },
+        "fanCount": { "type": "number" },
+        "activeGroupsCount": { "type": "number" },
+        "coordinates": { "type": "object" },
+        "order": { "type": "number" },
+        "featured": { "type": "boolean" },
+        "active": { "type": "boolean" }
+      }
+    },
+    "WorldGroup": {
+      "title": "World Group (League/Association)",
+      "description": "Official or recognized regional Ittihad fans league/group",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "countryId": { "type": "string" },
+        "countryName": { "type": "string" },
+        "countryFlag": { "type": "string" },
+        "city": { "type": "string" },
+        "description": { "type": "string" },
+        "logo": { "type": "string" },
+        "coverImage": { "type": "string" },
+        "status": { "type": "string", "enum": ["official", "pending", "community", "inactive"] },
+        "adminUid": { "type": "string" },
+        "adminName": { "type": "string" },
+        "adminPhone": { "type": "string" },
+        "memberCount": { "type": "number" },
+        "eventsCount": { "type": "number" },
+        "postsCount": { "type": "number" },
+        "galleryCount": { "type": "number" },
+        "foundedYear": { "type": "string" },
+        "socialLinks": { "type": "object" },
+        "whatsappGroupUrl": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "featured": { "type": "boolean" },
+        "active": { "type": "boolean" }
+      }
+    },
+    "WorldPost": {
+      "title": "World Post",
+      "description": "Post shared in World Fans community or specific group",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "groupId": { "type": "string" },
+        "groupName": { "type": "string" },
+        "countryCode": { "type": "string" },
+        "countryName": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "content": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "category": { "type": "string" },
+        "likes": { "type": "number" },
+        "likedBy": { "type": "array", "items": { "type": "string" } },
+        "commentsCount": { "type": "number" },
+        "pinned": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      }
+    },
+    "WorldEvent": {
+      "title": "World Event",
+      "description": "Event/Match viewing gathering organized by World fans league",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "groupId": { "type": "string" },
+        "groupName": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["match_viewing", "gathering", "sports_activity", "celebration", "other"] },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "location": { "type": "string" },
+        "city": { "type": "string" },
+        "countryName": { "type": "string" },
+        "mapsUrl": { "type": "string" },
+        "image": { "type": "string" },
+        "participantsCount": { "type": "number" },
+        "participantUids": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["upcoming", "ongoing", "completed", "cancelled"] },
+        "createdAt": { "type": "string" }
+      }
+    },
+    "WorldHelpRequest": {
+      "title": "World Help Request (دليل المغترب)",
+      "description": "Help request or inquiry by expatriate fans",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userAvatar": { "type": "string" },
+        "countryId": { "type": "string" },
+        "countryName": { "type": "string" },
+        "city": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "resolved", "closed"] },
+        "repliesCount": { "type": "number" },
+        "createdAt": { "type": "string" }
+      }
+    },
+    "WorldGroupApplication": {
+      "title": "World Group Application",
+      "description": "Request to establish a new regional fans league",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "applicantUid": { "type": "string" },
+        "applicantName": { "type": "string" },
+        "applicantPhone": { "type": "string" },
+        "applicantEmail": { "type": "string" },
+        "proposedGroupName": { "type": "string" },
+        "countryName": { "type": "string" },
+        "countryCode": { "type": "string" },
+        "cityName": { "type": "string" },
+        "estimatedMembers": { "type": "number" },
+        "activitiesPlan": { "type": "string" },
+        "whatsappGroupUrl": { "type": "string" },
+        "socialMediaLink": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "rejectionReason": { "type": "string" },
+        "adminNotes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      }
     }
   },
   "firestore": {
@@ -479,6 +619,12 @@
     "member_discounts": { "schema": "MemberDiscount", "description": "Medical and service discounts for club members" },
     "businesses": { "schema": "Business", "description": "Ittihadawy community business directory" },
     "business_updates": { "schema": "BusinessUpdate", "description": "Pending business edit requests" },
-    "business_reports": { "schema": "BusinessReport", "description": "Reports submitted for business listings" }
+    "business_reports": { "schema": "BusinessReport", "description": "Reports submitted for business listings" },
+    "world_countries": { "schema": "WorldCountry", "description": "Countries with Ittihad expatriate fans" },
+    "world_groups": { "schema": "WorldGroup", "description": "Regional Ittihad fans leagues and communities" },
+    "world_posts": { "schema": "WorldPost", "description": "Community posts and moments from fans abroad" },
+    "world_events": { "schema": "WorldEvent", "description": "Match viewing gatherings and activities abroad" },
+    "world_help_requests": { "schema": "WorldHelpRequest", "description": "Expatriate support and guides directory" },
+    "world_applications": { "schema": "WorldGroupApplication", "description": "Applications to found new leagues" }
   }
 }

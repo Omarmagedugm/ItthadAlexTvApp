@@ -2,10 +2,25 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { defaultMemberDiscounts } from '../data/defaultMemberDiscounts';
+import { 
+  WorldCountry, 
+  WorldGroup, 
+  WorldPost, 
+  WorldEvent, 
+  WorldHelpRequest, 
+  WorldGroupApplication 
+} from '../types/worldFans';
+import { 
+  defaultWorldCountries, 
+  defaultWorldGroups, 
+  defaultWorldPosts, 
+  defaultWorldEvents, 
+  defaultWorldHelpRequests 
+} from '../data/defaultWorldFansData';
 
 export interface HomeSection {
   id: string;
-  type: 'hero' | 'matches' | 'news' | 'media' | 'history' | 'stadiums' | 'store' | 'polls' | 'live' | 'custom' | 'widget' | 'city' | 'ads' | 'advertise' | 'image' | 'ai_banner' | 'tickets' | 'club_members' | 'club_members_ad' | 'club_members_banner' | 'business' | 'business_directory' | 'ittihad_business' | 'social' | 'social_media';
+  type: 'hero' | 'matches' | 'news' | 'media' | 'history' | 'stadiums' | 'store' | 'polls' | 'live' | 'custom' | 'widget' | 'city' | 'ads' | 'advertise' | 'image' | 'ai_banner' | 'tickets' | 'club_members' | 'club_members_ad' | 'club_members_banner' | 'business' | 'business_directory' | 'ittihad_business' | 'social' | 'social_media' | 'world_fans' | 'world_association';
   title?: string;
   active: boolean;
   order: number;
@@ -35,6 +50,7 @@ export const DEFAULT_SIDEBAR_ITEMS: SidebarMenuItem[] = [
   { id: 'news', title: 'الأخبار والتغطيات', path: '/news', icon: 'newspaper', iconType: 'material', active: true, order: 1, group: 'main' },
   { id: 'matches', title: 'جدول المباريات', path: '/matches', icon: 'sports_soccer', iconType: 'material', active: true, order: 2, group: 'main' },
   { id: 'live', title: 'البث المباشر', path: '/live', icon: 'live_tv', iconType: 'material', active: true, order: 3, group: 'main' },
+  { id: 'world-fans', title: 'رابطة اتحاداوية العالم', path: '/world-fans', icon: 'Globe', iconType: 'lucide', active: true, order: 3.5, badge: 'حول العالم 🌍', badgeColor: 'bg-emerald-600 text-white', group: 'main' },
   { id: 'fan-zone', title: 'منطقة الجماهير', path: '/fan-zone', icon: 'stadium', iconType: 'material', active: true, order: 4, group: 'main' },
   { id: 'jersey-tryon', title: 'استوديو المشجع (AI)', path: '/jersey-tryon', icon: 'bolt', iconType: 'material', active: true, order: 5, badge: 'جديد', badgeColor: 'bg-red-500 text-white', group: 'main' },
   { id: 'club-members', title: 'أعضاء النادي', path: '/club-members', icon: 'ShieldCheck', iconType: 'lucide', active: true, order: 6, badge: 'الخدمات', badgeColor: 'bg-amber-500 text-white', group: 'main' },
@@ -533,6 +549,12 @@ interface AppState {
   businesses: BusinessItem[];
   businessUpdates: BusinessUpdate[];
   businessReports: BusinessReport[];
+  worldCountries: WorldCountry[];
+  worldGroups: WorldGroup[];
+  worldPosts: WorldPost[];
+  worldEvents: WorldEvent[];
+  worldHelpRequests: WorldHelpRequest[];
+  worldApplications: WorldGroupApplication[];
   homeSections: HomeSection[];
   sidebarMenuItems: SidebarMenuItem[];
   songs: Song[];
@@ -592,6 +614,12 @@ interface AppState {
   setBusinesses: (businesses: BusinessItem[]) => void;
   setBusinessUpdates: (updates: BusinessUpdate[]) => void;
   setBusinessReports: (reports: BusinessReport[]) => void;
+  setWorldCountries: (countries: WorldCountry[]) => void;
+  setWorldGroups: (groups: WorldGroup[]) => void;
+  setWorldPosts: (posts: WorldPost[]) => void;
+  setWorldEvents: (events: WorldEvent[]) => void;
+  setWorldHelpRequests: (requests: WorldHelpRequest[]) => void;
+  setWorldApplications: (applications: WorldGroupApplication[]) => void;
   setHomeSections: (sections: HomeSection[]) => void;
   setSidebarMenuItems: (items: SidebarMenuItem[]) => void;
   setSongs: (songs: Song[]) => void;
@@ -808,9 +836,16 @@ export const useAppStore = create<AppState>()(
       businesses: [],
       businessUpdates: [],
       businessReports: [],
+      worldCountries: defaultWorldCountries,
+      worldGroups: defaultWorldGroups,
+      worldPosts: defaultWorldPosts,
+      worldEvents: defaultWorldEvents,
+      worldHelpRequests: defaultWorldHelpRequests,
+      worldApplications: [],
       homeSections: [
         { id: 'hero', type: 'hero', active: true, order: 0 },
         { id: 'matches', type: 'matches', active: true, order: 1 },
+        { id: 'world_fans', type: 'world_fans', active: true, order: 1.1, title: 'رابطة اتحاداوية العالم' },
         { id: 'club_members', type: 'club_members', active: true, order: 1.2, title: 'بوابة الأعضاء والأنشطة' },
         { id: 'city', type: 'city', active: true, order: 1.5, title: 'عروس البحر المتوسط' },
         { id: 'news', type: 'news', active: true, order: 2 },
@@ -895,6 +930,12 @@ export const useAppStore = create<AppState>()(
       setBusinesses: (businesses) => set({ businesses }),
       setBusinessUpdates: (businessUpdates) => set({ businessUpdates }),
       setBusinessReports: (businessReports) => set({ businessReports }),
+      setWorldCountries: (worldCountries) => set({ worldCountries }),
+      setWorldGroups: (worldGroups) => set({ worldGroups }),
+      setWorldPosts: (worldPosts) => set({ worldPosts }),
+      setWorldEvents: (worldEvents) => set({ worldEvents }),
+      setWorldHelpRequests: (worldHelpRequests) => set({ worldHelpRequests }),
+      setWorldApplications: (worldApplications) => set({ worldApplications }),
       setHomeSections: (homeSections) => set({ homeSections }),
       setSidebarMenuItems: (sidebarMenuItems) => set({ sidebarMenuItems }),
       setSongs: (songs) => set({ songs }),

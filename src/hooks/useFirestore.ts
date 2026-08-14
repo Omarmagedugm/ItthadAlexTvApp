@@ -10,7 +10,8 @@ export function useFirestoreSync() {
     setNewsCategories, setNewsTags, setHomeSections, setSidebarMenuItems, setProducts, setSongs, setAlbums, setPlaylists, setMediaPlaylists, setBooks,
     setClubStats, setClubTitles, setHistoryEvents, setStadiums, setDataLoaded, setOrders,
     setClubCommittees, setClubAnnouncements, setClubServices, setClubTrips, setClubMembersSettings, setMemberDiscounts,
-    setBusinesses, setBusinessUpdates, setBusinessReports
+    setBusinesses, setBusinessUpdates, setBusinessReports,
+    setWorldCountries, setWorldGroups, setWorldPosts, setWorldEvents, setWorldHelpRequests, setWorldApplications
   } = useAppStore();
 
   const isFetchedRef = useRef(false);
@@ -164,6 +165,58 @@ export function useFirestoreSync() {
         setBusinessReports(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
       }, 'business_reports'));
 
+      // Realtime listeners for World Fans (Groups, Posts, Events, Help Requests, Applications)
+      unsubs.push(subscribeSnapshot(collection(db, 'world_countries'), s => {
+        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        if (data.length > 0) setWorldCountries(data as any);
+      }, 'world_countries'));
+      unsubs.push(subscribeSnapshot(collection(db, 'world_groups'), s => {
+        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        if (data.length > 0) setWorldGroups(data as any);
+      }, 'world_groups'));
+      unsubs.push(subscribeSnapshot(query(collection(db, 'world_posts'), orderBy('createdAt', 'desc'), limit(100)), s => {
+        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        if (data.length > 0) setWorldPosts(data as any);
+      }, 'world_posts'));
+      unsubs.push(subscribeSnapshot(query(collection(db, 'world_events'), orderBy('date', 'asc'), limit(50)), s => {
+        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        if (data.length > 0) setWorldEvents(data as any);
+      }, 'world_events'));
+      unsubs.push(subscribeSnapshot(query(collection(db, 'world_help_requests'), orderBy('createdAt', 'desc'), limit(50)), s => {
+        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        if (data.length > 0) setWorldHelpRequests(data as any);
+      }, 'world_help_requests'));
+      unsubs.push(subscribeSnapshot(collection(db, 'world_applications'), s => {
+        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        setWorldApplications(data as any);
+      }, 'world_applications'));
+
+      // Realtime listeners for World Fans (Groups, Posts, Events, Help Requests, Applications)
+      unsubs.push(subscribeSnapshot(collection(db, 'world_countries'), s => {
+        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        if (data.length > 0) setWorldCountries(data as any);
+      }, 'world_countries'));
+      unsubs.push(subscribeSnapshot(collection(db, 'world_groups'), s => {
+        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        if (data.length > 0) setWorldGroups(data as any);
+      }, 'world_groups'));
+      unsubs.push(subscribeSnapshot(query(collection(db, 'world_posts'), orderBy('createdAt', 'desc'), limit(100)), s => {
+        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        if (data.length > 0) setWorldPosts(data as any);
+      }, 'world_posts'));
+      unsubs.push(subscribeSnapshot(query(collection(db, 'world_events'), orderBy('date', 'asc'), limit(50)), s => {
+        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        if (data.length > 0) setWorldEvents(data as any);
+      }, 'world_events'));
+      unsubs.push(subscribeSnapshot(query(collection(db, 'world_help_requests'), orderBy('createdAt', 'desc'), limit(50)), s => {
+        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        if (data.length > 0) setWorldHelpRequests(data as any);
+      }, 'world_help_requests'));
+      unsubs.push(subscribeSnapshot(collection(db, 'world_applications'), s => {
+        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        setWorldApplications(data as any);
+      }, 'world_applications'));
+
       const currentUser = auth.currentUser;
       if (currentUser) {
         unsubs.push(unsubProfile(currentUser.uid));
@@ -310,7 +363,9 @@ export function useFirestoreSync() {
         fetchCol('club_announcements', setClubAnnouncements),
         fetchCol('club_services', setClubServices),
         fetchCol('club_trips', setClubTrips),
-        fetchCol('member_discounts', setMemberDiscounts)
+        fetchCol('member_discounts', setMemberDiscounts),
+        fetchCol('world_countries', setWorldCountries),
+        fetchCol('world_groups', setWorldGroups)
       ]);
       
       isFetchedRef.current = true;

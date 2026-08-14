@@ -28,6 +28,7 @@ import {
   Shield,
   ShieldCheck,
   Building2,
+  Globe,
   Menu
 } from 'lucide-react';
 
@@ -38,10 +39,11 @@ interface AdminSidebarProps {
 }
 
 export default function AdminSidebar({ activeTab, setActiveTab, onClose }: AdminSidebarProps) {
-  const { profile, businesses, businessUpdates, orders } = useAppStore();
+  const { profile, businesses, businessUpdates, orders, worldApplications } = useAppStore();
 
   const pendingBusinessesCount = businesses.filter(b => b.status === 'pending').length + businessUpdates.filter(u => u.status === 'pending').length;
   const pendingOrdersCount = orders.filter(o => o.status === 'pending').length;
+  const pendingWorldApplicationsCount = (worldApplications || []).filter(a => a.status === 'pending').length;
   const navigate = useNavigate();
   const Shield = ({ size }: { size: number }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -91,6 +93,7 @@ export default function AdminSidebar({ activeTab, setActiveTab, onClose }: Admin
       { id: 'city', icon: <CloudSun size={18} />, label: 'طقس الإسكندرية', show: isAdmin || hasRole('layout_editor') },
     ]},
     { title: 'التفاعل والجماهير', items: [
+      { id: 'world-fans', icon: <Globe size={18} />, label: 'رابطة اتحاداوية العالم', show: isAdmin || hasRole(['user_manager', 'layout_editor', 'news_editor']), badge: pendingWorldApplicationsCount },
       { id: 'fanzone', icon: <UsersIcon size={18} />, label: 'منطقة الجماهير', show: isAdmin || hasRole(['news_editor', 'user_manager']) },
       { id: 'posts', icon: <MessageSquare size={18} />, label: 'المنشورات', show: isAdmin || hasRole(['user_manager']) },
       { id: 'fan-comments', icon: <MessageCircle size={18} />, label: 'التعليقات والمناقشات', show: isAdmin || hasRole(['user_manager']) },

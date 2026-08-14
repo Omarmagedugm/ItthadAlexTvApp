@@ -95,6 +95,7 @@ import { motion } from 'motion/react';
 import AdminSidebar from '../components/AdminSidebar';
 import AdminSidebarManager from '../components/AdminSidebarManager';
 import AdminBusiness from '../components/AdminBusiness';
+import AdminWorldFans from '../components/admin/AdminWorldFans';
 import ScoreSelector from '../components/ScoreSelector';
 import ImageUploader from '../components/ImageUploader';
 import CsvMatchesImporter from '../components/CsvMatchesImporter';
@@ -1960,6 +1961,7 @@ export default function Admin() {
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">
             {activeTab === 'overview' ? 'لوحة التحكم' :
+             activeTab === 'world-fans' ? 'رابطة اتحاداوية العالم (مغتربين)' :
              activeTab === 'news' ? 'إدارة الأخبار' : 
              activeTab === 'news-categories' ? 'إدارة أقسام الأخبار' :
              activeTab === 'news-tags' ? 'إدارة وسوم الأخبار' :
@@ -2238,6 +2240,8 @@ export default function Admin() {
                              <span className="text-[10px] font-black uppercase text-slate-400">
                                {section.type === 'ai_banner' ? 'بانر الذكاء الاصطناعي' : 
                                 section.type === 'club_members' ? 'بوابة الأعضاء والأنشطة' :
+                                section.type === 'business' ? 'اتحاداوي بيزنس' :
+                                (section.type === 'world_fans' || section.type === 'world_association') ? 'رابطة اتحاداوية العالم' :
                                 section.type === 'tickets' ? 'تذاكر المباريات' :
                                 section.type}
                              </span>
@@ -2403,6 +2407,8 @@ export default function Admin() {
                         <option value="image">صورة بانر </option>
                         <option value="city">طقس وتاريخ الإسكندرية</option>
                         <option value="club_members">بوابة الأعضاء والأنشطة (قسم الأعضاء)</option>
+                        <option value="world_fans">رابطة اتحاداوية العالم (مغتربين)</option>
+                        <option value="business">اتحاداوي بيزنس (دليل الأعمال)</option>
                         <option value="advertise">أعلن معنا (Widget)</option>
                         <option value="ai_banner">بانر استوديو الذكاء الاصطناعي</option>
                       </select>
@@ -5364,6 +5370,7 @@ export default function Admin() {
            )}
 
            {activeTab === 'business' && <AdminBusiness />}
+           {activeTab === 'world-fans' && <AdminWorldFans />}
 
            {activeTab === 'backup' && (
              <div className="flex flex-col gap-6 max-w-4xl mx-auto">
