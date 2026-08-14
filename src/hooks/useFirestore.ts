@@ -168,29 +168,73 @@ export function useFirestoreSync() {
 
       // Realtime listeners for World Fans (Groups, Countries, Posts, Events, Help Requests, Applications)
       unsubs.push(subscribeSnapshot(collection(db, 'world_countries'), s => {
-        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0) {
-          setWorldCountries(data as any);
-        } else {
-          // Auto-seed default countries so they are permanently stored in Firestore
-          defaultWorldCountries.forEach(c => {
-            setDoc(doc(db, 'world_countries', c.id), c).catch(() => {});
+        const rawData = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        
+        // 1. Clean up old Germany if present
+        const filtered = rawData.filter(c => 
+          c.id !== 'de' && 
+          c.id !== 'germany' && 
+          c.code !== 'DE' && 
+          c.name !== 'ألمانيا' && 
+          c.nameAr !== 'ألمانيا'
+        );
+
+        if (rawData.some(c => c.id === 'de' || c.id === 'germany' || c.name === 'ألمانيا' || c.nameAr === 'ألمانيا')) {
+          import('firebase/firestore').then(({ deleteDoc }) => {
+            deleteDoc(doc(db, 'world_countries', 'de')).catch(() => {});
+            deleteDoc(doc(db, 'world_countries', 'germany')).catch(() => {});
           });
-          setWorldCountries(defaultWorldCountries);
         }
+
+        // 2. Ensure all default countries (including 'eu' and 'east_asia') are present
+        const countryMap = new Map<string, any>();
+        defaultWorldCountries.forEach(dc => countryMap.set(dc.id, dc));
+        filtered.forEach(fc => countryMap.set(fc.id, { ...countryMap.get(fc.id), ...fc }));
+        const finalCountries = Array.from(countryMap.values()).sort((a, b) => (a.order || 99) - (b.order || 99));
+
+        // Attempt seeding missing countries to Firestore
+        defaultWorldCountries.forEach(c => {
+          if (!rawData.some(existing => existing.id === c.id)) {
+            setDoc(doc(db, 'world_countries', c.id), c).catch(() => {});
+          }
+        });
+
+        setWorldCountries(finalCountries);
       }, 'world_countries'));
 
       unsubs.push(subscribeSnapshot(collection(db, 'world_groups'), s => {
-        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0) {
-          setWorldGroups(data as any);
-        } else {
-          // Auto-seed default groups so they are permanently stored in Firestore
-          defaultWorldGroups.forEach(g => {
-            setDoc(doc(db, 'world_groups', g.id), g).catch(() => {});
+        const rawData = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+
+        // 1. Clean up any old Germany groups
+        const filtered = rawData.filter(g => 
+          g.countryId !== 'de' && 
+          g.countryId !== 'germany' && 
+          g.countryName !== 'ألمانيا' && 
+          g.id !== 'group_de_berlin' && 
+          g.id !== 'group_germany'
+        );
+
+        if (rawData.some(g => g.countryId === 'de' || g.countryName === 'ألمانيا' || g.id === 'group_de_berlin' || g.id === 'group_germany')) {
+          import('firebase/firestore').then(({ deleteDoc }) => {
+            deleteDoc(doc(db, 'world_groups', 'group_de_berlin')).catch(() => {});
+            deleteDoc(doc(db, 'world_groups', 'group_germany')).catch(() => {});
           });
-          setWorldGroups(defaultWorldGroups);
         }
+
+        // 2. Ensure all default groups (including EU & East Asia) are present
+        const groupMap = new Map<string, any>();
+        defaultWorldGroups.forEach(dg => groupMap.set(dg.id, dg));
+        filtered.forEach(fg => groupMap.set(fg.id, { ...groupMap.get(fg.id), ...fg }));
+        const finalGroups = Array.from(groupMap.values());
+
+        // Attempt seeding missing default groups to Firestore
+        defaultWorldGroups.forEach(g => {
+          if (!rawData.some(existing => existing.id === g.id)) {
+            setDoc(doc(db, 'world_groups', g.id), g).catch(() => {});
+          }
+        });
+
+        setWorldGroups(finalGroups);
       }, 'world_groups'));
 
       unsubs.push(subscribeSnapshot(query(collection(db, 'world_posts'), orderBy('createdAt', 'desc'), limit(100)), s => {

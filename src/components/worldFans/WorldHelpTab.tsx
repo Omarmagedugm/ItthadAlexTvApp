@@ -460,7 +460,7 @@ export const WorldHelpTab: React.FC<WorldHelpTabProps> = ({
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="مثال: كيف أشاهد مباراة الاتحاد في ألمانيا؟"
+                  placeholder="مثال: كيف أشاهد مباراة الاتحاد في الاتحاد الأوروبي؟"
                   className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
                 />
               </div>

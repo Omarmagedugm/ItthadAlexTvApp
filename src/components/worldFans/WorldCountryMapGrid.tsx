@@ -16,7 +16,7 @@ const REGIONS = [
   { id: 'gulf', name: 'الخليج العربي 🇸🇦' },
   { id: 'europe', name: 'أوروبا 🇪🇺' },
   { id: 'north_america', name: 'أمريكا الشمالية 🇺🇸' },
-  { id: 'asia', name: 'آسيا وأستراليا 🇦🇺' },
+  { id: 'asia', name: 'شرق آسيا والقارة 🌏' },
   { id: 'africa', name: 'إفريقيا 🌍' },
 ];
 

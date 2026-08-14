@@ -240,6 +240,58 @@ export const AdminWorldFans: React.FC = () => {
     }
   };
 
+  // Save Country
+  const handleSaveCountry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const id = editingCountry ? editingCountry.id : (countryForm.code ? countryForm.code.toLowerCase() : uuidv4());
+
+    const countryData: WorldCountry = {
+      id,
+      code: (countryForm.code || id).toUpperCase(),
+      name: countryForm.name || countryForm.nameAr || 'دولة جديدة',
+      nameAr: countryForm.nameAr || countryForm.name || 'دولة جديدة',
+      nameEn: countryForm.nameEn || '',
+      flag: countryForm.flag || '🌍',
+      region: countryForm.region || 'gulf',
+      fanCount: Number(countryForm.fanCount) || 100,
+      groupsCount: editingCountry?.groupsCount || 0,
+      active: countryForm.active !== undefined ? countryForm.active : true,
+      order: countryForm.order !== undefined ? Number(countryForm.order) : 10,
+      coverImage: countryForm.coverImage,
+      description: countryForm.description || '',
+    };
+
+    const nextCountries = editingCountry
+      ? worldCountries.map(c => c.id === id ? countryData : c)
+      : [...worldCountries, countryData];
+
+    setWorldCountries(nextCountries);
+    setIsCountryModalOpen(false);
+
+    try {
+      await setDoc(doc(db, 'world_countries', id), countryData);
+      toast.success('تم حفظ بيانات الدولة بنجاح');
+    } catch (err) {
+      console.warn('Country saved locally:', err);
+      toast.success('تم حفظ الدولة محلياً');
+    }
+  };
+
+  // Delete Country
+  const handleDeleteCountry = async (countryId: string) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذه الدولة؟')) return;
+
+    const nextCountries = worldCountries.filter(c => c.id !== countryId);
+    setWorldCountries(nextCountries);
+
+    try {
+      await deleteDoc(doc(db, 'world_countries', countryId));
+      toast.success('تم حذف الدولة بنجاح');
+    } catch (err) {
+      console.warn('Country deleted locally:', err);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Title & Sub-tabs */}
@@ -541,19 +593,48 @@ export const AdminWorldFans: React.FC = () => {
             {worldCountries.map((c) => (
               <div
                 key={c.id}
-                className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2 shadow-sm"
+                className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 flex flex-col justify-between gap-3 shadow-sm hover:border-emerald-500/40 transition-all group"
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{c.flag}</span>
-                  <div>
-                    <h4 className="text-xs font-black text-slate-800 dark:text-white">{c.nameAr}</h4>
-                    <span className="text-[10px] text-slate-400 font-bold">{c.nameEn}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{c.flag}</span>
+                    <div>
+                      <h4 className="text-xs font-black text-slate-800 dark:text-white">{c.nameAr || c.name}</h4>
+                      <span className="text-[10px] text-slate-400 font-bold">{c.nameEn || c.code}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-left">
+                    <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 block">{c.fanCount || 0}+</span>
+                    <span className="text-[9px] text-slate-400 font-medium">مشجع</span>
                   </div>
                 </div>
 
-                <div className="text-left">
-                  <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 block">{c.fanCount}+</span>
-                  <span className="text-[9px] text-slate-400 font-medium">مشجع</span>
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700/60 text-[10px]">
+                  <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold">
+                    {c.region === 'europe' ? '🇪🇺 أوروبا' : c.region === 'asia' ? '🌏 آسيا' : c.region === 'north_america' ? '🇺🇸 أمريكا' : '🇸🇦 الخليج'}
+                  </span>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        setEditingCountry(c);
+                        setCountryForm(c);
+                        setIsCountryModalOpen(true);
+                      }}
+                      className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/50 text-slate-600 dark:text-slate-300"
+                      title="تعديل الدولة"
+                    >
+                      <Edit3 size={12} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCountry(c.id)}
+                      className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50 text-slate-600 dark:text-slate-300"
+                      title="حذف الدولة"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1014,6 +1095,155 @@ export const AdminWorldFans: React.FC = () => {
                 إغلاق
               </button>
             </div>
+          </motion.div>
+        </div>
+      )}
+      {/* 6. COUNTRY MANAGEMENT MODAL */}
+      {isCountryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm overflow-y-auto">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-lg rounded-3xl bg-white dark:bg-slate-800 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] flex flex-col overflow-hidden"
+          >
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-700/80 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <Globe size={18} className="text-emerald-600 dark:text-emerald-400" />
+                <h3 className="text-sm font-black text-slate-800 dark:text-white">
+                  {editingCountry ? 'تعديل بيانات الدولة / المنطقة' : 'إضافة دولة أو منطقة جديدة'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCountryModalOpen(false)}
+                className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-500"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSaveCountry} className="flex-1 flex flex-col overflow-hidden">
+              <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 text-xs">اسم الدولة (بالعربية) *</label>
+                    <input
+                      type="text"
+                      required
+                      value={countryForm.nameAr || countryForm.name || ''}
+                      onChange={(e) => setCountryForm({ ...countryForm, nameAr: e.target.value, name: e.target.value })}
+                      placeholder="مثال: الاتحاد الأوروبي"
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 text-xs">الاسم بالإنجليزية</label>
+                    <input
+                      type="text"
+                      value={countryForm.nameEn || ''}
+                      onChange={(e) => setCountryForm({ ...countryForm, nameEn: e.target.value })}
+                      placeholder="مثال: European Union"
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 text-xs">رمز الدولة (Code) *</label>
+                    <input
+                      type="text"
+                      required
+                      value={countryForm.code || ''}
+                      onChange={(e) => setCountryForm({ ...countryForm, code: e.target.value.toUpperCase() })}
+                      placeholder="مثال: EU أو EA"
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-xs uppercase"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 text-xs">العلم (إيموجي) *</label>
+                    <input
+                      type="text"
+                      required
+                      value={countryForm.flag || '🌍'}
+                      onChange={(e) => setCountryForm({ ...countryForm, flag: e.target.value })}
+                      placeholder="مثال: 🇪🇺"
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-center text-lg"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 text-xs">القارة / النطاق *</label>
+                    <select
+                      value={countryForm.region || 'gulf'}
+                      onChange={(e) => setCountryForm({ ...countryForm, region: e.target.value })}
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-xs"
+                    >
+                      <option value="gulf">الخليج العربي 🇸🇦</option>
+                      <option value="europe">أوروبا 🇪🇺</option>
+                      <option value="asia">آسيا / شرق آسيا 🌏</option>
+                      <option value="north_america">أمريكا الشمالية 🇺🇸</option>
+                      <option value="africa">إفريقيا 🌍</option>
+                      <option value="other">أخرى 🌐</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 text-xs">العدد التقديري للجماهير</label>
+                    <input
+                      type="number"
+                      value={countryForm.fanCount || 100}
+                      onChange={(e) => setCountryForm({ ...countryForm, fanCount: Number(e.target.value) })}
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 text-xs">الترتيب في القائمة</label>
+                    <input
+                      type="number"
+                      value={countryForm.order || 1}
+                      onChange={(e) => setCountryForm({ ...countryForm, order: Number(e.target.value) })}
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 text-xs">نبذة عن الجالية والنشاط</label>
+                  <textarea
+                    rows={2}
+                    value={countryForm.description || ''}
+                    onChange={(e) => setCountryForm({ ...countryForm, description: e.target.value })}
+                    placeholder="مثال: ملتقى مشجعي الاتحاد السكندري في دول الاتحاد الأوروبي..."
+                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-xs resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Fixed Footer */}
+              <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex items-center justify-end gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsCountryModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs whitespace-nowrap shrink-0"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-md text-xs whitespace-nowrap shrink-0"
+                >
+                  حفظ الدولة
+                </button>
+              </div>
+            </form>
           </motion.div>
         </div>
       )}
