@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Globe, Users, ChevronLeft, MapPin, Sparkles, Plus, Flag } from 'lucide-react';
 import { useAppStore } from '../../store';
-import { defaultWorldCountries, defaultWorldGroups } from '../../data/defaultWorldFansData';
 
 // Helper to guarantee accurate country emoji flag for any country
 export const getCountryFlag = (countryIdOrName?: string, fallbackFlag?: string): string => {
@@ -50,13 +49,8 @@ export default function WorldFansWidget() {
   const navigate = useNavigate();
   const { worldCountries, worldGroups, worldEvents } = useAppStore();
 
-  // Active groups fallback to default groups if empty
-  const allGroups = (worldGroups && worldGroups.length > 0) ? worldGroups : defaultWorldGroups;
-  const activeGroups = allGroups.filter(g => g.active !== false && g.status !== 'rejected');
-
-  // Active countries fallback to default countries if empty
-  const allCountries = (worldCountries && worldCountries.length > 0) ? worldCountries : defaultWorldCountries;
-  const activeCountries = allCountries.filter(c => c.active !== false);
+  const activeGroups = (worldGroups || []).filter(g => g.active !== false && g.status !== 'rejected');
+  const activeCountries = (worldCountries || []).filter(c => c.active !== false);
 
   // Group actual groups by country to get exact dynamic numbers
   const countryStatsMap = React.useMemo(() => {

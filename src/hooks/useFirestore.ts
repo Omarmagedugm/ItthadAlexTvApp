@@ -219,17 +219,17 @@ export function useFirestoreSync() {
 
       unsubs.push(subscribeSnapshot(query(collection(db, 'world_posts'), orderBy('createdAt', 'desc'), limit(100)), s => {
         const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0) setWorldPosts(data as any);
+        setWorldPosts(data as any);
       }, 'world_posts'));
 
       unsubs.push(subscribeSnapshot(query(collection(db, 'world_events'), orderBy('date', 'asc'), limit(50)), s => {
         const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0) setWorldEvents(data as any);
+        setWorldEvents(data as any);
       }, 'world_events'));
 
       unsubs.push(subscribeSnapshot(query(collection(db, 'world_help_requests'), orderBy('createdAt', 'desc'), limit(50)), s => {
         const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0) setWorldHelpRequests(data as any);
+        setWorldHelpRequests(data as any);
       }, 'world_help_requests'));
 
       unsubs.push(subscribeSnapshot(collection(db, 'world_applications'), s => {

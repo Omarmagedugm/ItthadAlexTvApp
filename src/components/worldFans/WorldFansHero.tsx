@@ -75,7 +75,7 @@ export const WorldFansHero: React.FC<WorldFansHeroProps> = ({
           </div>
           <div>
             <div className="text-lg font-black text-white leading-tight">
-              {activeCountries.length || 10}
+              {activeCountries.length}
             </div>
             <div className="text-[10px] text-emerald-200/80 font-bold">
               دولة حول العالم
@@ -89,7 +89,7 @@ export const WorldFansHero: React.FC<WorldFansHeroProps> = ({
           </div>
           <div>
             <div className="text-lg font-black text-amber-300 leading-tight">
-              {activeGroups.length || 12}
+              {activeGroups.length}
             </div>
             <div className="text-[10px] text-emerald-200/80 font-bold">
               رابطة مسجلة
@@ -103,10 +103,10 @@ export const WorldFansHero: React.FC<WorldFansHeroProps> = ({
           </div>
           <div>
             <div className="text-lg font-black text-emerald-300 leading-tight">
-              {totalMembers || 2400}+
+              {totalMembers > 0 ? `+${totalMembers.toLocaleString('ar-EG')}` : '0'}
             </div>
             <div className="text-[10px] text-emerald-200/80 font-bold">
-              مشجع مغترب
+              مشجع مسجل
             </div>
           </div>
         </div>
@@ -117,10 +117,10 @@ export const WorldFansHero: React.FC<WorldFansHeroProps> = ({
           </div>
           <div>
             <div className="text-lg font-black text-red-300 leading-tight">
-              {upcomingEvents.length || 3}
+              {upcomingEvents.length}
             </div>
             <div className="text-[10px] text-emerald-200/80 font-bold">
-              تجمع قادم للمباريات
+              تجمع قادم
             </div>
           </div>
         </div>

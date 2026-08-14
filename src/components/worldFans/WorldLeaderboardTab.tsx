@@ -53,91 +53,97 @@ export const WorldLeaderboardTab: React.FC<WorldLeaderboardTabProps> = ({ groups
         </div>
 
         {/* Podium */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4 items-end pt-4">
-          {/* Second Place */}
-          {sortedGroups[1] && (
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              onClick={() => navigate(`/world-fans/group/${sortedGroups[1].id}`)}
-              className="flex flex-col items-center cursor-pointer group"
-            >
-              <div className="relative mb-2">
-                <img
-                  src={sortedGroups[1].logo || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80'}
-                  alt=""
-                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border-2 border-slate-300 shadow-md group-hover:scale-105 transition-transform"
-                  referrerPolicy="no-referrer"
-                />
-                <span className="absolute -top-2 -right-2 w-6 h-6 bg-slate-300 text-slate-900 rounded-full font-black text-xs flex items-center justify-center shadow">
-                  2
-                </span>
-              </div>
-              <h4 className="text-xs font-black text-center line-clamp-1 group-hover:text-amber-300">{sortedGroups[1].name}</h4>
-              <span className="text-[10px] text-emerald-200">{sortedGroups[1].countryName}</span>
-              <div className="w-full mt-2 h-20 bg-slate-400/20 backdrop-blur-md rounded-t-2xl border-t border-slate-300/40 flex flex-col items-center justify-center p-1">
-                <span className="text-xs font-black text-slate-200">{sortedGroups[1].memberCount}</span>
-                <span className="text-[9px] text-slate-300">عضو</span>
-              </div>
-            </motion.div>
-          )}
+        {sortedGroups.length === 0 ? (
+          <div className="text-center py-8 text-emerald-100/70 text-xs font-medium">
+            لا توجد روابط مسجلة حالياً في لوحة الشرف. كن أول من يؤسس رابطة في دولتك!
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 items-end pt-4">
+            {/* Second Place */}
+            {sortedGroups[1] && (
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                onClick={() => navigate(`/world-fans/group/${sortedGroups[1].id}`)}
+                className="flex flex-col items-center cursor-pointer group"
+              >
+                <div className="relative mb-2">
+                  <img
+                    src={sortedGroups[1].logo || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80'}
+                    alt=""
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border-2 border-slate-300 shadow-md group-hover:scale-105 transition-transform"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="absolute -top-2 -right-2 w-6 h-6 bg-slate-300 text-slate-900 rounded-full font-black text-xs flex items-center justify-center shadow">
+                    2
+                  </span>
+                </div>
+                <h4 className="text-xs font-black text-center line-clamp-1 group-hover:text-amber-300">{sortedGroups[1].name}</h4>
+                <span className="text-[10px] text-emerald-200">{sortedGroups[1].countryName}</span>
+                <div className="w-full mt-2 h-20 bg-slate-400/20 backdrop-blur-md rounded-t-2xl border-t border-slate-300/40 flex flex-col items-center justify-center p-1">
+                  <span className="text-xs font-black text-slate-200">{sortedGroups[1].memberCount}</span>
+                  <span className="text-[9px] text-slate-300">عضو</span>
+                </div>
+              </motion.div>
+            )}
 
-          {/* First Place */}
-          {sortedGroups[0] && (
-            <motion.div
-              initial={{ y: 30, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              onClick={() => navigate(`/world-fans/group/${sortedGroups[0].id}`)}
-              className="flex flex-col items-center cursor-pointer group"
-            >
-              <div className="relative mb-2">
-                <img
-                  src={sortedGroups[0].logo || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80'}
-                  alt=""
-                  className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-amber-400 shadow-xl ring-4 ring-amber-400/20 group-hover:scale-105 transition-transform"
-                  referrerPolicy="no-referrer"
-                />
-                <span className="absolute -top-3 -right-2 w-7 h-7 bg-amber-400 text-slate-950 rounded-full font-black text-sm flex items-center justify-center shadow-lg animate-bounce">
-                  👑 1
-                </span>
-              </div>
-              <h4 className="text-xs sm:text-sm font-black text-center text-amber-300 line-clamp-1">{sortedGroups[0].name}</h4>
-              <span className="text-[10px] text-emerald-200">{sortedGroups[0].countryName}</span>
-              <div className="w-full mt-2 h-28 bg-gradient-to-t from-amber-500/20 to-amber-500/40 backdrop-blur-md rounded-t-2xl border-t-2 border-amber-400 flex flex-col items-center justify-center p-1">
-                <span className="text-sm font-black text-amber-300">{sortedGroups[0].memberCount}</span>
-                <span className="text-[10px] text-amber-200 font-bold">عضو نشط</span>
-              </div>
-            </motion.div>
-          )}
+            {/* First Place */}
+            {sortedGroups[0] && (
+              <motion.div
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                onClick={() => navigate(`/world-fans/group/${sortedGroups[0].id}`)}
+                className="flex flex-col items-center cursor-pointer group"
+              >
+                <div className="relative mb-2">
+                  <img
+                    src={sortedGroups[0].logo || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80'}
+                    alt=""
+                    className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-amber-400 shadow-xl ring-4 ring-amber-400/20 group-hover:scale-105 transition-transform"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="absolute -top-3 -right-2 w-7 h-7 bg-amber-400 text-slate-950 rounded-full font-black text-sm flex items-center justify-center shadow-lg animate-bounce">
+                    👑 1
+                  </span>
+                </div>
+                <h4 className="text-xs sm:text-sm font-black text-center text-amber-300 line-clamp-1">{sortedGroups[0].name}</h4>
+                <span className="text-[10px] text-emerald-200">{sortedGroups[0].countryName}</span>
+                <div className="w-full mt-2 h-28 bg-gradient-to-t from-amber-500/20 to-amber-500/40 backdrop-blur-md rounded-t-2xl border-t-2 border-amber-400 flex flex-col items-center justify-center p-1">
+                  <span className="text-sm font-black text-amber-300">{sortedGroups[0].memberCount}</span>
+                  <span className="text-[10px] text-amber-200 font-bold">عضو نشط</span>
+                </div>
+              </motion.div>
+            )}
 
-          {/* Third Place */}
-          {sortedGroups[2] && (
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              onClick={() => navigate(`/world-fans/group/${sortedGroups[2].id}`)}
-              className="flex flex-col items-center cursor-pointer group"
-            >
-              <div className="relative mb-2">
-                <img
-                  src={sortedGroups[2].logo || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80'}
-                  alt=""
-                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border-2 border-amber-700 shadow-md group-hover:scale-105 transition-transform"
-                  referrerPolicy="no-referrer"
-                />
-                <span className="absolute -top-2 -right-2 w-6 h-6 bg-amber-700 text-amber-100 rounded-full font-black text-xs flex items-center justify-center shadow">
-                  3
-                </span>
-              </div>
-              <h4 className="text-xs font-black text-center line-clamp-1 group-hover:text-amber-300">{sortedGroups[2].name}</h4>
-              <span className="text-[10px] text-emerald-200">{sortedGroups[2].countryName}</span>
-              <div className="w-full mt-2 h-16 bg-amber-800/20 backdrop-blur-md rounded-t-2xl border-t border-amber-700/40 flex flex-col items-center justify-center p-1">
-                <span className="text-xs font-black text-amber-400">{sortedGroups[2].memberCount}</span>
-                <span className="text-[9px] text-amber-300/80">عضو</span>
-              </div>
-            </motion.div>
-          )}
-        </div>
+            {/* Third Place */}
+            {sortedGroups[2] && (
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                onClick={() => navigate(`/world-fans/group/${sortedGroups[2].id}`)}
+                className="flex flex-col items-center cursor-pointer group"
+              >
+                <div className="relative mb-2">
+                  <img
+                    src={sortedGroups[2].logo || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80'}
+                    alt=""
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border-2 border-amber-700 shadow-md group-hover:scale-105 transition-transform"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="absolute -top-2 -right-2 w-6 h-6 bg-amber-700 text-amber-100 rounded-full font-black text-xs flex items-center justify-center shadow">
+                    3
+                  </span>
+                </div>
+                <h4 className="text-xs font-black text-center line-clamp-1 group-hover:text-amber-300">{sortedGroups[2].name}</h4>
+                <span className="text-[10px] text-emerald-200">{sortedGroups[2].countryName}</span>
+                <div className="w-full mt-2 h-16 bg-amber-800/20 backdrop-blur-md rounded-t-2xl border-t border-amber-700/40 flex flex-col items-center justify-center p-1">
+                  <span className="text-xs font-black text-amber-400">{sortedGroups[2].memberCount}</span>
+                  <span className="text-[9px] text-amber-300/80">عضو</span>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Ambassador Badges System */}
