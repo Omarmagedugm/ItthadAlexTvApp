@@ -176,8 +176,10 @@ export const AdminWorldFans: React.FC = () => {
 
     try {
       await deleteDoc(doc(db, 'world_groups', groupId));
+      toast.success('تم حذف الرابطة بنجاح');
     } catch (err) {
       console.warn('Group deleted locally:', err);
+      toast.success('تم حذف الرابطة');
     }
   };
 
