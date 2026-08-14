@@ -1078,6 +1078,8 @@ export default function Admin() {
           appLogo: formData.appLogo || appSettings.appLogo || '',
           headerLogoLight: formData.headerLogoLight !== undefined ? formData.headerLogoLight : (appSettings.headerLogoLight || ''),
           headerLogoDark: formData.headerLogoDark !== undefined ? formData.headerLogoDark : (appSettings.headerLogoDark || ''),
+          headerLogoSize: formData.headerLogoSize !== undefined ? formData.headerLogoSize : (appSettings.headerLogoSize || 'medium'),
+          headerLogoHeight: formData.headerLogoHeight !== undefined ? Number(formData.headerLogoHeight) : (appSettings.headerLogoHeight || 48),
           logoType: formData.logoType || appSettings.logoType || 'image',
           logoText: formData.logoText || appSettings.logoText || '',
           defaultSport: formData.defaultSport || appSettings.defaultSport || 'auto',
@@ -4585,6 +4587,85 @@ export default function Admin() {
                       handleFileUpload={handleFileUpload} 
                       skipResize={true}
                     />
+
+                    {/* Header Logo Size Controller */}
+                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-surface-dark border border-border-light dark:border-border-dark space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-xs font-black text-slate-800 dark:text-white">حجم لوجو الهيدر العلوي</h4>
+                          <p className="text-[10px] text-slate-400 font-medium">اختر مقاساً جاهزاً أو اضبط الارتفاع بالسلايدر</p>
+                        </div>
+                        <span className="px-2.5 py-1 rounded-xl bg-primary/10 text-primary text-xs font-black border border-primary/20">
+                          {formData.headerLogoHeight ?? appSettings.headerLogoHeight ?? 48} px
+                        </span>
+                      </div>
+
+                      {/* Presets */}
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { id: 'small', label: 'صغير (36px)', height: 36 },
+                          { id: 'medium', label: 'متوسط (48px)', height: 48 },
+                          { id: 'large', label: 'كبير (62px)', height: 62 },
+                          { id: 'xlarge', label: 'كبير جداً (78px)', height: 78 },
+                        ].map((preset) => {
+                          const currentHeight = formData.headerLogoHeight ?? appSettings.headerLogoHeight ?? 48;
+                          const isSelected = (formData.headerLogoSize || appSettings.headerLogoSize || 'medium') === preset.id || currentHeight === preset.height;
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() => setFormData({ 
+                                ...formData, 
+                                headerLogoSize: preset.id as any, 
+                                headerLogoHeight: preset.height 
+                              })}
+                              className={`py-2.5 px-2 rounded-xl text-xs font-black transition-all border ${
+                                isSelected 
+                                  ? 'bg-primary text-white border-primary shadow-sm scale-[1.02]' 
+                                  : 'bg-white dark:bg-slate-800/80 border-border-light dark:border-border-dark text-slate-600 dark:text-slate-300 hover:border-primary/50'
+                              }`}
+                            >
+                              {preset.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Slider Control */}
+                      <div className="space-y-1.5 pt-2 border-t border-border-light/60 dark:border-border-dark/60">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
+                          <span>شريط السحب للتحكم الدقيق:</span>
+                          <span className="text-primary font-black">{formData.headerLogoHeight ?? appSettings.headerLogoHeight ?? 48} بيكسل</span>
+                        </div>
+                        <input 
+                          type="range" 
+                          min="30" 
+                          max="85" 
+                          step="2"
+                          value={formData.headerLogoHeight ?? appSettings.headerLogoHeight ?? 48}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            let sizeType: 'small' | 'medium' | 'large' | 'xlarge' | 'custom' = 'custom';
+                            if (val <= 38) sizeType = 'small';
+                            else if (val <= 52) sizeType = 'medium';
+                            else if (val <= 68) sizeType = 'large';
+                            else sizeType = 'xlarge';
+
+                            setFormData({
+                              ...formData,
+                              headerLogoHeight: val,
+                              headerLogoSize: sizeType
+                            });
+                          }}
+                          className="w-full accent-primary h-2 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
+                        />
+                        <div className="flex justify-between text-[9px] text-slate-400 font-bold">
+                          <span>30px (صغير)</span>
+                          <span>48px (افتراضي)</span>
+                          <span>85px (كبير جداً)</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -4601,15 +4682,26 @@ export default function Admin() {
 
                 <div className="mt-4 p-6 bg-slate-50 dark:bg-surface-dark rounded-2xl flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-border-dark min-h-[120px]">
                    {(formData.logoType || appSettings.logoType || 'image') === 'image' ? (
-                     (formData.appLogo || appSettings.appLogo) && (
-                       <img src={formData.appLogo ?? appSettings.appLogo} onError={(e) => { e.currentTarget.src = 'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777716805/favicon_gd0ic4.png'; }} className="h-20 object-contain drop-shadow-lg mb-2" referrerPolicy="no-referrer" />
-                     )
+                     <div className="flex flex-col items-center gap-2">
+                       {/* Preview with exact chosen header height */}
+                       <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-border-light dark:border-border-dark shadow-sm flex items-center justify-center">
+                         <img 
+                           src={formData.headerLogoLight || formData.appLogo || appSettings.headerLogoLight || appSettings.appLogo || 'https://upload.wikimedia.org/wikipedia/ar/thumb/0/0e/Al_Ittihad_Alexandria_Club_Logo.svg/1024px-Al_Ittihad_Alexandria_Club_Logo.svg.png'} 
+                           onError={(e) => { e.currentTarget.src = 'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777716805/favicon_gd0ic4.png'; }} 
+                           style={{ height: `${formData.headerLogoHeight ?? appSettings.headerLogoHeight ?? 48}px` }}
+                           className="w-auto object-contain drop-shadow-md transition-all duration-300" 
+                           referrerPolicy="no-referrer" 
+                         />
+                       </div>
+                       <span className="text-[11px] text-primary font-black">
+                         معاينة حجم لوجو الهيدر ({formData.headerLogoHeight ?? appSettings.headerLogoHeight ?? 48}px)
+                       </span>
+                     </div>
                    ) : (
                      <h1 className="text-3xl font-black text-primary-dark dark:text-white drop-shadow-md mb-2">
                        {formData.logoText || appSettings.logoText || 'شعار الموقع'}
                      </h1>
                    )}
-                   <span className="text-[10px] text-slate-400 font-bold">معاينة الشعار</span>
                 </div>
               </div>
 

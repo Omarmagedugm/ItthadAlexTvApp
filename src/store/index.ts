@@ -504,6 +504,8 @@ interface AppState {
     appLogo: string;
     headerLogoLight?: string;
     headerLogoDark?: string;
+    headerLogoSize?: 'small' | 'medium' | 'large' | 'xlarge' | 'custom';
+    headerLogoHeight?: number;
     logoType?: 'image' | 'text';
     logoText?: string;
     defaultSport?: 'football' | 'basketball' | 'auto';
@@ -755,6 +757,8 @@ export const useAppStore = create<AppState>()(
         appLogo: 'https://upload.wikimedia.org/wikipedia/ar/thumb/0/0e/Al_Ittihad_Alexandria_Club_Logo.svg/1024px-Al_Ittihad_Alexandria_Club_Logo.svg.png',
         headerLogoLight: '',
         headerLogoDark: '',
+        headerLogoSize: 'medium',
+        headerLogoHeight: 48,
         logoType: 'image',
         logoText: 'الاتحاد السكندري',
         defaultSport: 'auto',

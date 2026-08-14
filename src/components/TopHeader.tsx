@@ -125,21 +125,28 @@ export default function TopHeader() {
   const isDev = auth.currentUser?.email?.toLowerCase() === 'copyrightofficialco@gmail.com';
   const isAdmin = (profile?.role === 'admin' || profile?.role === 'moderator' || (profile?.roles && (profile.roles.includes('admin') || profile.roles.includes('moderator')))) || isOmar || isDev;
 
+  const logoHeight = appSettings?.headerLogoHeight || (
+    appSettings?.headerLogoSize === 'small' ? 36 :
+    appSettings?.headerLogoSize === 'large' ? 62 :
+    appSettings?.headerLogoSize === 'xlarge' ? 78 : 48
+  );
+  const spacerHeight = Math.max(60, logoHeight + 16);
+
   return (
     <>
       {/* Added a spacer to prevent content from going under the fixed header */}
-      <div style={{ height: 'calc(env(safe-area-inset-top) + 68px)' }} className="w-full"></div>
+      <div style={{ height: `calc(env(safe-area-inset-top) + ${spacerHeight}px)` }} className="w-full"></div>
       <header id="global-header" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8px)' }} className="fixed top-0 inset-x-0 w-full z-50 bg-background-light/85 dark:bg-background-dark/85 backdrop-blur-xl border-b border-border-light/40 dark:border-border-dark/40 px-3 sm:px-4 md:px-8 pb-2.5 shadow-sm">
-        <div className="flex items-center justify-between w-full max-w-7xl mx-auto">
+        <div className="flex items-center justify-between gap-2 w-full max-w-7xl mx-auto">
           {/* Right Section: Mobile Menu / Back + Logo */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
             {isHome ? (
               <motion.button 
                 id="menu-button"
                 aria-label="القائمة الرئيسية"
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setIsMenuOpen(true)}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all duration-300"
+                className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all duration-300"
               >
                 <Menu size={22} strokeWidth={2.5} />
               </motion.button>
@@ -149,23 +156,27 @@ export default function TopHeader() {
                 aria-label="الرجوع للصفحة السابقة"
                 whileTap={{ scale: 0.9 }}
                 onClick={() => navigate(-1)}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all duration-300"
+                className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all duration-300"
               >
-                <ChevronRight size={26} className="rotate-180" />
+                <ChevronRight size={24} className="rotate-180" />
               </motion.button>
             )}
 
-            <Link to="/" className="flex items-center gap-2 py-0.5">
+            <Link to="/" className="flex items-center gap-2 py-0.5 min-w-0 shrink">
               {currentLogo && !imageError ? (
                 <img 
                   src={currentLogo} 
                   alt={title} 
-                  className="h-14 sm:h-16 w-auto max-w-[200px] sm:max-w-[260px] object-contain drop-shadow-md transition-all duration-300" 
+                  style={{
+                    height: `${logoHeight}px`,
+                    maxHeight: '92px'
+                  }}
+                  className="w-auto max-w-[150px] sm:max-w-[200px] md:max-w-[250px] lg:max-w-[300px] object-contain drop-shadow-md transition-all duration-300 shrink" 
                   referrerPolicy="no-referrer"
                   onError={() => setImageError(true)}
                 />
               ) : (
-                <h1 className="text-lg sm:text-xl font-black tracking-tight text-primary-dark dark:text-white uppercase line-clamp-1 max-w-[200px]">
+                <h1 className="text-base sm:text-lg md:text-xl font-black tracking-tight text-primary-dark dark:text-white uppercase truncate max-w-[160px] sm:max-w-[220px]">
                   {appSettings?.logoText || title}
                 </h1>
               )}
@@ -203,7 +214,7 @@ export default function TopHeader() {
           </nav>
 
           {/* Left Action Icons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {isAdmin && location.pathname.includes('/admin') && (
               <motion.button 
                 whileTap={{ scale: 0.9 }}
