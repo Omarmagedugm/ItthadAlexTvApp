@@ -228,18 +228,18 @@ export const WorldGroupsList: React.FC<WorldGroupsListProps> = ({
 
                     <div className="flex flex-col items-end gap-1">
                       {isOfficial ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-black bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-sm">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-black bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-sm whitespace-nowrap shrink-0">
                           <ShieldCheck size={12} />
-                          <span>رابطة رسمية معتمدة</span>
+                          <span className="whitespace-nowrap">رابطة رسمية معتمدة</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 whitespace-nowrap shrink-0">
                           مجتمع جماهيري
                         </span>
                       )}
 
                       {group.foundedYear && (
-                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 whitespace-nowrap">
                           تأسست عام {group.foundedYear}
                         </span>
                       )}

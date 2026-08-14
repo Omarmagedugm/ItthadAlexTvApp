@@ -268,8 +268,8 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
               className="w-full text-xs font-semibold bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-3 text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all resize-none"
             />
 
-            {/* Optional Image Upload & URL */}
-            <div className="mt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            {/* Optional Image Upload */}
+            <div className="mt-2 flex items-center gap-3">
               <div className="shrink-0">
                 <ImageUploader
                   folderName="world_posts"
@@ -277,42 +277,30 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
                     setNewPostImage(url);
                   }}
                   buttonText="رفع صورة"
-                  buttonClassName="!bg-slate-100 dark:!bg-slate-700 hover:!bg-slate-200 !text-slate-700 dark:!text-slate-200 !py-1.5 !px-3 !rounded-xl !text-xs !font-bold"
+                  buttonClassName="!bg-slate-100 dark:!bg-slate-700 hover:!bg-slate-200 !text-slate-700 dark:!text-slate-200 !py-1.5 !px-3 !rounded-xl !text-xs !font-bold whitespace-nowrap shrink-0 flex items-center gap-1.5"
                   showPreview={false}
                 />
               </div>
 
-              <div className="relative flex-1">
-                <input
-                  type="url"
-                  value={newPostImage}
-                  onChange={(e) => setNewPostImage(e.target.value)}
-                  placeholder="أو الصق رابط صورة (كافيه، تيشيرت، تجمع)..."
-                  className="w-full text-[11px] font-medium bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 rounded-xl px-3 py-1.5 text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none"
-                  dir="ltr"
-                />
-                {newPostImage && (
+              {/* Image Preview if chosen */}
+              {newPostImage && (
+                <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0">
+                  <img
+                    src={newPostImage}
+                    alt="معاينة"
+                    className="w-full h-full object-cover"
+                  />
                   <button
                     type="button"
                     onClick={() => setNewPostImage('')}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500"
+                    className="absolute inset-0 bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-all"
+                    title="حذف الصورة"
                   >
-                    <X size={13} />
+                    <X size={14} />
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
-
-            {/* Image Preview if chosen */}
-            {newPostImage && (
-              <div className="mt-2 relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
-                <img
-                  src={newPostImage}
-                  alt="معاينة"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            )}
 
             {/* Options Bar & Submit */}
             <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex flex-wrap items-center justify-between gap-2">

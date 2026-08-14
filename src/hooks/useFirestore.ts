@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { collection, onSnapshot, query, orderBy, doc, limit, updateDoc, where, getDocs, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, limit, updateDoc, where, getDocs, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAppStore } from '../store';
+import { defaultWorldCountries, defaultWorldGroups, defaultWorldPosts, defaultWorldEvents, defaultWorldHelpRequests } from '../data/defaultWorldFansData';
 
 export function useFirestoreSync() {
   const { 
@@ -165,53 +166,48 @@ export function useFirestoreSync() {
         setBusinessReports(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
       }, 'business_reports'));
 
-      // Realtime listeners for World Fans (Groups, Posts, Events, Help Requests, Applications)
+      // Realtime listeners for World Fans (Groups, Countries, Posts, Events, Help Requests, Applications)
       unsubs.push(subscribeSnapshot(collection(db, 'world_countries'), s => {
         const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0) setWorldCountries(data as any);
+        if (data.length > 0) {
+          setWorldCountries(data as any);
+        } else {
+          // Auto-seed default countries so they are permanently stored in Firestore
+          defaultWorldCountries.forEach(c => {
+            setDoc(doc(db, 'world_countries', c.id), c).catch(() => {});
+          });
+          setWorldCountries(defaultWorldCountries);
+        }
       }, 'world_countries'));
-      unsubs.push(subscribeSnapshot(collection(db, 'world_groups'), s => {
-        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0) setWorldGroups(data as any);
-      }, 'world_groups'));
-      unsubs.push(subscribeSnapshot(query(collection(db, 'world_posts'), orderBy('createdAt', 'desc'), limit(100)), s => {
-        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0) setWorldPosts(data as any);
-      }, 'world_posts'));
-      unsubs.push(subscribeSnapshot(query(collection(db, 'world_events'), orderBy('date', 'asc'), limit(50)), s => {
-        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0) setWorldEvents(data as any);
-      }, 'world_events'));
-      unsubs.push(subscribeSnapshot(query(collection(db, 'world_help_requests'), orderBy('createdAt', 'desc'), limit(50)), s => {
-        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0) setWorldHelpRequests(data as any);
-      }, 'world_help_requests'));
-      unsubs.push(subscribeSnapshot(collection(db, 'world_applications'), s => {
-        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        setWorldApplications(data as any);
-      }, 'world_applications'));
 
-      // Realtime listeners for World Fans (Groups, Posts, Events, Help Requests, Applications)
-      unsubs.push(subscribeSnapshot(collection(db, 'world_countries'), s => {
-        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0) setWorldCountries(data as any);
-      }, 'world_countries'));
       unsubs.push(subscribeSnapshot(collection(db, 'world_groups'), s => {
         const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0) setWorldGroups(data as any);
+        if (data.length > 0) {
+          setWorldGroups(data as any);
+        } else {
+          // Auto-seed default groups so they are permanently stored in Firestore
+          defaultWorldGroups.forEach(g => {
+            setDoc(doc(db, 'world_groups', g.id), g).catch(() => {});
+          });
+          setWorldGroups(defaultWorldGroups);
+        }
       }, 'world_groups'));
+
       unsubs.push(subscribeSnapshot(query(collection(db, 'world_posts'), orderBy('createdAt', 'desc'), limit(100)), s => {
         const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
         if (data.length > 0) setWorldPosts(data as any);
       }, 'world_posts'));
+
       unsubs.push(subscribeSnapshot(query(collection(db, 'world_events'), orderBy('date', 'asc'), limit(50)), s => {
         const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
         if (data.length > 0) setWorldEvents(data as any);
       }, 'world_events'));
+
       unsubs.push(subscribeSnapshot(query(collection(db, 'world_help_requests'), orderBy('createdAt', 'desc'), limit(50)), s => {
         const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
         if (data.length > 0) setWorldHelpRequests(data as any);
       }, 'world_help_requests'));
+
       unsubs.push(subscribeSnapshot(collection(db, 'world_applications'), s => {
         const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
         setWorldApplications(data as any);
@@ -316,6 +312,12 @@ export function useFirestoreSync() {
           localStorage.removeItem('fs_cache_businesses');
           localStorage.removeItem('fs_cache_business_updates');
           localStorage.removeItem('fs_cache_business_reports');
+          localStorage.removeItem('fs_cache_world_countries');
+          localStorage.removeItem('fs_cache_world_groups');
+          localStorage.removeItem('fs_cache_world_posts');
+          localStorage.removeItem('fs_cache_world_events');
+          localStorage.removeItem('fs_cache_world_help_requests');
+          localStorage.removeItem('fs_cache_world_applications');
         }
       } catch (e) {}
 
@@ -363,9 +365,7 @@ export function useFirestoreSync() {
         fetchCol('club_announcements', setClubAnnouncements),
         fetchCol('club_services', setClubServices),
         fetchCol('club_trips', setClubTrips),
-        fetchCol('member_discounts', setMemberDiscounts),
-        fetchCol('world_countries', setWorldCountries),
-        fetchCol('world_groups', setWorldGroups)
+        fetchCol('member_discounts', setMemberDiscounts)
       ]);
       
       isFetchedRef.current = true;

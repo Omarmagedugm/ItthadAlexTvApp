@@ -470,10 +470,18 @@ export const WorldEventsTab: React.FC<WorldEventsTabProps> = ({
                 />
               </div>
 
-              {/* Event Image Upload / URL */}
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">صورة الفعالية / المكان (اختياري)</label>
-                <div className="flex items-center gap-2">
+              {/* Event Image Upload */}
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 text-xs whitespace-nowrap">
+                    صورة الفعالية / المكان (اختياري)
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-semibold whitespace-nowrap">
+                    رفع صورة
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3">
                   <div className="shrink-0">
                     <ImageUploader
                       folderName="world_events"
@@ -481,44 +489,63 @@ export const WorldEventsTab: React.FC<WorldEventsTabProps> = ({
                         setImage(url);
                       }}
                       buttonText="رفع صورة"
-                      buttonClassName="!bg-slate-200 dark:!bg-slate-700 hover:!bg-slate-300 !text-slate-800 dark:!text-white !py-2 !px-3 !rounded-xl !text-xs !font-bold"
+                      buttonClassName="!bg-emerald-600 hover:!bg-emerald-700 !text-white !py-2 !px-3.5 !rounded-xl !text-xs !font-bold !shadow-sm flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0"
                       showPreview={false}
                     />
                   </div>
-                  <input
-                    type="url"
-                    value={image}
-                    onChange={(e) => setImage(e.target.value)}
-                    placeholder="رابط صورة https://..."
-                    className="w-full p-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
-                    dir="ltr"
-                  />
+
+                  {image ? (
+                    <div className="flex items-center gap-2 flex-1 min-w-0 bg-white dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <div className="w-12 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 overflow-hidden shrink-0">
+                        <img
+                          src={image}
+                          alt="صورة الفعالية"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold truncate flex-1 whitespace-nowrap">
+                        ✓ تم اختيار الصورة
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setImage('')}
+                        className="text-slate-400 hover:text-red-500 p-1 shrink-0 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                        title="حذف الصورة"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
+                      لم يتم رفع صورة
+                    </span>
+                  )}
                 </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">تفاصيل إضافية أو تعليمات</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 text-xs">تفاصيل إضافية أو تعليمات</label>
                 <textarea
                   rows={2}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="مثال: يرجى ارتداء تيشرت الاتحاد الأخضر والحضور قبل المباراة بنصف ساعة..."
-                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
+                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-xs resize-none"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-700">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-700 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold"
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs whitespace-nowrap shrink-0"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-md flex items-center gap-1.5 active:scale-95 transition-all"
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md disabled:opacity-50 whitespace-nowrap shrink-0 flex items-center gap-1.5 active:scale-95 transition-all"
                 >
                   <Plus size={15} />
                   <span>{isSubmitting ? 'جاري الحفظ...' : 'نشر التجمع'}</span>

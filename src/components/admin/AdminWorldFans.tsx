@@ -612,244 +612,266 @@ export const AdminWorldFans: React.FC = () => {
 
       {/* Edit/Add Group Modal */}
       {isGroupModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm">
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="w-full max-w-xl rounded-3xl bg-white dark:bg-slate-800 p-6 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-xl rounded-3xl bg-white dark:bg-slate-800 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[85vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
           >
-            <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-700">
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between shrink-0 bg-white dark:bg-slate-800">
               <h3 className="text-sm font-black text-slate-800 dark:text-white">
                 {editingGroup ? 'تعديل بيانات الرابطة' : 'إضافة رابطة جديدة'}
               </h3>
               <button
                 onClick={() => setIsGroupModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold p-1"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveGroup} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">اسم الرابطة *</label>
-                  <input
-                    type="text"
-                    required
-                    value={groupForm.name || ''}
-                    onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
-                    placeholder="مثال: رابطة اتحاداوية الرياض"
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">الدولة *</label>
-                  <select
-                    value={groupForm.countryId || 'sa'}
-                    onChange={(e) => setGroupForm({ ...groupForm, countryId: e.target.value })}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
-                  >
-                    {worldCountries.map(c => (
-                      <option key={c.id} value={c.id}>{c.flag} {c.nameAr}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">المدينة *</label>
-                  <input
-                    type="text"
-                    required
-                    value={groupForm.city || ''}
-                    onChange={(e) => setGroupForm({ ...groupForm, city: e.target.value })}
-                    placeholder="مثال: الرياض"
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">عدد الأعضاء التقديري</label>
-                  <input
-                    type="number"
-                    value={groupForm.memberCount || 10}
-                    onChange={(e) => setGroupForm({ ...groupForm, memberCount: Number(e.target.value) })}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">مسؤول الرابطة</label>
-                  <input
-                    type="text"
-                    value={groupForm.adminName || ''}
-                    onChange={(e) => setGroupForm({ ...groupForm, adminName: e.target.value })}
-                    placeholder="اسم المسؤول"
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">سنة التأسيس</label>
-                  <input
-                    type="number"
-                    value={groupForm.foundedYear || 2024}
-                    onChange={(e) => setGroupForm({ ...groupForm, foundedYear: Number(e.target.value) })}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">رابط جروب الواتساب</label>
-                <input
-                  type="url"
-                  value={groupForm.whatsappGroupUrl || ''}
-                  onChange={(e) => setGroupForm({ ...groupForm, whatsappGroupUrl: e.target.value })}
-                  placeholder="https://chat.whatsapp.com/..."
-                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
-                />
-              </div>
-
-              {/* League Logo Upload & URL Option */}
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block font-bold text-slate-700 dark:text-slate-300">
-                    شعار الرابطة (Logo)
-                  </label>
-                  <span className="text-[10px] text-slate-400 font-semibold">
-                    رفع صورة أو رابط مباشر
-                  </span>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                  <div className="shrink-0">
-                    <ImageUploader
-                      folderName="world_groups"
-                      onUploadSuccess={(url) => {
-                        setGroupForm({ ...groupForm, logo: url });
-                      }}
-                      buttonText="رفع شعار"
-                      buttonClassName="!bg-emerald-600 hover:!bg-emerald-700 !text-white !py-2 !px-3 !rounded-xl !text-xs !font-bold !shadow-sm flex items-center justify-center gap-1.5"
-                      showPreview={false}
+            <form onSubmit={handleSaveGroup} className="flex flex-col flex-1 overflow-hidden text-xs">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 overscroll-contain">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">اسم الرابطة *</label>
+                    <input
+                      type="text"
+                      required
+                      value={groupForm.name || ''}
+                      onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
+                      placeholder="مثال: رابطة اتحاداوية الرياض"
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
                     />
                   </div>
 
-                  <div className="relative flex-1">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">الدولة *</label>
+                    <select
+                      value={groupForm.countryId || 'sa'}
+                      onChange={(e) => setGroupForm({ ...groupForm, countryId: e.target.value })}
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
+                    >
+                      {worldCountries.map(c => (
+                        <option key={c.id} value={c.id}>{c.flag} {c.nameAr || c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">المدينة *</label>
                     <input
-                      type="url"
-                      value={groupForm.logo || ''}
-                      onChange={(e) => setGroupForm({ ...groupForm, logo: e.target.value })}
-                      placeholder="أو الصق رابط صورة الشعار (https://...)"
-                      className="w-full p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold pl-7"
-                      dir="ltr"
+                      type="text"
+                      required
+                      value={groupForm.city || ''}
+                      onChange={(e) => setGroupForm({ ...groupForm, city: e.target.value })}
+                      placeholder="مثال: الرياض"
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
                     />
-                    {groupForm.logo && (
-                      <button
-                        type="button"
-                        onClick={() => setGroupForm({ ...groupForm, logo: '' })}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 p-0.5"
-                        title="إزالة الشعار"
-                      >
-                        <X size={13} />
-                      </button>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">عدد الأعضاء التقديري</label>
+                    <input
+                      type="number"
+                      value={groupForm.memberCount || 10}
+                      onChange={(e) => setGroupForm({ ...groupForm, memberCount: Number(e.target.value) })}
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">مسؤول الرابطة</label>
+                    <input
+                      type="text"
+                      value={groupForm.adminName || ''}
+                      onChange={(e) => setGroupForm({ ...groupForm, adminName: e.target.value })}
+                      placeholder="اسم المسؤول"
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">سنة التأسيس</label>
+                    <input
+                      type="number"
+                      value={groupForm.foundedYear || 2024}
+                      onChange={(e) => setGroupForm({ ...groupForm, foundedYear: Number(e.target.value) })}
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">رابط جروب الواتساب</label>
+                  <input
+                    type="url"
+                    value={groupForm.whatsappGroupUrl || ''}
+                    onChange={(e) => setGroupForm({ ...groupForm, whatsappGroupUrl: e.target.value })}
+                    placeholder="https://chat.whatsapp.com/..."
+                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
+                  />
+                </div>
+
+                {/* League Logo Upload */}
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 text-xs whitespace-nowrap">
+                      شعار الرابطة (Logo)
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-semibold whitespace-nowrap">
+                      رفع صورة الشعار
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="shrink-0">
+                      <ImageUploader
+                        folderName="world_groups"
+                        onUploadSuccess={(url) => {
+                          setGroupForm({ ...groupForm, logo: url });
+                        }}
+                        buttonText="رفع شعار"
+                        buttonClassName="!bg-emerald-600 hover:!bg-emerald-700 !text-white !py-2 !px-3.5 !rounded-xl !text-xs !font-bold !shadow-sm flex items-center justify-center gap-1.5 whitespace-nowrap"
+                        showPreview={false}
+                      />
+                    </div>
+
+                    {groupForm.logo ? (
+                      <div className="flex items-center gap-2 flex-1 min-w-0 bg-white dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-700 overflow-hidden flex items-center justify-center p-0.5 shrink-0">
+                          <img
+                            src={groupForm.logo}
+                            alt="شعار الرابطة"
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
+                        <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold truncate flex-1 whitespace-nowrap">
+                          ✓ تم تحديد الشعار
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setGroupForm({ ...groupForm, logo: '' })}
+                          className="text-slate-400 hover:text-red-500 p-1 shrink-0 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                          title="حذف الشعار"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
+                        لم يتم رفع شعار بعد
+                      </span>
                     )}
                   </div>
                 </div>
 
-                {groupForm.logo && (
-                  <div className="flex items-center gap-2.5 pt-1">
-                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center p-1 shrink-0">
-                      <img
-                        src={groupForm.logo}
-                        alt="شعار الرابطة"
-                        className="w-full h-full object-contain"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = 'none';
-                        }}
-                      />
-                    </div>
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold truncate">
-                      ✓ تم تحديد الشعار بنجاح
+                {/* League Cover Image Upload */}
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 text-xs whitespace-nowrap">
+                      صورة الغلاف (اختياري)
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-semibold whitespace-nowrap">
+                      رفع صورة الغلاف
                     </span>
                   </div>
-                )}
-              </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">صورة الغلاف (اختياري)</label>
-                <div className="flex items-center gap-2">
-                  <div className="shrink-0">
-                    <ImageUploader
-                      folderName="world_groups"
-                      onUploadSuccess={(url) => {
-                        setGroupForm({ ...groupForm, coverImage: url });
-                      }}
-                      buttonText="رفع غلاف"
-                      buttonClassName="!bg-slate-200 dark:!bg-slate-700 hover:!bg-slate-300 !text-slate-800 dark:!text-white !py-2 !px-3 !rounded-xl !text-xs !font-bold"
-                      showPreview={false}
-                    />
+                  <div className="flex items-center gap-3">
+                    <div className="shrink-0">
+                      <ImageUploader
+                        folderName="world_groups"
+                        onUploadSuccess={(url) => {
+                          setGroupForm({ ...groupForm, coverImage: url });
+                        }}
+                        buttonText="رفع غلاف"
+                        buttonClassName="!bg-slate-200 dark:!bg-slate-700 hover:!bg-slate-300 !text-slate-800 dark:!text-white !py-2 !px-3.5 !rounded-xl !text-xs !font-bold whitespace-nowrap flex items-center justify-center gap-1.5"
+                        showPreview={false}
+                      />
+                    </div>
+
+                    {groupForm.coverImage ? (
+                      <div className="flex items-center gap-2 flex-1 min-w-0 bg-white dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <div className="w-12 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 overflow-hidden shrink-0">
+                          <img
+                            src={groupForm.coverImage}
+                            alt="غلاف الرابطة"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold truncate flex-1 whitespace-nowrap">
+                          ✓ تم تحديد الغلاف
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setGroupForm({ ...groupForm, coverImage: '' })}
+                          className="text-slate-400 hover:text-red-500 p-1 shrink-0 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                          title="حذف الغلاف"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
+                        لم يتم رفع غلاف بعد
+                      </span>
+                    )}
                   </div>
-                  <input
-                    type="url"
-                    value={groupForm.coverImage || ''}
-                    onChange={(e) => setGroupForm({ ...groupForm, coverImage: e.target.value })}
-                    placeholder="رابط صورة الغلاف https://..."
-                    className="w-full p-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
-                    dir="ltr"
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 text-xs">الوصف والنبذة</label>
+                  <textarea
+                    rows={2}
+                    value={groupForm.description || ''}
+                    onChange={(e) => setGroupForm({ ...groupForm, description: e.target.value })}
+                    placeholder="نبذة عن الرابطة وأنشطتها..."
+                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold resize-none text-xs"
                   />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4 pt-2">
+                  <label className="inline-flex items-center gap-2 cursor-pointer font-bold text-slate-700 dark:text-slate-300 text-xs shrink-0 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={groupForm.status === 'official'}
+                      onChange={(e) => setGroupForm({ ...groupForm, status: e.target.checked ? 'official' : 'community' })}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="whitespace-nowrap">رابطة رسمية معتمدة 👑</span>
+                  </label>
+
+                  <label className="inline-flex items-center gap-2 cursor-pointer font-bold text-slate-700 dark:text-slate-300 text-xs shrink-0 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={groupForm.featured || false}
+                      onChange={(e) => setGroupForm({ ...groupForm, featured: e.target.checked })}
+                      className="rounded text-amber-500 focus:ring-amber-400"
+                    />
+                    <span className="whitespace-nowrap">مميزة في الواجهة ⭐</span>
+                  </label>
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">الوصف والنبذة</label>
-                <textarea
-                  rows={2}
-                  value={groupForm.description || ''}
-                  onChange={(e) => setGroupForm({ ...groupForm, description: e.target.value })}
-                  placeholder="نبذة عن الرابطة وأنشطتها..."
-                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold resize-none"
-                />
-              </div>
-
-              <div className="flex items-center gap-4 pt-2">
-                <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700 dark:text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={groupForm.status === 'official'}
-                    onChange={(e) => setGroupForm({ ...groupForm, status: e.target.checked ? 'official' : 'community' })}
-                    className="rounded text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <span>رابطة رسمية معتمدة 👑</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700 dark:text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={groupForm.featured || false}
-                    onChange={(e) => setGroupForm({ ...groupForm, featured: e.target.checked })}
-                    className="rounded text-amber-500 focus:ring-amber-400"
-                  />
-                  <span>مميزة في الواجهة ⭐</span>
-                </label>
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-end gap-2">
+              {/* Fixed Footer Buttons */}
+              <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800 flex items-center justify-end gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsGroupModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 font-bold"
+                  className="px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-300 active:scale-95 transition-all text-xs whitespace-nowrap shrink-0"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-black shadow active:scale-95"
+                  className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-lg shadow-emerald-600/20 active:scale-95 transition-all text-xs whitespace-nowrap shrink-0"
                 >
                   حفظ البيانات
                 </button>

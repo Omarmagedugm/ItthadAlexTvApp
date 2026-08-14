@@ -67,17 +67,30 @@ export const defaultWorldCountries: WorldCountry[] = [
     description: 'اتحاداوية أمريكا الشمالية تجمعهم المحبة الخضراء والشغف بالثغر السكندري.'
   },
   {
-    id: 'de',
-    code: 'DE',
-    name: 'ألمانيا',
-    flag: '🇩🇪',
-    fanCount: 280,
+    id: 'eu',
+    code: 'EU',
+    name: 'الاتحاد الأوروبي',
+    flag: '🇪🇺',
+    fanCount: 480,
     groupsCount: 1,
-    cities: ['برلين', 'ميونخ', 'فرانكفورت', 'كولن'],
+    cities: ['فرانكفورت', 'باريس', 'برلين', 'روما', 'أمستردام', 'فيينا'],
     active: true,
     order: 6,
     coverImage: 'https://images.unsplash.com/photo-1528728329032-2972f65dfb3f?q=80&w=1200&auto=format&fit=crop',
-    description: 'ملتقى الاتحاداوية في المدن الألمانية والاتحاد الأوروبي.'
+    description: 'ملتقى جماهير الاتحاد السكندري وعشاق الأخضر في دول ومدن الاتحاد الأوروبي.'
+  },
+  {
+    id: 'east_asia',
+    code: 'EA',
+    name: 'شرق آسيا',
+    flag: '🌏',
+    fanCount: 220,
+    groupsCount: 1,
+    cities: ['طوكيو', 'بكين', 'سيول', 'كوالالمبور', 'سنغافورة', 'بانكوك'],
+    active: true,
+    order: 7,
+    coverImage: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=1200&auto=format&fit=crop',
+    description: 'تجمع ورابطة محبي زعيم الثغر في دول وعواصم شرق وجنوب شرق آسيا.'
   },
   {
     id: 'qa',
@@ -88,7 +101,7 @@ export const defaultWorldCountries: WorldCountry[] = [
     groupsCount: 1,
     cities: ['الدوحة', 'الريان', 'الوكرة'],
     active: true,
-    order: 7,
+    order: 8,
     coverImage: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?q=80&w=1200&auto=format&fit=crop',
     description: 'رابطة مشجعي الاتحاد السكندري في الدوحة والملاعب القطرية.'
   },
@@ -101,7 +114,7 @@ export const defaultWorldCountries: WorldCountry[] = [
     groupsCount: 1,
     cities: ['مسقط', 'صلالة', 'صحار'],
     active: true,
-    order: 8,
+    order: 9,
     coverImage: 'https://images.unsplash.com/photo-1549488344-1f9b8d2bd1f3?q=80&w=1200&auto=format&fit=crop',
     description: 'أبناء زعيم الثغر في مسقط وعمان المحبة.'
   }

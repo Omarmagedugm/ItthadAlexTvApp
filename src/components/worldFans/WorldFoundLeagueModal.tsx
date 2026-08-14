@@ -87,15 +87,15 @@ export const WorldFoundLeagueModal: React.FC<WorldFoundLeagueModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm">
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="w-full max-w-xl rounded-3xl bg-white dark:bg-slate-800 p-6 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-xl rounded-3xl bg-white dark:bg-slate-800 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[85vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
       >
         {isSubmitted ? (
-          <div className="text-center py-8 space-y-4">
+          <div className="p-6 text-center py-8 space-y-4 overflow-y-auto">
             <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
               <CheckCircle2 size={36} />
             </div>
@@ -118,9 +118,9 @@ export const WorldFoundLeagueModal: React.FC<WorldFoundLeagueModalProps> = ({
             </div>
           </div>
         ) : (
-          <div>
+          <div className="flex flex-col flex-1 overflow-hidden">
             {/* Modal Header */}
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-700">
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between shrink-0 bg-white dark:bg-slate-800">
               <div className="flex items-center gap-2.5">
                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 flex items-center justify-center shadow-md">
                   <Sparkles size={20} />
@@ -144,7 +144,8 @@ export const WorldFoundLeagueModal: React.FC<WorldFoundLeagueModalProps> = ({
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden text-xs">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 overscroll-contain">
               <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 flex items-center gap-2 font-medium">
                 <ShieldCheck size={18} className="shrink-0 text-emerald-600" />
                 <span>
@@ -229,19 +230,18 @@ export const WorldFoundLeagueModal: React.FC<WorldFoundLeagueModalProps> = ({
                 </div>
               </div>
 
-              {/* League Logo Upload & URL Option */}
+              {/* League Logo Upload */}
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <label className="block font-bold text-slate-700 dark:text-slate-300">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 text-xs whitespace-nowrap">
                     شعار الرابطة (اختياري)
                   </label>
-                  <span className="text-[10px] text-slate-400 font-semibold">
-                    رفع صورة أو رابط مباشر
+                  <span className="text-[10px] text-slate-400 font-semibold whitespace-nowrap">
+                    رفع صورة الشعار
                   </span>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-                  {/* Upload Button */}
+                <div className="flex items-center gap-3">
                   <div className="shrink-0">
                     <ImageUploader
                       folderName="world_groups"
@@ -249,87 +249,77 @@ export const WorldFoundLeagueModal: React.FC<WorldFoundLeagueModalProps> = ({
                         setLogo(url);
                       }}
                       buttonText="رفع شعار من جهازك"
-                      buttonClassName="!bg-emerald-600 hover:!bg-emerald-700 !text-white !py-2 !px-3.5 !rounded-xl !text-xs !font-bold !shadow-sm flex items-center justify-center gap-1.5"
+                      buttonClassName="!bg-emerald-600 hover:!bg-emerald-700 !text-white !py-2 !px-3.5 !rounded-xl !text-xs !font-bold !shadow-sm flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0"
                       showPreview={false}
                     />
                   </div>
 
-                  {/* Direct URL Input */}
-                  <div className="relative flex-1">
-                    <input
-                      type="url"
-                      value={logo}
-                      onChange={(e) => setLogo(e.target.value)}
-                      placeholder="أو الصق رابط الشعار هنا (https://...)"
-                      className="w-full p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold pl-8"
-                      dir="ltr"
-                    />
-                    {logo && (
+                  {logo ? (
+                    <div className="flex items-center gap-2 flex-1 min-w-0 bg-white dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-700 overflow-hidden flex items-center justify-center p-0.5 shrink-0">
+                        <img
+                          src={logo}
+                          alt="شعار الرابطة"
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      </div>
+                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold truncate flex-1 whitespace-nowrap">
+                        ✓ تم تحديد الشعار
+                      </span>
                       <button
                         type="button"
                         onClick={() => setLogo('')}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 p-0.5"
-                        title="إزالة الشعار"
+                        className="text-slate-400 hover:text-red-500 p-1 shrink-0 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                        title="حذف الشعار"
                       >
                         <X size={14} />
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
+                      لم يتم رفع شعار بعد
+                    </span>
+                  )}
                 </div>
-
-                {/* Logo Preview */}
-                {logo && (
-                  <div className="flex items-center gap-3 pt-1">
-                    <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm flex items-center justify-center p-1 shrink-0">
-                      <img
-                        src={logo}
-                        alt="شعار الرابطة"
-                        className="w-full h-full object-contain"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = 'none';
-                        }}
-                      />
-                    </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                      <span className="text-emerald-600 dark:text-emerald-400 font-bold block">✓ تم تحديد الشعار</span>
-                      <span className="line-clamp-1 break-all text-[10px] opacity-75">{logo}</span>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">خطة العمل والتجمعات المقترحة *</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 text-xs">خطة العمل والتجمعات المقترحة *</label>
                 <textarea
                   rows={3}
                   required
                   value={motivation}
                   onChange={(e) => setMotivation(e.target.value)}
                   placeholder="كيف تنوي تجميع الجماهير؟ هل هناك أماكن أو كافيهات محددة لمشاهدة المباريات؟..."
-                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold resize-none"
+                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold resize-none text-xs"
                 />
               </div>
+            </div>
 
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 font-bold"
-                >
-                  إلغاء
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black shadow-lg flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
-                >
-                  <Send size={14} />
-                  <span>{isSubmitting ? 'جاري الإرسال...' : 'إرسال طلب التأسيس'}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
+            {/* Fixed Footer Buttons */}
+            <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800 flex items-center justify-end gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-300 active:scale-95 transition-all text-xs whitespace-nowrap shrink-0"
+              >
+                إلغاء
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black shadow-lg shadow-amber-500/20 flex items-center gap-1.5 active:scale-95 disabled:opacity-50 transition-all text-xs whitespace-nowrap shrink-0"
+              >
+                <Send size={14} />
+                <span className="whitespace-nowrap">{isSubmitting ? 'جاري الإرسال...' : 'إرسال طلب التأسيس'}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
       </motion.div>
     </div>
   );
