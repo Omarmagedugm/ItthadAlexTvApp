@@ -32,12 +32,12 @@ export default function News() {
   } as const;
 
   return (
-    <div className="flex-1 w-full max-w-md mx-auto flex flex-col pb-32 px-0 bg-background-light dark:bg-background-dark min-h-screen">
+    <div className="flex-1 w-full max-w-md md:max-w-6xl lg:max-w-7xl mx-auto flex flex-col pb-32 md:pb-16 px-0 md:px-6 bg-background-light dark:bg-background-dark min-h-screen">
       <motion.main 
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="flex-1 overflow-x-hidden p-4 flex flex-col gap-8"
+        className="flex-1 overflow-x-hidden p-4 md:p-0 flex flex-col gap-8 pt-4"
       >
         <div className="flex flex-col gap-8">
           {/* Featured News Hero */}
@@ -154,10 +154,10 @@ export default function News() {
               <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Journalism Feed</span>
             </div>
             
-            <div className="flex flex-col gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {otherNews.map((item) => (
-                <Link to={`/news/${item.id}`} key={item.id} className="group flex gap-4 bg-white dark:bg-surface-dark rounded-[28px] overflow-hidden border border-border-light/40 dark:border-border-dark/40 shadow-premium hover:shadow-2xl transition-all duration-300 p-2.5">
-                  <div className="w-[110px] h-[110px] overflow-hidden relative rounded-2xl flex-shrink-0">
+                <Link to={`/news/${item.id}`} key={item.id} className="group flex flex-row md:flex-col gap-4 bg-white dark:bg-surface-dark rounded-[28px] overflow-hidden border border-border-light/40 dark:border-border-dark/40 shadow-premium hover:shadow-2xl transition-all duration-300 p-2.5 md:p-3.5">
+                  <div className="w-[110px] h-[110px] md:w-full md:aspect-[16/10] md:h-auto overflow-hidden relative rounded-2xl flex-shrink-0">
                     <img src={getOptimizedImage(item.image, 400)} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" referrerPolicy="no-referrer" />
                     {item.type === 'rss' && (
                        <div className="absolute bottom-1 right-1 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-lg flex items-center gap-1 shadow-sm text-white">
@@ -166,7 +166,7 @@ export default function News() {
                        </div>
                     )}
                   </div>
-                    <div className="py-2 pl-2 flex flex-col justify-between flex-1">
+                    <div className="py-2 pl-2 md:p-0 flex flex-col justify-between flex-1">
                     <div>
                       <div className="flex flex-col gap-1.5 mb-2">
                         <div className="flex items-center justify-between">
@@ -194,7 +194,7 @@ export default function News() {
                         {item.title}
                       </h4>
                     </div>
-                    <div className="flex items-center justify-end mt-2">
+                    <div className="flex items-center justify-end mt-2 md:mt-4">
                        <div className="flex items-center gap-1 text-[10px] font-black text-slate-400">
                          <span>عرض الخبر</span>
                          <ChevronRight size={10} strokeWidth={3} className="rotate-180" />

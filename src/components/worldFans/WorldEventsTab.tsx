@@ -18,9 +18,10 @@ import {
   X
 } from 'lucide-react';
 import { WorldEvent, WorldGroup } from '../../types/worldFans';
+import { CountryFlag } from './CountryFlag';
 import { useAppStore } from '../../store';
 import { doc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { db, auth } from '../../lib/firebase';
+import { db, auth, cleanFirestoreData } from '../../lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
 import ImageUploader from '../ImageUploader';
 
@@ -138,18 +139,20 @@ export const WorldEventsTab: React.FC<WorldEventsTabProps> = ({
         date: eventDate,
         time: eventTime || '07:00 م بتوقيت القاهرة',
         location: location.trim(),
-        mapsUrl: mapsUrl.trim() || undefined,
-        image: image.trim() || undefined,
+        mapsUrl: mapsUrl.trim() || '',
+        image: image.trim() || '',
         participantsCount: 1,
         participantUids: [currentUser?.uid || 'host'],
         status: 'upcoming',
         createdAt: new Date().toISOString(),
       };
 
-      setWorldEvents([newEvent, ...worldEvents]);
+      const cleanedEvent = cleanFirestoreData(newEvent);
+
+      setWorldEvents([cleanedEvent, ...worldEvents]);
 
       try {
-        await setDoc(doc(db, 'world_events', newEvent.id), newEvent);
+        await setDoc(doc(db, 'world_events', cleanedEvent.id), cleanedEvent, { merge: true });
       } catch (err) {
         console.warn('Firestore event write note:', err);
       }
@@ -240,7 +243,12 @@ export const WorldEventsTab: React.FC<WorldEventsTabProps> = ({
                   {/* Badge & League */}
                   <div className="flex items-center justify-between gap-2 mb-2.5">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm">{evt.groupFlag || '🌍'}</span>
+                      <CountryFlag
+                        countryCode={evt.groupId}
+                        flag={evt.groupFlag}
+                        countryName={evt.groupName}
+                        size="xs"
+                      />
                       <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
                         {evt.groupName}
                       </span>

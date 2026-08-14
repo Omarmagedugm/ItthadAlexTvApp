@@ -195,7 +195,7 @@ export function useFirestoreSync() {
         const rawData = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
 
         if (rawData.length === 0) {
-          setWorldGroups([]);
+          setWorldGroups(defaultWorldGroups);
         } else {
           // Clean up old Germany groups if any
           const oldDeGroup = rawData.find(g => g.countryId === 'de' || g.countryName === 'ألمانيا' || g.id === 'group_de_berlin' || g.id === 'group_germany');
@@ -213,7 +213,11 @@ export function useFirestoreSync() {
             g.id !== 'group_germany'
           );
 
-          setWorldGroups(validGroups);
+          if (validGroups.length === 0) {
+            setWorldGroups(defaultWorldGroups);
+          } else {
+            setWorldGroups(validGroups);
+          }
         }
       }, 'world_groups'));
 

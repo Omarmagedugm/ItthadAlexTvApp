@@ -171,7 +171,7 @@ export default function DiscountsPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-20 text-right" dir="rtl">
       {/* Header Bar */}
       <div className="bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-800 text-white pt-5 pb-6 px-4 shadow-lg sticky top-0 z-30">
-        <div className="max-w-xl mx-auto">
+        <div className="max-w-xl md:max-w-4xl lg:max-w-5xl mx-auto">
           <div className="flex items-center justify-between gap-3 mb-3">
             <button
               onClick={() => navigate('/club-members')}
@@ -216,7 +216,7 @@ export default function DiscountsPage() {
         </div>
       </div>
 
-      <div className="max-w-xl mx-auto px-4 pt-4 space-y-4">
+      <div className="max-w-xl md:max-w-4xl lg:max-w-5xl mx-auto px-4 pt-4 space-y-4">
         {/* Medical / Service Disclaimer Banner */}
         <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-3 flex items-start gap-2.5 text-amber-800 dark:text-amber-300 text-xs leading-relaxed">
           <ShieldAlert size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
@@ -328,7 +328,7 @@ export default function DiscountsPage() {
             </button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {filteredDiscounts.map((item) => {
               const badge = getCategoryBadge(item.category);
               const maxPerc = getHighestDiscountPercentage(item.discountDetails);

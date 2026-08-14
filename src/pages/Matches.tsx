@@ -223,7 +223,7 @@ export default function Matches() {
   const lossRate = (seasonStats.losses / totalGames) * 100;
 
   return (
-    <div className="flex-1 w-full max-w-md mx-auto flex flex-col pb-32 px-0 bg-background-light dark:bg-background-dark min-h-screen">
+    <div className="flex-1 w-full max-w-md md:max-w-5xl lg:max-w-6xl mx-auto flex flex-col pb-32 md:pb-16 px-0 md:px-6 bg-background-light dark:bg-background-dark min-h-screen">
       <div className="sticky top-[65px] z-30 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-xl px-4 py-2 border-b border-border-light/40 dark:border-border-dark/40 flex flex-col gap-2">
         <div className="flex gap-2 p-1 bg-slate-100 dark:bg-surface-dark rounded-2xl">
           {[
@@ -373,7 +373,7 @@ export default function Matches() {
                   </motion.div>
                 )}
 
-                <div className="flex flex-col gap-5 pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4">
                   {section.matches.slice(0, visibleCount[section.id] || 5).map((match) => (
                     <motion.div 
                       key={match.id} 

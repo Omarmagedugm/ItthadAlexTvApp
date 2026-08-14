@@ -4,7 +4,7 @@ import { Sparkles, Globe, CheckCircle2, ShieldCheck, Send, MapPin, User, Mail, P
 import { WorldCountry, WorldApplication } from '../../types/worldFans';
 import { useAppStore } from '../../store';
 import { doc, setDoc } from 'firebase/firestore';
-import { db, auth } from '../../lib/firebase';
+import { db, auth, cleanFirestoreData } from '../../lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
 import ImageUploader from '../ImageUploader';
 
@@ -61,7 +61,7 @@ export const WorldFoundLeagueModal: React.FC<WorldFoundLeagueModalProps> = ({
         city: city.trim(),
         groupName: proposedGroupName.trim() || `رابطة مشجعي الاتحاد في ${city.trim()}`,
         proposedGroupName: proposedGroupName.trim() || `رابطة مشجعي الاتحاد في ${city.trim()}`,
-        logo: logo.trim() || undefined,
+        logo: logo.trim() || '',
         estimatedFansCount: Number(estimatedFansCount) || 20,
         expectedMembers: Number(estimatedFansCount) || 20,
         motivation: motivation.trim(),
@@ -70,10 +70,12 @@ export const WorldFoundLeagueModal: React.FC<WorldFoundLeagueModalProps> = ({
         createdAt: new Date().toISOString(),
       };
 
-      setWorldApplications([newApp, ...worldApplications]);
+      const cleanedApp = cleanFirestoreData(newApp);
+
+      setWorldApplications([cleanedApp, ...worldApplications]);
 
       try {
-        await setDoc(doc(db, 'world_applications', newApp.id), newApp);
+        await setDoc(doc(db, 'world_applications', cleanedApp.id), cleanedApp, { merge: true });
       } catch (err) {
         console.warn('Application stored locally:', err);
       }

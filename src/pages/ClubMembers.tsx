@@ -134,7 +134,7 @@ export default function ClubMembers() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-background-dark pb-24 pt-2">
       {/* Top Banner Identity */}
-      <div className="max-w-md mx-auto px-4 mb-4">
+      <div className="max-w-md md:max-w-4xl lg:max-w-5xl mx-auto px-4 mb-4">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-dark via-primary to-emerald-900 text-white p-5 shadow-xl border border-primary/30">
           <div className="absolute -left-6 -bottom-6 w-32 h-32 bg-amber-400/15 rounded-full blur-2xl pointer-events-none"></div>
           <div className="absolute right-0 top-0 w-28 h-28 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
@@ -206,7 +206,7 @@ export default function ClubMembers() {
       </div>
 
       {/* Main Navigation Tabs */}
-      <div className="max-w-md mx-auto px-4 mb-4">
+      <div className="max-w-md md:max-w-4xl lg:max-w-5xl mx-auto px-4 mb-4">
         <div className="flex items-center bg-white dark:bg-card-dark p-1.5 rounded-2xl border border-border-light dark:border-border-dark shadow-sm">
           <button
             onClick={() => setActiveTab('committees')}
@@ -260,7 +260,7 @@ export default function ClubMembers() {
 
       {/* SEARCH AND FILTERS BAR */}
       {(activeTab === 'services' || activeTab === 'noticeboard' || activeTab === 'trips') && (
-        <div className="max-w-md mx-auto px-4 mb-4 space-y-2">
+        <div className="max-w-md md:max-w-4xl lg:max-w-5xl mx-auto px-4 mb-4 space-y-2">
           <div className="relative flex items-center">
             <Search size={18} className="absolute right-3.5 text-slate-400 pointer-events-none" />
             <input
@@ -333,7 +333,7 @@ export default function ClubMembers() {
       )}
 
       {/* CONTENT AREA */}
-      <div className="max-w-md mx-auto px-4">
+      <div className="max-w-md md:max-w-4xl lg:max-w-5xl mx-auto px-4">
         {/* ----------------- TAB 1: COMMITTEES ----------------- */}
         {activeTab === 'committees' && (
           <div className="space-y-4">
@@ -345,7 +345,7 @@ export default function ClubMembers() {
               <span className="text-[10px] font-bold text-slate-400">اختر اللجنة لعرض لوحة إعلاناتها</span>
             </div>
 
-            <div className="grid grid-cols-1 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               {committeesList.map((committee) => {
                 const committeeAnnouncementsCount = (clubAnnouncements || defaultAnnouncements).filter(
                   a => a.committeeId === committee.id && a.active !== false
@@ -516,7 +516,7 @@ export default function ClubMembers() {
             </div>
 
             {servicesList.length > 0 ? (
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 {servicesList.map((service) => (
                   <motion.div
                     key={service.id}
@@ -589,7 +589,7 @@ export default function ClubMembers() {
             </div>
 
             {announcementsList.length > 0 ? (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 {announcementsList.map((ann) => (
                   <motion.div
                     key={ann.id}

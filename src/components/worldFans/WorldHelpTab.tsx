@@ -18,9 +18,10 @@ import {
   X
 } from 'lucide-react';
 import { WorldHelpRequest, WorldCountry } from '../../types/worldFans';
+import { CountryFlag } from './CountryFlag';
 import { useAppStore } from '../../store';
 import { doc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { db, auth } from '../../lib/firebase';
+import { db, auth, cleanFirestoreData } from '../../lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
 
 interface WorldHelpTabProps {
@@ -87,10 +88,12 @@ export const WorldHelpTab: React.FC<WorldHelpTabProps> = ({
         createdAt: new Date().toISOString(),
       };
 
-      setWorldHelpRequests([newReq, ...worldHelpRequests]);
+      const cleanedReq = cleanFirestoreData(newReq);
+
+      setWorldHelpRequests([cleanedReq, ...worldHelpRequests]);
 
       try {
-        await setDoc(doc(db, 'world_help_requests', newReq.id), newReq);
+        await setDoc(doc(db, 'world_help_requests', cleanedReq.id), cleanedReq, { merge: true });
       } catch (err) {
         console.warn('Firestore write note:', err);
       }
@@ -262,7 +265,12 @@ export const WorldHelpTab: React.FC<WorldHelpTabProps> = ({
                 {/* Header info */}
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-base">{req.countryFlag || '🌍'}</span>
+                    <CountryFlag
+                      countryCode={req.countryId}
+                      flag={req.countryFlag}
+                      countryName={req.countryName}
+                      size="sm"
+                    />
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
                       {req.countryName} {req.city && `(${req.city})`}
                     </span>

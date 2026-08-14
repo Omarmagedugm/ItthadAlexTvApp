@@ -1915,12 +1915,12 @@ export default function Home() {
   const isEmpty = dataLoaded && news.length === 0 && matches.length === 0;
 
   return (
-    <div className="flex-1 w-full max-w-md mx-auto flex flex-col pb-32 px-0 bg-background-light dark:bg-background-dark min-h-screen">
+    <div className="flex-1 w-full max-w-md md:max-w-6xl lg:max-w-7xl mx-auto flex flex-col pb-32 md:pb-16 px-0 md:px-6 bg-background-light dark:bg-background-dark min-h-screen">
       <motion.main
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="flex-1 overflow-x-hidden px-4 flex flex-col gap-0 pt-2 pb-6"
+        className="flex-1 overflow-x-hidden px-4 md:px-0 flex flex-col gap-0 pt-2 pb-6"
       >
         {isEmpty && (
           <motion.div 

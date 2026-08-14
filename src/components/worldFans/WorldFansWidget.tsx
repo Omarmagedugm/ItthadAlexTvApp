@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Globe, Users, ChevronLeft, MapPin, Sparkles, Plus, Flag } from 'lucide-react';
 import { useAppStore } from '../../store';
+import { CountryFlag } from './CountryFlag';
 
 // Helper to guarantee accurate country emoji flag for any country
 export const getCountryFlag = (countryIdOrName?: string, fallbackFlag?: string): string => {
@@ -189,7 +190,13 @@ export default function WorldFansWidget() {
               onClick={() => navigate(`/world-fans?country=${country.countryId}`)}
               className="shrink-0 flex items-center gap-2 bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-md border border-white/15 rounded-2xl px-3 py-2 text-right transition-all group"
             >
-              <span className="text-xl shrink-0 drop-shadow-sm">{country.countryFlag}</span>
+              <CountryFlag
+                countryCode={country.countryId}
+                flag={country.countryFlag}
+                countryName={country.countryName}
+                size="md"
+                shape="rounded"
+              />
               <div className="min-w-0">
                 <div className="text-xs font-black text-white group-hover:text-amber-300 transition-colors whitespace-nowrap">
                   {country.countryName}

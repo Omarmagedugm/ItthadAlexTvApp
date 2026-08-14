@@ -34,8 +34,9 @@ import { useAppStore } from '../store';
 import { WorldFeedTab } from '../components/worldFans/WorldFeedTab';
 import { WorldEventsTab } from '../components/worldFans/WorldEventsTab';
 import { WorldGroup, WorldGroupMember } from '../types/worldFans';
+import { CountryFlag } from '../components/worldFans/CountryFlag';
 import { doc, updateDoc, deleteDoc, setDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
+import { db, auth, cleanFirestoreData } from '../lib/firebase';
 import ImageUploader from '../components/ImageUploader';
 
 export const WorldGroupDetail: React.FC = () => {
@@ -235,24 +236,45 @@ export const WorldGroupDetail: React.FC = () => {
       const updatedGroup: WorldGroup = {
         ...group,
         ...editFormData,
-        memberCount: Number(editFormData.memberCount) || 10,
+        name: (editFormData.name || group.name).trim(),
+        city: (editFormData.city || group.city).trim(),
+        description: editFormData.description || group.description || '',
+        logo: editFormData.logo || group.logo || '',
+        coverImage: editFormData.coverImage || group.coverImage || '',
+        adminName: (editFormData.adminName || group.adminName || '').trim(),
+        adminPhone: (editFormData.adminPhone || group.adminPhone || '').trim(),
+        adminEmail: (editFormData.adminEmail || group.adminEmail || '').trim(),
+        adminWhatsapp: (editFormData.adminWhatsapp || group.adminWhatsapp || '').trim(),
+        whatsappGroupUrl: (editFormData.whatsappGroupUrl || '').trim(),
+        facebookPageUrl: (editFormData.facebookPageUrl || '').trim(),
+        socialLinks: {
+          whatsapp: (editFormData.whatsappGroupUrl || editFormData.socialLinks?.whatsapp || group.socialLinks?.whatsapp || '').trim(),
+          facebook: (editFormData.facebookPageUrl || editFormData.socialLinks?.facebook || group.socialLinks?.facebook || '').trim(),
+          instagram: editFormData.socialLinks?.instagram || group.socialLinks?.instagram || '',
+          twitter: editFormData.socialLinks?.twitter || group.socialLinks?.twitter || '',
+        },
+        memberCount: Number(editFormData.memberCount) || group.memberCount || 10,
+        foundedYear: editFormData.foundedYear || group.foundedYear || 2024,
+        status: editFormData.status || group.status || 'official',
+        verified: editFormData.verified !== undefined ? editFormData.verified : (group.verified || group.status === 'official'),
+        featured: editFormData.featured !== undefined ? editFormData.featured : (group.featured || false),
         updatedAt: new Date().toISOString(),
-      } as WorldGroup;
+      };
+
+      const cleaned = cleanFirestoreData(updatedGroup);
 
       // Update in global state
-      const updatedList = worldGroups.map(g => g.id === group.id ? updatedGroup : g);
+      const updatedList = worldGroups.map(g => g.id === group.id ? cleaned : g);
       setWorldGroups(updatedList);
 
       // Update in Firestore
-      try {
-        await setDoc(doc(db, 'world_groups', group.id), updatedGroup);
-      } catch (err) {
-        console.warn('Firestore update sync:', err);
-      }
+      await setDoc(doc(db, 'world_groups', group.id), cleaned, { merge: true });
+      toast.success('تم حفظ تعديلات الرابطة بنجاح في قاعدة البيانات ✨');
 
       setIsEditModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving group:', err);
+      toast.error('تعذر حفظ البيانات: ' + (err.message || 'خطأ غير معروف'));
     } finally {
       setIsSaving(false);
     }
@@ -266,12 +288,15 @@ export const WorldGroupDetail: React.FC = () => {
     setWorldGroups(updated);
 
     try {
-      await updateDoc(doc(db, 'world_groups', group.id), {
+      await setDoc(doc(db, 'world_groups', group.id), {
         verified: nextVerified,
-        status: nextStatus
-      });
-    } catch (err) {
+        status: nextStatus,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+      toast.success(nextVerified ? 'تم اعتماد الرابطة كرابطة رسمية ✓' : 'تم تحويل الرابطة لرابطة جماهيرية');
+    } catch (err: any) {
       console.warn('Verified sync:', err);
+      toast.error('تعذر تحديث الاعتماد: ' + (err.message || ''));
     }
   };
 
@@ -282,11 +307,14 @@ export const WorldGroupDetail: React.FC = () => {
     setWorldGroups(updated);
 
     try {
-      await updateDoc(doc(db, 'world_groups', group.id), {
-        featured: nextFeatured
-      });
-    } catch (err) {
+      await setDoc(doc(db, 'world_groups', group.id), {
+        featured: nextFeatured,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+      toast.success(nextFeatured ? 'تم تمييز الرابطة في الواجهة ★' : 'تم إزالة التمييز');
+    } catch (err: any) {
       console.warn('Featured sync:', err);
+      toast.error('تعذر تحديث التمييز: ' + (err.message || ''));
     }
   };
 
@@ -447,9 +475,15 @@ export const WorldGroupDetail: React.FC = () => {
                     className="w-20 h-20 rounded-3xl object-cover border-3 border-emerald-400/60 shadow-xl bg-slate-900"
                     referrerPolicy="no-referrer"
                   />
-                  <span className="absolute -bottom-1 -right-1 text-2xl drop-shadow bg-slate-900 rounded-full px-1 border border-slate-700">
-                    {group.countryFlag || '🌍'}
-                  </span>
+                  <div className="absolute -bottom-1 -right-1 p-0.5 bg-slate-900 rounded-full border border-slate-700 flex items-center justify-center">
+                    <CountryFlag
+                      countryCode={group.countryId}
+                      flag={group.countryFlag}
+                      countryName={group.countryName}
+                      size="sm"
+                      shape="circle"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -791,7 +825,15 @@ export const WorldGroupDetail: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-100 dark:border-slate-700">
                   <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50">
                     <span className="text-[10px] text-slate-400 font-bold block mb-1">المدينة والدولة</span>
-                    <span className="text-xs font-black text-slate-800 dark:text-white">{group.city}، {group.countryName} {group.countryFlag}</span>
+                    <div className="flex items-center gap-1.5">
+                      <CountryFlag
+                        countryCode={group.countryId}
+                        flag={group.countryFlag}
+                        countryName={group.countryName}
+                        size="xs"
+                      />
+                      <span className="text-xs font-black text-slate-800 dark:text-white">{group.city}، {group.countryName}</span>
+                    </div>
                   </div>
 
                   <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50">

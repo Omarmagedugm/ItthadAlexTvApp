@@ -69,8 +69,8 @@ export default function History() {
   const basketballTitles = clubTitles.filter(t => t.category === 'basketball');
 
   return (
-    <div className="flex-1 w-full max-w-md mx-auto bg-background-light dark:bg-background-dark min-h-screen pb-32">
-      <main className="px-4 py-6 space-y-8 text-right">
+    <div className="flex-1 w-full max-w-md md:max-w-4xl lg:max-w-5xl mx-auto bg-background-light dark:bg-background-dark min-h-screen pb-32 md:pb-16 px-0 md:px-6">
+      <main className="px-4 md:px-0 py-6 space-y-8 text-right">
         {/* Founding Year Hero */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}

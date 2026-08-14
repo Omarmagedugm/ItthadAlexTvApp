@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Globe, MapPin, Users, ChevronLeft, Sparkles, Filter } from 'lucide-react';
 import { WorldCountry } from '../../types/worldFans';
+import { CountryFlag } from './CountryFlag';
 
 interface WorldCountryMapGridProps {
   countries: WorldCountry[];
@@ -110,9 +111,13 @@ export const WorldCountryMapGrid: React.FC<WorldCountryMapGridProps> = ({
               )}
 
               <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl select-none drop-shadow-sm">
-                  {country.flag || '🌍'}
-                </span>
+                <CountryFlag
+                  countryCode={country.id}
+                  flag={country.flag}
+                  countryName={country.name || country.nameAr}
+                  size="lg"
+                  className="shadow-sm"
+                />
                 <span
                   className={`text-[10px] font-black px-1.5 py-0.5 rounded-lg ${
                     isSelected

@@ -19,9 +19,10 @@ import {
   X
 } from 'lucide-react';
 import { WorldPost, WorldGroup } from '../../types/worldFans';
+import { CountryFlag } from './CountryFlag';
 import { useAppStore } from '../../store';
 import { doc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { db, auth } from '../../lib/firebase';
+import { db, auth, cleanFirestoreData } from '../../lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
 import ImageUploader from '../ImageUploader';
 
@@ -88,7 +89,7 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
         authorAvatar: profile.avatar || currentUser?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80',
         content: newPostContent.trim(),
         type: 'post',
-        images: newPostImage.trim() ? [newPostImage.trim()] : undefined,
+        images: newPostImage.trim() ? [newPostImage.trim()] : [],
         category: postCategory,
         pinned: isOfficialPinned && isAdmin,
         likes: 0,
@@ -98,12 +99,14 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
         createdAt: new Date().toISOString(),
       };
 
+      const cleanedPost = cleanFirestoreData(newPost);
+
       // Save locally in Zustand immediately
-      setWorldPosts([newPost, ...worldPosts]);
+      setWorldPosts([cleanedPost, ...worldPosts]);
 
       // Save to Firestore if available
       try {
-        await setDoc(doc(db, 'world_posts', newPost.id), newPost);
+        await setDoc(doc(db, 'world_posts', cleanedPost.id), cleanedPost, { merge: true });
       } catch (err) {
         console.warn('Saved locally, firestore sync note:', err);
       }
@@ -417,7 +420,12 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
                         <h4 className="text-xs font-black text-slate-800 dark:text-white">
                           {post.authorName}
                         </h4>
-                        <span className="text-sm drop-shadow-sm">{post.groupFlag || post.countryCode || '🌍'}</span>
+                        <CountryFlag
+                          countryCode={post.groupId || post.countryCode}
+                          flag={post.groupFlag || post.countryCode}
+                          countryName={post.countryName || post.groupName}
+                          size="xs"
+                        />
                       </div>
                       <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
                         <span>{post.groupName || post.countryName}</span>

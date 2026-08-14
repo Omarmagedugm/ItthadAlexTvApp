@@ -17,6 +17,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { WorldGroup } from '../../types/worldFans';
+import { CountryFlag } from './CountryFlag';
 
 interface WorldGroupsListProps {
   groups: WorldGroup[];
@@ -221,9 +222,15 @@ export const WorldGroupsList: React.FC<WorldGroupsListProps> = ({
                         className="w-14 h-14 rounded-2xl object-cover border-2 border-emerald-500/30 shadow-md bg-slate-100 dark:bg-slate-700"
                         referrerPolicy="no-referrer"
                       />
-                      <span className="absolute -bottom-1 -right-1 text-base drop-shadow bg-white dark:bg-slate-900 rounded-full px-0.5 border border-slate-100 dark:border-slate-800">
-                        {group.countryFlag || '🌍'}
-                      </span>
+                      <div className="absolute -bottom-1.5 -right-1.5 drop-shadow bg-white dark:bg-slate-900 rounded-full p-0.5 border border-slate-200 dark:border-slate-800 flex items-center justify-center">
+                        <CountryFlag
+                          countryCode={group.countryId}
+                          flag={group.countryFlag}
+                          countryName={group.countryName}
+                          size="xs"
+                          shape="circle"
+                        />
+                      </div>
                     </div>
 
                     <div className="flex flex-col items-end gap-1">

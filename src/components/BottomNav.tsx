@@ -14,7 +14,7 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 w-full glass-card border-t-0 px-2 pb-6 pt-1">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 w-full glass-card border-t-0 px-2 pb-6 pt-1 md:hidden">
       <div className="flex items-center justify-around h-14 max-w-md mx-auto">
         {navItems.map((item, idx) => {
           const isActive = path === item.path || (item.path !== '/' && path.startsWith(item.path));

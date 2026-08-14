@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Globe, Users, Calendar, MapPin, ChevronLeft, Sparkles, Plus, ArrowLeft } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { defaultWorldCountries, defaultWorldGroups } from '../../data/defaultWorldFansData';
-import { getCountryFlag } from '../worldFans/WorldFansWidget';
+import { CountryFlag } from '../worldFans/CountryFlag';
 
 export const WorldFansWidget: React.FC = () => {
   const navigate = useNavigate();
@@ -141,7 +141,6 @@ export const WorldFansWidget: React.FC = () => {
 
           <div className="flex gap-2.5 overflow-x-auto pb-1 no-scrollbar">
             {featuredGroups.map((group) => {
-              const flag = getCountryFlag(group.countryId || group.countryName, group.countryFlag);
               return (
                 <div
                   key={group.id}
@@ -155,9 +154,15 @@ export const WorldFansWidget: React.FC = () => {
                       className="w-12 h-12 rounded-xl object-cover border-2 border-emerald-400/50 shadow-md bg-white/5"
                       referrerPolicy="no-referrer"
                     />
-                    <span className="absolute -bottom-1 -right-1 text-sm drop-shadow">
-                      {flag}
-                    </span>
+                    <div className="absolute -bottom-1 -right-1 p-0.5 bg-slate-900 rounded-full border border-slate-700 flex items-center justify-center">
+                      <CountryFlag
+                        countryCode={group.countryId}
+                        flag={group.countryFlag}
+                        countryName={group.countryName}
+                        size="xs"
+                        shape="circle"
+                      />
+                    </div>
                   </div>
                   <h4 className="text-xs font-bold text-white line-clamp-1">
                     {group.name}

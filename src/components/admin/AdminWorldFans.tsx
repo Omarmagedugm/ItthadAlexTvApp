@@ -21,12 +21,15 @@ import {
   Filter,
   Image as ImageIcon,
   Upload,
-  X
+  X,
+  RefreshCw
 } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { WorldGroup, WorldCountry, WorldApplication, WorldEvent, WorldHelpRequest, WorldGroupMember } from '../../types/worldFans';
 import { doc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { db, cleanFirestoreData } from '../../lib/firebase';
+import { defaultWorldGroups, defaultWorldCountries } from '../../data/defaultWorldFansData';
+import { CountryFlag } from '../worldFans/CountryFlag';
 import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
 import ImageUploader from '../ImageUploader';
@@ -128,38 +131,52 @@ export const AdminWorldFans: React.FC = () => {
 
     const groupData: WorldGroup = {
       id,
-      name: groupForm.name || 'رابطة جديدة',
+      name: (groupForm.name || 'رابطة جديدة').trim(),
       countryId: groupForm.countryId || 'sa',
-      countryName: selectedCountry?.nameAr || groupForm.countryName || 'بالخارج',
+      countryName: selectedCountry?.nameAr || selectedCountry?.name || groupForm.countryName || 'بالخارج',
       countryFlag: selectedCountry?.flag || groupForm.countryFlag || '🌍',
-      city: groupForm.city || 'المدينة',
+      city: (groupForm.city || 'المدينة').trim(),
       region: selectedCountry?.region || groupForm.region || 'gulf',
       logo: groupForm.logo || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80',
-      coverImage: groupForm.coverImage,
-      description: groupForm.description,
+      coverImage: groupForm.coverImage || '',
+      description: groupForm.description || '',
       status: groupForm.status || 'official',
-      featured: groupForm.featured || false,
+      verified: groupForm.status === 'official' || Boolean(groupForm.verified),
+      featured: Boolean(groupForm.featured),
       memberCount: Number(groupForm.memberCount) || 1,
-      adminName: groupForm.adminName,
-      adminPhone: groupForm.adminPhone,
-      adminWhatsapp: groupForm.adminWhatsapp,
-      whatsappGroupUrl: groupForm.whatsappGroupUrl,
-      facebookPageUrl: groupForm.facebookPageUrl,
+      adminName: (groupForm.adminName || '').trim(),
+      adminPhone: (groupForm.adminPhone || '').trim(),
+      adminEmail: (groupForm.adminEmail || '').trim(),
+      adminWhatsapp: (groupForm.adminWhatsapp || '').trim(),
+      whatsappGroupUrl: (groupForm.whatsappGroupUrl || '').trim(),
+      facebookPageUrl: (groupForm.facebookPageUrl || '').trim(),
+      socialLinks: {
+        whatsapp: (groupForm.whatsappGroupUrl || groupForm.socialLinks?.whatsapp || '').trim(),
+        facebook: (groupForm.facebookPageUrl || groupForm.socialLinks?.facebook || '').trim(),
+        instagram: groupForm.socialLinks?.instagram || '',
+        twitter: groupForm.socialLinks?.twitter || '',
+        telegram: groupForm.socialLinks?.telegram || ''
+      },
       foundedYear: Number(groupForm.foundedYear) || 2024,
       active: groupForm.active !== undefined ? groupForm.active : true,
       createdAt: editingGroup?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
+    const cleanedData = cleanFirestoreData(groupData);
+
     const updated = editingGroup
-      ? worldGroups.map(g => g.id === id ? groupData : g)
-      : [groupData, ...worldGroups];
+      ? worldGroups.map(g => g.id === id ? cleanedData : g)
+      : [cleanedData, ...worldGroups];
 
     setWorldGroups(updated);
 
     try {
-      await setDoc(doc(db, 'world_groups', id), groupData);
-    } catch (err) {
-      console.warn('Group saved locally:', err);
+      await setDoc(doc(db, 'world_groups', id), cleanedData, { merge: true });
+      toast.success(editingGroup ? 'تم تحديث بيانات الرابطة وحفظها بنجاح في قاعدة البيانات ✓' : 'تمت إضافة الرابطة الجديدة بنجاح ✓');
+    } catch (err: any) {
+      console.error('Group saved error:', err);
+      toast.error('حدث خطأ أثناء الحفظ في قاعدة البيانات: ' + (err.message || ''));
     }
 
     setIsGroupModalOpen(false);
@@ -169,7 +186,7 @@ export const AdminWorldFans: React.FC = () => {
 
   // Delete Group
   const handleDeleteGroup = async (groupId: string) => {
-    if (!window.confirm('هل أنت متأكد من حذف هذه الرابطة؟')) return;
+    if (!window.confirm('هل أنت متأكد من حذف هذه الرابطة نهائياً؟')) return;
 
     const updated = worldGroups.filter(g => g.id !== groupId);
     setWorldGroups(updated);
@@ -177,7 +194,7 @@ export const AdminWorldFans: React.FC = () => {
     try {
       await deleteDoc(doc(db, 'world_groups', groupId));
       toast.success('تم حذف الرابطة بنجاح');
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Group deleted locally:', err);
       toast.success('تم حذف الرابطة');
     }
@@ -197,34 +214,48 @@ export const AdminWorldFans: React.FC = () => {
       city: app.city,
       region: selectedCountry?.region || 'other',
       logo: app.logo || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80',
+      coverImage: '',
       description: app.motivation || `الرابطة الرسمية لجماهير الاتحاد السكندري في ${app.city}`,
       status: 'official',
+      verified: true,
       featured: true,
       memberCount: app.estimatedFansCount || 20,
       adminName: app.applicantName,
-      adminPhone: app.applicantPhone,
-      adminWhatsapp: app.applicantWhatsapp,
+      adminPhone: app.applicantPhone || '',
+      adminEmail: app.applicantEmail || '',
+      adminWhatsapp: app.applicantWhatsapp || '',
+      whatsappGroupUrl: '',
+      facebookPageUrl: '',
+      socialLinks: {
+        whatsapp: app.applicantWhatsapp || '',
+        facebook: '',
+      },
       foundedYear: new Date().getFullYear(),
       active: true,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
+    const cleanedGroup = cleanFirestoreData(newGroup);
+
     // Update group state
-    const nextGroups = [newGroup, ...worldGroups];
+    const nextGroups = [cleanedGroup, ...worldGroups];
     setWorldGroups(nextGroups);
 
     // Update application state
-    const nextApps = worldApplications.map(a => a.id === app.id ? { ...a, status: 'approved' as const, approvedGroupId: newGroup.id } : a);
+    const nextApps = worldApplications.map(a => a.id === app.id ? { ...a, status: 'approved' as const, approvedGroupId: cleanedGroup.id } : a);
     setWorldApplications(nextApps);
 
     try {
-      await setDoc(doc(db, 'world_groups', newGroup.id), newGroup);
+      await setDoc(doc(db, 'world_groups', cleanedGroup.id), cleanedGroup, { merge: true });
       await updateDoc(doc(db, 'world_applications', app.id), {
         status: 'approved',
-        approvedGroupId: newGroup.id
+        approvedGroupId: cleanedGroup.id
       });
-    } catch (err) {
-      console.warn('Application approval stored locally:', err);
+      toast.success('تم اعتماد الرابطة وتدشينها بنجاح!');
+    } catch (err: any) {
+      console.error('Application approval error:', err);
+      toast.error('حدث خطأ أثناء اعتماد الطلب: ' + (err.message || ''));
     }
   };
 
@@ -237,7 +268,8 @@ export const AdminWorldFans: React.FC = () => {
 
     try {
       await updateDoc(doc(db, 'world_applications', appId), { status: 'rejected' });
-    } catch (err) {
+      toast.success('تم رفض الطلب');
+    } catch (err: any) {
       console.warn('App rejection local:', err);
     }
   };
@@ -250,32 +282,34 @@ export const AdminWorldFans: React.FC = () => {
     const countryData: WorldCountry = {
       id,
       code: (countryForm.code || id).toUpperCase(),
-      name: countryForm.name || countryForm.nameAr || 'دولة جديدة',
-      nameAr: countryForm.nameAr || countryForm.name || 'دولة جديدة',
-      nameEn: countryForm.nameEn || '',
+      name: (countryForm.name || countryForm.nameAr || 'دولة جديدة').trim(),
+      nameAr: (countryForm.nameAr || countryForm.name || 'دولة جديدة').trim(),
+      nameEn: (countryForm.nameEn || '').trim(),
       flag: countryForm.flag || '🌍',
       region: countryForm.region || 'gulf',
       fanCount: Number(countryForm.fanCount) || 100,
       groupsCount: editingCountry?.groupsCount || 0,
       active: countryForm.active !== undefined ? countryForm.active : true,
       order: countryForm.order !== undefined ? Number(countryForm.order) : 10,
-      coverImage: countryForm.coverImage,
+      coverImage: countryForm.coverImage || '',
       description: countryForm.description || '',
     };
 
+    const cleanedCountry = cleanFirestoreData(countryData);
+
     const nextCountries = editingCountry
-      ? worldCountries.map(c => c.id === id ? countryData : c)
-      : [...worldCountries, countryData];
+      ? worldCountries.map(c => c.id === id ? cleanedCountry : c)
+      : [...worldCountries, cleanedCountry];
 
     setWorldCountries(nextCountries);
     setIsCountryModalOpen(false);
 
     try {
-      await setDoc(doc(db, 'world_countries', id), countryData);
-      toast.success('تم حفظ بيانات الدولة بنجاح');
-    } catch (err) {
-      console.warn('Country saved locally:', err);
-      toast.success('تم حفظ الدولة محلياً');
+      await setDoc(doc(db, 'world_countries', id), cleanedCountry, { merge: true });
+      toast.success('تم حفظ بيانات الدولة بنجاح في قاعدة البيانات');
+    } catch (err: any) {
+      console.error('Country saved error:', err);
+      toast.error('حدث خطأ أثناء حفظ الدولة: ' + (err.message || ''));
     }
   };
 
@@ -289,8 +323,35 @@ export const AdminWorldFans: React.FC = () => {
     try {
       await deleteDoc(doc(db, 'world_countries', countryId));
       toast.success('تم حذف الدولة بنجاح');
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Country deleted locally:', err);
+    }
+  };
+
+  // Sync / Seed Default Groups to Firestore
+  const handleSyncDefaultGroups = async () => {
+    if (!window.confirm('هل تريد مزامنة ورفع كافة الروابط الافتراضية لقاعدة البيانات للتأكد من حفظها وتعديلها بسهولة؟')) return;
+    try {
+      let count = 0;
+      for (const g of defaultWorldGroups) {
+        const cleaned = cleanFirestoreData({
+          ...g,
+          whatsappGroupUrl: g.whatsappGroupUrl || g.socialLinks?.whatsapp || '',
+          facebookPageUrl: g.facebookPageUrl || g.socialLinks?.facebook || '',
+          adminPhone: g.adminPhone || '',
+          adminWhatsapp: g.adminWhatsapp || '',
+          adminEmail: g.adminEmail || '',
+          active: true,
+          status: g.status || 'official',
+          updatedAt: new Date().toISOString(),
+        });
+        await setDoc(doc(db, 'world_groups', g.id), cleaned, { merge: true });
+        count++;
+      }
+      toast.success(`تمت مزامنة ${count} رابطة بنجاح مع قاعدة البيانات 🚀`);
+    } catch (err: any) {
+      console.error('Error syncing groups:', err);
+      toast.error('حدث خطأ أثناء المزامنة: ' + (err.message || ''));
     }
   };
 
@@ -362,7 +423,7 @@ export const AdminWorldFans: React.FC = () => {
       {/* 1. GROUPS TAB */}
       {activeSubTab === 'groups' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="relative flex-1 max-w-sm">
               <input
                 type="text"
@@ -374,22 +435,34 @@ export const AdminWorldFans: React.FC = () => {
               <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
             </div>
 
-            <button
-              onClick={() => {
-                setEditingGroup(null);
-                setGroupForm({
-                  status: 'official',
-                  featured: false,
-                  memberCount: 10,
-                  active: true,
-                });
-                setIsGroupModalOpen(true);
-              }}
-              className="px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md flex items-center gap-1.5 active:scale-95 transition-all"
-            >
-              <Plus size={16} />
-              <span>إضافة رابطة جديدة</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSyncDefaultGroups}
+                className="px-3 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold shadow-sm flex items-center gap-1.5 active:scale-95 transition-all border border-slate-200 dark:border-slate-700"
+                title="مزامنة وتثبيت كافة الروابط الافتراضية في قاعدة البيانات السحابية"
+              >
+                <RefreshCw size={14} className="text-emerald-500" />
+                <span>مزامنة الروابط السحابية</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setEditingGroup(null);
+                  setGroupForm({
+                    status: 'official',
+                    featured: false,
+                    memberCount: 10,
+                    active: true,
+                  });
+                  setIsGroupModalOpen(true);
+                }}
+                className="px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md flex items-center gap-1.5 active:scale-95 transition-all"
+              >
+                <Plus size={16} />
+                <span>إضافة رابطة جديدة</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -415,9 +488,14 @@ export const AdminWorldFans: React.FC = () => {
                         />
                         <div>
                           <h4 className="text-xs font-black text-slate-800 dark:text-white line-clamp-1">{group.name}</h4>
-                          <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                          <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1.5 mt-0.5">
+                            <CountryFlag
+                              countryCode={group.countryId}
+                              flag={group.countryFlag}
+                              countryName={group.countryName}
+                              size="xs"
+                            />
                             <span>{group.city}، {group.countryName}</span>
-                            <span>{group.countryFlag}</span>
                           </span>
                         </div>
                       </div>
@@ -479,7 +557,20 @@ export const AdminWorldFans: React.FC = () => {
                       <button
                         onClick={() => {
                           setEditingGroup(group);
-                          setGroupForm(group);
+                          setGroupForm({
+                            ...group,
+                            whatsappGroupUrl: group.whatsappGroupUrl || group.socialLinks?.whatsapp || '',
+                            facebookPageUrl: group.facebookPageUrl || group.socialLinks?.facebook || '',
+                            adminPhone: group.adminPhone || '',
+                            adminWhatsapp: group.adminWhatsapp || '',
+                            adminEmail: group.adminEmail || '',
+                            coverImage: group.coverImage || '',
+                            logo: group.logo || '',
+                            description: group.description || '',
+                            adminName: group.adminName || '',
+                            foundedYear: Number(group.foundedYear) || 2024,
+                            memberCount: Number(group.memberCount) || 10,
+                          });
                           setIsGroupModalOpen(true);
                         }}
                         className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-bold"
@@ -599,7 +690,12 @@ export const AdminWorldFans: React.FC = () => {
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-2xl">{c.flag}</span>
+                    <CountryFlag
+                      countryCode={c.id}
+                      flag={c.flag}
+                      countryName={c.nameAr || c.name}
+                      size="lg"
+                    />
                     <div>
                       <h4 className="text-xs font-black text-slate-800 dark:text-white">{c.nameAr || c.name}</h4>
                       <span className="text-[10px] text-slate-400 font-bold">{c.nameEn || c.code}</span>

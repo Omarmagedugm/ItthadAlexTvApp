@@ -226,3 +226,24 @@ export const uploadImage = async (file: File, folder: string): Promise<string> =
     return '';
   }
 };
+
+/**
+ * Removes any undefined properties recursively to prevent Firestore SDK errors
+ */
+export function cleanFirestoreData<T = any>(obj: T): T {
+  if (obj === null || obj === undefined) return null as any;
+  if (typeof obj !== 'object') return obj;
+  if (obj instanceof Date) return obj.toISOString() as any;
+  if (Array.isArray(obj)) {
+    return obj
+      .filter((item) => item !== undefined)
+      .map((item) => cleanFirestoreData(item)) as any;
+  }
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj as Record<string, any>)) {
+    if (value !== undefined) {
+      result[key] = cleanFirestoreData(value);
+    }
+  }
+  return result;
+}

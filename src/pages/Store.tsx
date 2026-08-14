@@ -95,11 +95,11 @@ export default function Store() {
   };
 
   return (
-    <div className="flex-1 w-full max-w-md mx-auto bg-background-light dark:bg-background-dark min-h-screen pb-32 text-right">
+    <div className="flex-1 w-full max-w-md md:max-w-5xl lg:max-w-6xl mx-auto bg-background-light dark:bg-background-dark min-h-screen pb-32 md:pb-16 text-right">
       {/* Header */}
       <div style={{ height: 'calc(env(safe-area-inset-top) + 68px)' }} className="w-full relative z-0"></div>
-      <header style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)' }} className="fixed top-0 inset-x-0 w-full max-w-md mx-auto z-40 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-xl border-b border-border-light/40 dark:border-border-dark/40 px-4 pb-4">
-        <div className="flex items-center justify-between">
+      <header style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)' }} className="fixed top-0 inset-x-0 w-full z-40 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-xl border-b border-border-light/40 dark:border-border-dark/40 px-4 md:px-8 pb-4">
+        <div className="flex items-center justify-between max-w-6xl mx-auto">
           <div className="flex items-center gap-4">
             <button onClick={() => navigate(-1)} className="h-10 w-10 flex items-center justify-center rounded-2xl glass-card text-slate-600 dark:text-slate-300">
               <ChevronRight size={20} className="rotate-180" />
@@ -147,7 +147,7 @@ export default function Store() {
         </div>
 
         {/* Products Grid */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filteredProducts.map((product, idx) => (
             <motion.div
               layout

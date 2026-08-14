@@ -129,46 +129,80 @@ export default function TopHeader() {
     <>
       {/* Added a spacer to prevent content from going under the fixed header */}
       <div style={{ height: 'calc(env(safe-area-inset-top) + 58px)' }} className="w-full"></div>
-      <header id="global-header" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8px)' }} className="fixed top-0 inset-x-0 w-full max-w-md mx-auto z-50 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-xl border-b border-border-light/40 dark:border-border-dark/40 px-4 pb-2.5 shadow-sm">
-        <div className="flex items-center justify-between max-w-md mx-auto">
-          {isHome ? (
-            <motion.button 
-              id="menu-button"
-              aria-label="القائمة الرئيسية"
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setIsMenuOpen(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all duration-300"
-            >
-              <Menu size={20} strokeWidth={2.5} />
-            </motion.button>
-          ) : (
-            <motion.button 
-              id="back-button"
-              aria-label="الرجوع للصفحة السابقة"
-              whileTap={{ scale: 0.9 }}
-              onClick={() => navigate(-1)}
-              className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all duration-300"
-            >
-              <ChevronRight size={24} className="rotate-180" />
-            </motion.button>
-          )}
-
-          <div className="flex flex-col items-center justify-center">
-            {currentLogo && !imageError ? (
-              <img 
-                src={currentLogo} 
-                alt={title} 
-                className="h-14 sm:h-20 w-auto max-w-[180px] sm:max-w-[240px] object-contain drop-shadow-sm transition-all duration-300" 
-                referrerPolicy="no-referrer"
-                onError={() => setImageError(true)}
-              />
+      <header id="global-header" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8px)' }} className="fixed top-0 inset-x-0 w-full z-50 bg-background-light/85 dark:bg-background-dark/85 backdrop-blur-xl border-b border-border-light/40 dark:border-border-dark/40 px-4 md:px-8 pb-2.5 shadow-sm">
+        <div className="flex items-center justify-between w-full max-w-7xl mx-auto">
+          {/* Right Section: Mobile Menu / Back + Logo */}
+          <div className="flex items-center gap-3">
+            {isHome ? (
+              <motion.button 
+                id="menu-button"
+                aria-label="القائمة الرئيسية"
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setIsMenuOpen(true)}
+                className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all duration-300"
+              >
+                <Menu size={20} strokeWidth={2.5} />
+              </motion.button>
             ) : (
-              <h1 className="text-sm font-black tracking-tight text-primary-dark dark:text-white uppercase line-clamp-1 max-w-[180px] text-center">
-                {appSettings?.logoText || title}
-              </h1>
+              <motion.button 
+                id="back-button"
+                aria-label="الرجوع للصفحة السابقة"
+                whileTap={{ scale: 0.9 }}
+                onClick={() => navigate(-1)}
+                className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all duration-300"
+              >
+                <ChevronRight size={24} className="rotate-180" />
+              </motion.button>
             )}
+
+            <Link to="/" className="flex items-center gap-2">
+              {currentLogo && !imageError ? (
+                <img 
+                  src={currentLogo} 
+                  alt={title} 
+                  className="h-10 sm:h-12 w-auto max-w-[140px] sm:max-w-[180px] object-contain drop-shadow-sm transition-all duration-300" 
+                  referrerPolicy="no-referrer"
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <h1 className="text-sm font-black tracking-tight text-primary-dark dark:text-white uppercase line-clamp-1 max-w-[160px]">
+                  {appSettings?.logoText || title}
+                </h1>
+              )}
+            </Link>
           </div>
 
+          {/* Desktop Navigation Links (Visible on PC / Tablet) */}
+          <nav className="hidden md:flex items-center gap-1 lg:gap-1.5 flex-wrap">
+            {[
+              { path: '/', label: 'الرئيسية' },
+              { path: '/news', label: 'الأخبار' },
+              { path: '/matches', label: 'المباريات' },
+              { path: '/fan-zone', label: 'فان زون' },
+              { path: '/library', label: 'المكتبة والوسائط' },
+              { path: '/world-fans', label: 'اتحاداوية العالم 🌍' },
+              { path: '/history', label: 'تاريخ النادي' },
+              { path: '/discounts', label: 'دليل الخصومات' },
+              { path: '/store', label: 'المتجر' },
+            ].map(item => {
+              const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-200 ${
+                    isActive 
+                      ? 'bg-primary text-white shadow-sm shadow-primary/30' 
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-surface-dark hover:text-primary'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Left Action Icons */}
           <div className="flex items-center gap-2">
             {isAdmin && location.pathname.includes('/admin') && (
               <motion.button 
@@ -247,6 +281,19 @@ export default function TopHeader() {
                 <Search size={20} strokeWidth={2.5} />
               </Link>
             )}
+
+            {/* User Profile Quick Link on Desktop */}
+            <Link
+              to="/profile"
+              className="hidden md:flex items-center justify-center h-10 w-10 rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all overflow-hidden"
+              title="الملف الشخصي"
+            >
+              {profile?.avatar ? (
+                <img src={profile.avatar} alt="Profile" className="h-full w-full object-cover" />
+              ) : (
+                <span className="material-symbols-outlined !text-[20px]">person</span>
+              )}
+            </Link>
           </div>
         </div>
       </header>
