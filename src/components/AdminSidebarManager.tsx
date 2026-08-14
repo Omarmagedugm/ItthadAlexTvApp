@@ -20,6 +20,7 @@ import {
   ExternalLink,
   ShieldCheck,
   Building2,
+  Globe,
   Tag
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
@@ -42,8 +43,14 @@ export default function AdminSidebarManager() {
 
   useEffect(() => {
     if (sidebarMenuItems && sidebarMenuItems.length > 0) {
+      let combined = [...sidebarMenuItems];
+      DEFAULT_SIDEBAR_ITEMS.forEach(defaultItem => {
+        if (!combined.some(item => item.id === defaultItem.id || item.path === defaultItem.path)) {
+          combined.push(defaultItem);
+        }
+      });
       // Sort by order ascending
-      const sorted = [...sidebarMenuItems].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      const sorted = combined.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
       setItems(sorted);
     } else {
       setItems(DEFAULT_SIDEBAR_ITEMS);
@@ -324,6 +331,8 @@ export default function AdminSidebarManager() {
                 <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
                   {item.icon === 'ShieldCheck' || item.id === 'club-members' ? (
                     <ShieldCheck size={18} className="text-amber-500" />
+                  ) : item.icon === 'Globe' || item.id === 'world-fans' ? (
+                    <Globe size={18} className="text-emerald-600 dark:text-emerald-400" />
                   ) : item.icon === 'Building2' || item.id === 'business' ? (
                     <Building2 size={18} className="text-emerald-600" />
                   ) : (

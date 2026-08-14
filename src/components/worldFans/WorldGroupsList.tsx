@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -11,57 +11,170 @@ import {
   ChevronLeft, 
   ArrowLeft, 
   Star,
-  ExternalLink
+  ExternalLink,
+  Search,
+  Filter,
+  CheckCircle2
 } from 'lucide-react';
 import { WorldGroup } from '../../types/worldFans';
 
 interface WorldGroupsListProps {
   groups: WorldGroup[];
-  selectedCountryName?: string | null;
   onOpenFoundLeague: () => void;
 }
 
 export const WorldGroupsList: React.FC<WorldGroupsListProps> = ({
   groups,
-  selectedCountryName,
   onOpenFoundLeague,
 }) => {
   const navigate = useNavigate();
+  const [filterType, setFilterType] = useState<'all' | 'verified' | 'featured'>('all');
+  const [selectedCountryFilter, setSelectedCountryFilter] = useState<string>('all');
+  const [localSearch, setLocalSearch] = useState<string>('');
+
+  // Extract unique countries from the registered groups
+  const availableCountries = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; flag: string }>();
+    groups.forEach(g => {
+      if (g.countryId && !map.has(g.countryId)) {
+        map.set(g.countryId, {
+          id: g.countryId,
+          name: g.countryName,
+          flag: g.countryFlag || '🌍',
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [groups]);
+
+  // Apply filters
+  const filteredGroups = useMemo(() => {
+    return groups.filter(g => {
+      if (filterType === 'verified' && !g.verified && g.status !== 'official' && g.status !== 'approved') return false;
+      if (filterType === 'featured' && !g.featured) return false;
+      if (selectedCountryFilter !== 'all' && g.countryId !== selectedCountryFilter) return false;
+      if (localSearch.trim()) {
+        const query = localSearch.toLowerCase();
+        const matchName = g.name.toLowerCase().includes(query);
+        const matchCity = g.city.toLowerCase().includes(query);
+        const matchCountry = g.countryName.toLowerCase().includes(query);
+        if (!matchName && !matchCity && !matchCountry) return false;
+      }
+      return true;
+    });
+  }, [groups, filterType, selectedCountryFilter, localSearch]);
+
+  const verifiedCount = groups.filter(g => g.verified || g.status === 'official' || g.status === 'approved').length;
 
   return (
-    <div className="space-y-4">
-      {/* Header Info */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-2">
-            <span>قائمة الروابط المسجلة</span>
-            {selectedCountryName && (
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
-                في {selectedCountryName}
+    <div className="space-y-5">
+      {/* Top Controls & Filter Header */}
+      <div className="rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 p-4 sm:p-5 shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-base sm:text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+              <Users size={20} className="text-emerald-600 dark:text-emerald-400" />
+              <span>قائمة الروابط المسجلة</span>
+              <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 rounded-xl border border-emerald-500/20">
+                {filteredGroups.length} رابطة
               </span>
-            )}
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-            تصفح مجتمعات الروابط الرسمية وانضم إلى جماهير سيد البلد في بلدك
-          </p>
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+              تصفح مجتمعات الروابط الرسمية وانضم إلى جماهير سيد البلد في بلدك أو مدينتك
+            </p>
+          </div>
+
+          {/* Quick Action */}
+          <button
+            onClick={onOpenFoundLeague}
+            className="self-start sm:self-auto px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md flex items-center gap-1.5 active:scale-95 transition-all"
+          >
+            <Sparkles size={14} />
+            <span>طلب تأسيس رابطة جديدة</span>
+          </button>
         </div>
 
-        <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 rounded-xl border border-emerald-500/20">
-          {groups.length} رابطة متاحة
-        </span>
+        {/* Filters Bar: Search, Verification toggle, Country Selector */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-700/60">
+          {/* Local Search Input */}
+          <div className="relative flex-1">
+            <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              placeholder="ابحث بالاسم، المدينة، أو الدولة..."
+              className="w-full pl-3 pr-9 py-2 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+            />
+          </div>
+
+          {/* Filter Type Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            <button
+              onClick={() => setFilterType('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap active:scale-95 transition-all ${
+                filterType === 'all'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+              }`}
+            >
+              الكل ({groups.length})
+            </button>
+
+            <button
+              onClick={() => setFilterType('verified')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap active:scale-95 transition-all flex items-center gap-1 ${
+                filterType === 'verified'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
+                  : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+              }`}
+            >
+              <ShieldCheck size={13} />
+              <span>المعتمدة رسمياً ({verifiedCount})</span>
+            </button>
+
+            <button
+              onClick={() => setFilterType('featured')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap active:scale-95 transition-all flex items-center gap-1 ${
+                filterType === 'featured'
+                  ? 'bg-amber-400 text-slate-950 font-black shadow-sm'
+                  : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+              }`}
+            >
+              <Star size={13} fill={filterType === 'featured' ? 'currentColor' : 'none'} />
+              <span>المميزة ⭐</span>
+            </button>
+
+            {/* Country Selector */}
+            {availableCountries.length > 0 && (
+              <select
+                value={selectedCountryFilter}
+                onChange={(e) => setSelectedCountryFilter(e.target.value)}
+                className="text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl px-2.5 py-1.5 border border-slate-200 dark:border-slate-600 focus:outline-none"
+              >
+                <option value="all">كل الدول 🌍</option>
+                {availableCountries.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.flag} {c.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Grid of Groups */}
-      {groups.length === 0 ? (
+      {filteredGroups.length === 0 ? (
         <div className="text-center py-12 px-4 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700">
           <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-3">
             <MapPin size={28} />
           </div>
           <h4 className="text-sm font-black text-slate-800 dark:text-white mb-1">
-            لا توجد روابط مسجلة بعد في هذا النطاق
+            لا توجد روابط تطابق البحث أو الفلتر المحدد
           </h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-4 font-medium">
-            كن أنت أول من يؤسس رابطة رسمية لجماهير الاتحاد السكندري في هذه الدولة أو المدينة!
+            يمكنك مسح الفلتر أو تقديم طلب تأسيس أول رابطة رسمية لجماهير الاتحاد السكندري في هذه المدينة!
           </p>
           <button
             onClick={onOpenFoundLeague}
@@ -73,8 +186,8 @@ export const WorldGroupsList: React.FC<WorldGroupsListProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {groups.map((group) => {
-            const isOfficial = group.verified || group.status === 'approved';
+          {filteredGroups.map((group) => {
+            const isOfficial = group.verified || group.status === 'approved' || group.status === 'official';
             const whatsappUrl = group.whatsappGroupUrl || group.socialLinks?.whatsapp;
 
             return (
@@ -87,14 +200,14 @@ export const WorldGroupsList: React.FC<WorldGroupsListProps> = ({
               >
                 {/* Cover Backdrop if available */}
                 {group.coverImage && (
-                  <div className="absolute top-0 inset-x-0 h-20 overflow-hidden opacity-25 group-hover:opacity-35 transition-opacity pointer-events-none">
+                  <div className="absolute top-0 inset-x-0 h-28 overflow-hidden opacity-60 group-hover:opacity-75 transition-opacity pointer-events-none">
                     <img
                       src={group.coverImage}
                       alt=""
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white dark:to-slate-800" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-white/50 dark:via-slate-800/60 to-white dark:to-slate-800" />
                   </div>
                 )}
 
@@ -192,7 +305,7 @@ export const WorldGroupsList: React.FC<WorldGroupsListProps> = ({
                         target="_blank"
                         rel="noopener noreferrer"
                         className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 active:scale-95 transition-all flex items-center justify-center shrink-0"
-                        title="قروب الواتساب الرسمي"
+                        title="جروب الواتساب الرسمي"
                       >
                         <MessageCircle size={16} />
                       </a>

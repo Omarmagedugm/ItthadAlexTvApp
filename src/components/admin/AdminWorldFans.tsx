@@ -18,13 +18,17 @@ import {
   ExternalLink,
   Phone,
   Mail,
-  Filter
+  Filter,
+  Image as ImageIcon,
+  Upload,
+  X
 } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { WorldGroup, WorldCountry, WorldApplication, WorldEvent, WorldHelpRequest } from '../../types/worldFans';
 import { doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
+import ImageUploader from '../ImageUploader';
 
 export const AdminWorldFans: React.FC = () => {
   const { 
@@ -130,7 +134,7 @@ export const AdminWorldFans: React.FC = () => {
       countryFlag: selectedCountry?.flag || '🌍',
       city: app.city,
       region: selectedCountry?.region || 'other',
-      logo: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80',
+      logo: app.logo || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&q=80',
       description: app.motivation || `الرابطة الرسمية لجماهير الاتحاد السكندري في ${app.city}`,
       status: 'official',
       featured: true,
@@ -633,15 +637,94 @@ export const AdminWorldFans: React.FC = () => {
                 />
               </div>
 
+              {/* League Logo Upload & URL Option */}
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300">
+                    شعار الرابطة (Logo)
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-semibold">
+                    رفع صورة أو رابط مباشر
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="shrink-0">
+                    <ImageUploader
+                      folderName="world_groups"
+                      onUploadSuccess={(url) => {
+                        setGroupForm({ ...groupForm, logo: url });
+                      }}
+                      buttonText="رفع شعار"
+                      buttonClassName="!bg-emerald-600 hover:!bg-emerald-700 !text-white !py-2 !px-3 !rounded-xl !text-xs !font-bold !shadow-sm flex items-center justify-center gap-1.5"
+                      showPreview={false}
+                    />
+                  </div>
+
+                  <div className="relative flex-1">
+                    <input
+                      type="url"
+                      value={groupForm.logo || ''}
+                      onChange={(e) => setGroupForm({ ...groupForm, logo: e.target.value })}
+                      placeholder="أو الصق رابط صورة الشعار (https://...)"
+                      className="w-full p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold pl-7"
+                      dir="ltr"
+                    />
+                    {groupForm.logo && (
+                      <button
+                        type="button"
+                        onClick={() => setGroupForm({ ...groupForm, logo: '' })}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 p-0.5"
+                        title="إزالة الشعار"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {groupForm.logo && (
+                  <div className="flex items-center gap-2.5 pt-1">
+                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center p-1 shrink-0">
+                      <img
+                        src={groupForm.logo}
+                        alt="شعار الرابطة"
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold truncate">
+                      ✓ تم تحديد الشعار بنجاح
+                    </span>
+                  </div>
+                )}
+              </div>
+
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">شعار الرابطة (رابط صورة)</label>
-                <input
-                  type="url"
-                  value={groupForm.logo || ''}
-                  onChange={(e) => setGroupForm({ ...groupForm, logo: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
-                />
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">صورة الغلاف (اختياري)</label>
+                <div className="flex items-center gap-2">
+                  <div className="shrink-0">
+                    <ImageUploader
+                      folderName="world_groups"
+                      onUploadSuccess={(url) => {
+                        setGroupForm({ ...groupForm, coverImage: url });
+                      }}
+                      buttonText="رفع غلاف"
+                      buttonClassName="!bg-slate-200 dark:!bg-slate-700 hover:!bg-slate-300 !text-slate-800 dark:!text-white !py-2 !px-3 !rounded-xl !text-xs !font-bold"
+                      showPreview={false}
+                    />
+                  </div>
+                  <input
+                    type="url"
+                    value={groupForm.coverImage || ''}
+                    onChange={(e) => setGroupForm({ ...groupForm, coverImage: e.target.value })}
+                    placeholder="رابط صورة الغلاف https://..."
+                    className="w-full p-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
+                    dir="ltr"
+                  />
+                </div>
               </div>
 
               <div>

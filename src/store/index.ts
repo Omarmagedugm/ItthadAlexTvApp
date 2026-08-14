@@ -476,7 +476,7 @@ export interface UserProfile {
   joinDate: string;
   avatar: string;
   isVerified?: boolean;
-  role?: 'user' | 'admin' | 'moderator' | 'writer'; // Legacy support
+  role?: 'user' | 'admin' | 'superadmin' | 'moderator' | 'writer'; // Legacy support
   roles?: AppRole[];
   tier?: 'new' | 'bronze' | 'silver' | 'gold' | 'diamond' | 'premium';
   bio?: string;

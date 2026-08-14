@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Sparkles, Globe, CheckCircle2, ShieldCheck, Send, MapPin, User, Mail, Phone, Users } from 'lucide-react';
+import { Sparkles, Globe, CheckCircle2, ShieldCheck, Send, MapPin, User, Mail, Phone, Users, Image as ImageIcon, Upload, X } from 'lucide-react';
 import { WorldCountry, WorldApplication } from '../../types/worldFans';
 import { useAppStore } from '../../store';
 import { doc, setDoc } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
+import ImageUploader from '../ImageUploader';
 
 interface WorldFoundLeagueModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ export const WorldFoundLeagueModal: React.FC<WorldFoundLeagueModalProps> = ({
   const [proposedGroupName, setProposedGroupName] = useState<string>('');
   const [estimatedFansCount, setEstimatedFansCount] = useState<number>(30);
   const [motivation, setMotivation] = useState<string>('');
+  const [logo, setLogo] = useState<string>('');
 
   if (!isOpen) return null;
 
@@ -59,6 +61,7 @@ export const WorldFoundLeagueModal: React.FC<WorldFoundLeagueModalProps> = ({
         city: city.trim(),
         groupName: proposedGroupName.trim() || `رابطة مشجعي الاتحاد في ${city.trim()}`,
         proposedGroupName: proposedGroupName.trim() || `رابطة مشجعي الاتحاد في ${city.trim()}`,
+        logo: logo.trim() || undefined,
         estimatedFansCount: Number(estimatedFansCount) || 20,
         expectedMembers: Number(estimatedFansCount) || 20,
         motivation: motivation.trim(),
@@ -224,6 +227,75 @@ export const WorldFoundLeagueModal: React.FC<WorldFoundLeagueModalProps> = ({
                     className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
                   />
                 </div>
+              </div>
+
+              {/* League Logo Upload & URL Option */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300">
+                    شعار الرابطة (اختياري)
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-semibold">
+                    رفع صورة أو رابط مباشر
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                  {/* Upload Button */}
+                  <div className="shrink-0">
+                    <ImageUploader
+                      folderName="world_groups"
+                      onUploadSuccess={(url) => {
+                        setLogo(url);
+                      }}
+                      buttonText="رفع شعار من جهازك"
+                      buttonClassName="!bg-emerald-600 hover:!bg-emerald-700 !text-white !py-2 !px-3.5 !rounded-xl !text-xs !font-bold !shadow-sm flex items-center justify-center gap-1.5"
+                      showPreview={false}
+                    />
+                  </div>
+
+                  {/* Direct URL Input */}
+                  <div className="relative flex-1">
+                    <input
+                      type="url"
+                      value={logo}
+                      onChange={(e) => setLogo(e.target.value)}
+                      placeholder="أو الصق رابط الشعار هنا (https://...)"
+                      className="w-full p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold pl-8"
+                      dir="ltr"
+                    />
+                    {logo && (
+                      <button
+                        type="button"
+                        onClick={() => setLogo('')}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 p-0.5"
+                        title="إزالة الشعار"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Logo Preview */}
+                {logo && (
+                  <div className="flex items-center gap-3 pt-1">
+                    <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm flex items-center justify-center p-1 shrink-0">
+                      <img
+                        src={logo}
+                        alt="شعار الرابطة"
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold block">✓ تم تحديد الشعار</span>
+                      <span className="line-clamp-1 break-all text-[10px] opacity-75">{logo}</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

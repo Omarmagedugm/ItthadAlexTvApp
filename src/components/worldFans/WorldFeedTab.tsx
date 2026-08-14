@@ -12,13 +12,18 @@ import {
   MoreVertical,
   CheckCircle,
   Clock,
-  Filter
+  Filter,
+  Trash2,
+  ShieldCheck,
+  Upload,
+  X
 } from 'lucide-react';
 import { WorldPost, WorldGroup } from '../../types/worldFans';
 import { useAppStore } from '../../store';
-import { doc, setDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
+import ImageUploader from '../ImageUploader';
 
 interface WorldFeedTabProps {
   posts: WorldPost[];
@@ -46,11 +51,13 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
   const [newPostImage, setNewPostImage] = useState<string>('');
   const [selectedGroupForPost, setSelectedGroupForPost] = useState<string>(selectedGroupId || '');
   const [postCategory, setPostCategory] = useState<string>('general');
+  const [isOfficialPinned, setIsOfficialPinned] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState<string>('');
 
   const currentUser = auth.currentUser;
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'superadmin';
 
   // Filter posts
   const filteredPosts = posts.filter(post => {
@@ -83,6 +90,7 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
         type: 'post',
         images: newPostImage.trim() ? [newPostImage.trim()] : undefined,
         category: postCategory,
+        pinned: isOfficialPinned && isAdmin,
         likes: 0,
         likedBy: [],
         commentsCount: 0,
@@ -102,6 +110,7 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
 
       setNewPostContent('');
       setNewPostImage('');
+      setIsOfficialPinned(false);
     } catch (err) {
       console.error('Error creating post:', err);
     } finally {
@@ -136,6 +145,38 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
       });
     } catch (e) {
       console.warn('Like updated locally:', e);
+    }
+  };
+
+  // Handle Toggle Pin (Admin)
+  const handleTogglePin = async (postId: string) => {
+    const targetPost = worldPosts.find(p => p.id === postId);
+    if (!targetPost) return;
+
+    const nextPinned = !targetPost.pinned;
+    const updated = worldPosts.map(p => p.id === postId ? { ...p, pinned: nextPinned } : p);
+    setWorldPosts(updated);
+
+    try {
+      await updateDoc(doc(db, 'world_posts', postId), {
+        pinned: nextPinned
+      });
+    } catch (err) {
+      console.warn('Firestore pin sync:', err);
+    }
+  };
+
+  // Handle Delete Post (Admin or author)
+  const handleDeletePost = async (postId: string) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذا المنشور؟')) return;
+
+    const updated = worldPosts.filter(p => p.id !== postId);
+    setWorldPosts(updated);
+
+    try {
+      await deleteDoc(doc(db, 'world_posts', postId));
+    } catch (err) {
+      console.warn('Firestore delete post sync:', err);
     }
   };
 
@@ -176,6 +217,37 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
     }
   };
 
+  // Handle Delete Comment (Admin or author)
+  const handleDeleteComment = async (postId: string, commentId: string) => {
+    const post = worldPosts.find(p => p.id === postId);
+    if (!post || !post.comments) return;
+
+    const targetComment = post.comments.find(c => c.id === commentId);
+    const updatedComments = post.comments.filter(c => c.id !== commentId);
+
+    const updated = worldPosts.map(p => {
+      if (p.id !== postId) return p;
+      return {
+        ...p,
+        commentsCount: Math.max(0, (p.commentsCount || 1) - 1),
+        comments: updatedComments,
+      };
+    });
+
+    setWorldPosts(updated);
+
+    if (targetComment) {
+      try {
+        await updateDoc(doc(db, 'world_posts', postId), {
+          commentsCount: Math.max(0, (post.commentsCount || 1) - 1),
+          comments: arrayRemove(targetComment)
+        });
+      } catch (e) {
+        console.warn('Comment removed locally:', e);
+      }
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       {/* Post Composer Card */}
@@ -196,16 +268,51 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
               className="w-full text-xs font-semibold bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-3 text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all resize-none"
             />
 
-            {/* Optional Image URL */}
-            <div className="mt-2 flex items-center gap-2">
-              <input
-                type="url"
-                value={newPostImage}
-                onChange={(e) => setNewPostImage(e.target.value)}
-                placeholder="رابط صورة (اختياري - كافيه، تيشيرت، تجمع، علم الاتحاد)..."
-                className="flex-1 text-[11px] font-medium bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 rounded-xl px-3 py-1.5 text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none"
-              />
+            {/* Optional Image Upload & URL */}
+            <div className="mt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div className="shrink-0">
+                <ImageUploader
+                  folderName="world_posts"
+                  onUploadSuccess={(url) => {
+                    setNewPostImage(url);
+                  }}
+                  buttonText="رفع صورة"
+                  buttonClassName="!bg-slate-100 dark:!bg-slate-700 hover:!bg-slate-200 !text-slate-700 dark:!text-slate-200 !py-1.5 !px-3 !rounded-xl !text-xs !font-bold"
+                  showPreview={false}
+                />
+              </div>
+
+              <div className="relative flex-1">
+                <input
+                  type="url"
+                  value={newPostImage}
+                  onChange={(e) => setNewPostImage(e.target.value)}
+                  placeholder="أو الصق رابط صورة (كافيه، تيشيرت، تجمع)..."
+                  className="w-full text-[11px] font-medium bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700/80 rounded-xl px-3 py-1.5 text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none"
+                  dir="ltr"
+                />
+                {newPostImage && (
+                  <button
+                    type="button"
+                    onClick={() => setNewPostImage('')}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* Image Preview if chosen */}
+            {newPostImage && (
+              <div className="mt-2 relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                <img
+                  src={newPostImage}
+                  alt="معاينة"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
 
             {/* Options Bar & Submit */}
             <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex flex-wrap items-center justify-between gap-2">
@@ -235,6 +342,19 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
                   <option value="photos">صور ومعالم 📸</option>
                   <option value="match_day">يوم المباراة ⚽</option>
                 </select>
+
+                {/* Admin Option: Pin as official announcement */}
+                {isAdmin && (
+                  <label className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 cursor-pointer bg-amber-50 dark:bg-amber-950/40 px-2 py-1 rounded-xl">
+                    <input
+                      type="checkbox"
+                      checked={isOfficialPinned}
+                      onChange={(e) => setIsOfficialPinned(e.target.checked)}
+                      className="rounded text-amber-500 focus:ring-amber-400 h-3.5 w-3.5"
+                    />
+                    <span>منشور إداري مثبت 📌</span>
+                  </label>
+                )}
               </div>
 
               <button
@@ -278,6 +398,7 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
           {filteredPosts.map((post) => {
             const isLiked = post.likedBy?.includes(currentUser?.uid || 'guest_user');
             const showComments = activeCommentPostId === post.id;
+            const canManage = isAdmin || (currentUser?.uid && post.authorId === currentUser.uid);
 
             return (
               <motion.div
@@ -294,7 +415,7 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
                   </div>
                 )}
 
-                {/* Author Info */}
+                {/* Author Info & Admin Controls */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2.5">
                     <img
@@ -308,7 +429,7 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
                         <h4 className="text-xs font-black text-slate-800 dark:text-white">
                           {post.authorName}
                         </h4>
-                        <span className="text-xs">{post.countryCode}</span>
+                        <span className="text-sm drop-shadow-sm">{post.groupFlag || post.countryCode || '🌍'}</span>
                       </div>
                       <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
                         <span>{post.groupName || post.countryName}</span>
@@ -318,9 +439,34 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
                     </div>
                   </div>
 
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    {post.category === 'gatherings' ? 'تجمع ☕' : post.category === 'photos' ? 'صورة 📸' : post.category === 'match_day' ? 'مباراة ⚽' : 'نقاش 💬'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      {post.category === 'gatherings' ? 'تجمع ☕' : post.category === 'photos' ? 'صورة 📸' : post.category === 'match_day' ? 'مباراة ⚽' : 'نقاش 💬'}
+                    </span>
+
+                    {/* Admin Actions */}
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleTogglePin(post.id)}
+                        className={`p-1 rounded-lg text-xs transition-colors ${
+                          post.pinned ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/50' : 'text-slate-400 hover:text-amber-500'
+                        }`}
+                        title={post.pinned ? 'إلغاء التثبيت' : 'تثبيت المنشور'}
+                      >
+                        <Pin size={14} className={post.pinned ? 'rotate-45' : ''} />
+                      </button>
+                    )}
+
+                    {canManage && (
+                      <button
+                        onClick={() => handleDeletePost(post.id)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                        title="حذف المنشور"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Content */}
@@ -398,15 +544,31 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
                     {/* Comments List */}
                     {post.comments && post.comments.length > 0 ? (
                       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                        {post.comments.map((comment) => (
-                          <div key={comment.id} className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 text-xs">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="font-bold text-slate-800 dark:text-white">{comment.userName}</span>
-                              <span className="text-[9px] text-slate-400">{new Date(comment.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
+                        {post.comments.map((comment) => {
+                          const canDeleteComment = isAdmin || (currentUser?.uid && comment.userId === currentUser.uid);
+
+                          return (
+                            <div key={comment.id} className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 text-xs flex items-start justify-between gap-2">
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-bold text-slate-800 dark:text-white">{comment.userName}</span>
+                                  <span className="text-[9px] text-slate-400">{new Date(comment.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                                <p className="text-slate-600 dark:text-slate-300 font-medium leading-relaxed">{comment.content || comment.text}</p>
+                              </div>
+
+                              {canDeleteComment && (
+                                <button
+                                  onClick={() => handleDeleteComment(post.id, comment.id)}
+                                  className="text-slate-400 hover:text-red-500 p-1 shrink-0"
+                                  title="حذف التعليق"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              )}
                             </div>
-                            <p className="text-slate-600 dark:text-slate-300 font-medium leading-relaxed">{comment.content || comment.text}</p>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="text-[11px] text-slate-400 text-center py-2">لا توجد تعليقات بعد. كن أول من يعلق!</p>

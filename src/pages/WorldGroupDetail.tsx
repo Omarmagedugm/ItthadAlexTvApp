@@ -15,13 +15,24 @@ import {
   ExternalLink, 
   Image as ImageIcon, 
   Info,
-  Heart
+  Heart,
+  Settings,
+  Edit3,
+  Trash2,
+  Star,
+  Save,
+  X,
+  Phone,
+  Mail,
+  Globe
 } from 'lucide-react';
 import { useAppStore } from '../store';
 import { WorldFeedTab } from '../components/worldFans/WorldFeedTab';
 import { WorldEventsTab } from '../components/worldFans/WorldEventsTab';
-import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { WorldGroup } from '../types/worldFans';
+import { doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
+import ImageUploader from '../components/ImageUploader';
 
 export const WorldGroupDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,15 +42,25 @@ export const WorldGroupDetail: React.FC = () => {
     setWorldGroups, 
     worldPosts, 
     worldEvents, 
-    profile 
+    profile,
+    worldCountries 
   } = useAppStore();
 
-  const [activeTab, setActiveTab] = useState<'feed' | 'events' | 'members' | 'gallery' | 'about'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'events' | 'about'>('feed');
   const [hasJoined, setHasJoined] = useState<boolean>(false);
   const [isJoining, setIsJoining] = useState<boolean>(false);
 
+  // Admin edit state
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [editFormData, setEditFormData] = useState<Partial<WorldGroup>>({});
+
   const group = worldGroups.find((g) => g.id === id);
   const currentUser = auth.currentUser;
+
+  // Admin permission check
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'superadmin';
+  const isGroupAdmin = isAdmin || (currentUser?.uid && group?.adminUid === currentUser.uid);
 
   if (!group) {
     return (
@@ -71,8 +92,8 @@ export const WorldGroupDetail: React.FC = () => {
       setHasJoined(nextJoined);
 
       const newMemberCount = nextJoined 
-        ? (group.memberCount || 0) + 1 
-        : Math.max(0, (group.memberCount || 1) - 1);
+        ? (Number(group.memberCount) || 0) + 1 
+        : Math.max(0, (Number(group.memberCount) || 1) - 1);
 
       const updated = worldGroups.map(g => g.id === group.id ? { ...g, memberCount: newMemberCount } : g);
       setWorldGroups(updated);
@@ -89,7 +110,115 @@ export const WorldGroupDetail: React.FC = () => {
     }
   };
 
-  const isOfficial = group.verified || group.status === 'approved';
+  // Open Edit Modal
+  const openEditModal = () => {
+    setEditFormData({
+      name: group.name,
+      countryId: group.countryId,
+      countryName: group.countryName,
+      countryFlag: group.countryFlag,
+      city: group.city,
+      description: group.description,
+      logo: group.logo || '',
+      coverImage: group.coverImage || '',
+      status: group.status,
+      verified: group.verified,
+      featured: group.featured,
+      adminName: group.adminName,
+      adminPhone: group.adminPhone || '',
+      adminEmail: group.adminEmail || '',
+      whatsappGroupUrl: group.whatsappGroupUrl || group.socialLinks?.whatsapp || '',
+      facebookPageUrl: group.facebookPageUrl || group.socialLinks?.facebook || '',
+      memberCount: group.memberCount || 10,
+      foundedYear: group.foundedYear || '2023',
+    });
+    setIsEditModalOpen(true);
+  };
+
+  // Save Edit Changes
+  const handleSaveGroupChanges = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      const updatedGroup: WorldGroup = {
+        ...group,
+        ...editFormData,
+        memberCount: Number(editFormData.memberCount) || 10,
+        updatedAt: new Date().toISOString(),
+      } as WorldGroup;
+
+      // Update in global state
+      const updatedList = worldGroups.map(g => g.id === group.id ? updatedGroup : g);
+      setWorldGroups(updatedList);
+
+      // Update in Firestore
+      try {
+        await setDoc(doc(db, 'world_groups', group.id), updatedGroup);
+      } catch (err) {
+        console.warn('Firestore update sync:', err);
+      }
+
+      setIsEditModalOpen(false);
+    } catch (err) {
+      console.error('Error saving group:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Quick Toggle Verification
+  const handleToggleVerified = async () => {
+    const nextVerified = !group.verified;
+    const nextStatus = nextVerified ? 'official' : 'community';
+    const updated = worldGroups.map(g => g.id === group.id ? { ...g, verified: nextVerified, status: nextStatus as any } : g);
+    setWorldGroups(updated);
+
+    try {
+      await updateDoc(doc(db, 'world_groups', group.id), {
+        verified: nextVerified,
+        status: nextStatus
+      });
+    } catch (err) {
+      console.warn('Verified sync:', err);
+    }
+  };
+
+  // Quick Toggle Featured
+  const handleToggleFeatured = async () => {
+    const nextFeatured = !group.featured;
+    const updated = worldGroups.map(g => g.id === group.id ? { ...g, featured: nextFeatured } : g);
+    setWorldGroups(updated);
+
+    try {
+      await updateDoc(doc(db, 'world_groups', group.id), {
+        featured: nextFeatured
+      });
+    } catch (err) {
+      console.warn('Featured sync:', err);
+    }
+  };
+
+  // Delete Group (Admin only)
+  const handleDeleteGroup = async () => {
+    if (!window.confirm(`هل أنت متأكد من رغبتك في حذف "${group.name}" نهائياً من قاعدة البيانات؟`)) return;
+
+    try {
+      const updatedList = worldGroups.filter(g => g.id !== group.id);
+      setWorldGroups(updatedList);
+
+      try {
+        await deleteDoc(doc(db, 'world_groups', group.id));
+      } catch (err) {
+        console.warn('Firestore delete sync:', err);
+      }
+
+      navigate('/world-fans');
+    } catch (err) {
+      console.error('Error deleting group:', err);
+    }
+  };
+
+  const isOfficial = group.verified || group.status === 'approved' || group.status === 'official';
   const whatsappUrl = group.whatsappGroupUrl || group.socialLinks?.whatsapp;
 
   return (
@@ -105,34 +234,113 @@ export const WorldGroupDetail: React.FC = () => {
             <span>العودة لكل الروابط</span>
           </button>
 
-          <button
-            onClick={() => {
-              if (navigator.share) {
-                navigator.share({
-                  title: group.name,
-                  text: `انضم إلى ${group.name} - رابطة اتحاداوية العالم`,
-                  url: window.location.href,
-                });
-              }
-            }}
-            className="p-2 rounded-xl bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:text-emerald-600 active:scale-95 transition-all"
-          >
-            <Share2 size={16} />
-          </button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={() => navigate('/admin?tab=world_fans')}
+                className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-xs font-black flex items-center gap-1.5 hover:bg-amber-500/20 active:scale-95 transition-all"
+              >
+                <Settings size={14} />
+                <span>لوحة الإدارة</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => {
+                if (navigator.share) {
+                  navigator.share({
+                    title: group.name,
+                    text: `انضم إلى ${group.name} - رابطة اتحاداوية العالم`,
+                    url: window.location.href,
+                  });
+                }
+              }}
+              className="p-2 rounded-xl bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:text-emerald-600 active:scale-95 transition-all"
+            >
+              <Share2 size={16} />
+            </button>
+          </div>
         </div>
+
+        {/* Global Admin & Group Admin Control Bar */}
+        {isGroupAdmin && (
+          <div className="mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-transparent border border-amber-500/30 dark:border-amber-500/20 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black">
+                <Settings size={16} />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-slate-800 dark:text-white flex items-center gap-1.5">
+                  <span>تحكم الإدارة الكامل في الرابطة</span>
+                  <span className="px-2 py-0.2 rounded-full text-[9px] font-black bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                    {isAdmin ? 'المشرف العام 👑' : 'مسؤول الرابطة 🛡️'}
+                  </span>
+                </h4>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
+                  يمكنك تعديل كافة البيانات والشعارات، توثيق الرابطة، وحذفها.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                onClick={openEditModal}
+                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow flex items-center gap-1 active:scale-95 transition-all"
+              >
+                <Edit3 size={13} />
+                <span>تعديل الرابطة</span>
+              </button>
+
+              <button
+                onClick={handleToggleVerified}
+                className={`px-3 py-1.5 rounded-xl font-black text-xs flex items-center gap-1 active:scale-95 transition-all ${
+                  group.verified
+                    ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-400/40'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700'
+                }`}
+                title="تبديل شارة التوثيق والاعتماد الرسمي"
+              >
+                <ShieldCheck size={13} className={group.verified ? 'text-amber-500' : 'text-slate-400'} />
+                <span>{group.verified ? 'معتمدة رسمياً ✓' : 'توثيق رسمي'}</span>
+              </button>
+
+              <button
+                onClick={handleToggleFeatured}
+                className={`p-1.5 rounded-xl border active:scale-95 transition-all ${
+                  group.featured
+                    ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-sm'
+                    : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'
+                }`}
+                title="تثبيت الرابطة في القائمة المميزة"
+              >
+                <Star size={15} fill={group.featured ? 'currentColor' : 'none'} />
+              </button>
+
+              {isAdmin && (
+                <button
+                  onClick={handleDeleteGroup}
+                  className="p-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 active:scale-95 transition-all"
+                  title="حذف الرابطة نهائياً"
+                >
+                  <Trash2 size={15} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Group Hero Card */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#063323] via-[#094731] to-[#042116] p-6 text-white shadow-2xl border border-emerald-500/30 mb-6">
           {/* Cover background */}
           {group.coverImage && (
-            <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+            <div className="absolute inset-0 z-0 opacity-50 pointer-events-none">
               <img
                 src={group.coverImage}
                 alt=""
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#042116] via-[#063323]/80 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#042116] via-[#063323]/60 to-transparent" />
             </div>
           )}
 
@@ -314,10 +522,21 @@ export const WorldGroupDetail: React.FC = () => {
               className="space-y-4"
             >
               <div className="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 shadow-sm space-y-4">
-                <h3 className="text-sm font-black text-slate-800 dark:text-white flex items-center gap-2">
-                  <Info size={18} className="text-emerald-600" />
-                  <span>نبذة عن الرابطة وتاريخ تأسيسها</span>
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-slate-800 dark:text-white flex items-center gap-2">
+                    <Info size={18} className="text-emerald-600" />
+                    <span>نبذة عن الرابطة وتاريخ تأسيسها</span>
+                  </h3>
+                  {isGroupAdmin && (
+                    <button
+                      onClick={openEditModal}
+                      className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 hover:underline"
+                    >
+                      <Edit3 size={12} />
+                      <span>تعديل النبذة</span>
+                    </button>
+                  )}
+                </div>
 
                 <p className="text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed whitespace-pre-line">
                   {group.description || 'رابطة رسمية تجمع مشجعي نادي الاتحاد السكندري المغتربين في الخارج لتشجيع ومساندة النادي وتنظيم التجمعات لمشاهدة المباريات وتقديم المساعدة لأبناء الإسكندرية الجدد.'}
@@ -361,9 +580,235 @@ export const WorldGroupDetail: React.FC = () => {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Edit Group Modal for Admin */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm overflow-y-auto">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-xl rounded-3xl bg-white dark:bg-slate-800 p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-700 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+                  <Edit3 size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-800 dark:text-white">
+                    تعديل بيانات الرابطة
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-semibold">
+                    تحكم كامل في مسمى الرابطة، الشعارات، والحالة الرسمية
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveGroupChanges} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">اسم الرابطة *</label>
+                <input
+                  type="text"
+                  required
+                  value={editFormData.name || ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">المدينة *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editFormData.city || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">سنة التأسيس</label>
+                  <input
+                    type="text"
+                    value={editFormData.foundedYear || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, foundedYear: e.target.value })}
+                    placeholder="2023"
+                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
+                  />
+                </div>
+              </div>
+
+              {/* Logo Section */}
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300">
+                    شعار الرابطة (Logo)
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-semibold">
+                    رفع صورة أو رابط مباشر
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="shrink-0">
+                    <ImageUploader
+                      folderName="world_groups"
+                      onUploadSuccess={(url) => {
+                        setEditFormData({ ...editFormData, logo: url });
+                      }}
+                      buttonText="رفع شعار"
+                      buttonClassName="!bg-emerald-600 hover:!bg-emerald-700 !text-white !py-2 !px-3 !rounded-xl !text-xs !font-bold !shadow-sm flex items-center justify-center gap-1.5"
+                      showPreview={false}
+                    />
+                  </div>
+                  <input
+                    type="url"
+                    value={editFormData.logo || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, logo: e.target.value })}
+                    placeholder="أو الصق رابط صورة الشعار (https://...)"
+                    className="w-full p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+                    dir="ltr"
+                  />
+                </div>
+
+                {editFormData.logo && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center p-1 shrink-0">
+                      <img
+                        src={editFormData.logo}
+                        alt="شعار الرابطة"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                      ✓ تم تعيين الشعار
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Cover Section */}
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">صورة الغلاف</label>
+                <div className="flex items-center gap-2">
+                  <div className="shrink-0">
+                    <ImageUploader
+                      folderName="world_groups"
+                      onUploadSuccess={(url) => {
+                        setEditFormData({ ...editFormData, coverImage: url });
+                      }}
+                      buttonText="رفع غلاف"
+                      buttonClassName="!bg-slate-200 dark:!bg-slate-700 hover:!bg-slate-300 !text-slate-800 dark:!text-white !py-2 !px-3 !rounded-xl !text-xs !font-bold"
+                      showPreview={false}
+                    />
+                  </div>
+                  <input
+                    type="url"
+                    value={editFormData.coverImage || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, coverImage: e.target.value })}
+                    placeholder="رابط صورة الغلاف https://..."
+                    className="w-full p-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+
+              {/* Contact & Socials */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">رابط جروب الواتساب</label>
+                  <input
+                    type="url"
+                    value={editFormData.whatsappGroupUrl || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, whatsappGroupUrl: e.target.value })}
+                    placeholder="https://chat.whatsapp.com/..."
+                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
+                    dir="ltr"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">اسم المشرف / المنسق</label>
+                  <input
+                    type="text"
+                    value={editFormData.adminName || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, adminName: e.target.value })}
+                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">نبذة عن الرابطة</label>
+                <textarea
+                  rows={3}
+                  value={editFormData.description || ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
+                />
+              </div>
+
+              {/* Status & Badges */}
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editFormData.verified || false}
+                    onChange={(e) => setEditFormData({ 
+                      ...editFormData, 
+                      verified: e.target.checked,
+                      status: e.target.checked ? 'official' : 'community'
+                    })}
+                    className="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4"
+                  />
+                  <span className="font-bold text-slate-800 dark:text-white">
+                    🟢 رابطة رسمية معتمدة
+                  </span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editFormData.featured || false}
+                    onChange={(e) => setEditFormData({ ...editFormData, featured: e.target.checked })}
+                    className="rounded text-amber-500 focus:ring-amber-400 h-4 w-4"
+                  />
+                  <span className="font-bold text-slate-800 dark:text-white">
+                    ⭐ مميزة في الواجهة
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-md flex items-center gap-1.5 active:scale-95 transition-all"
+                >
+                  <Save size={15} />
+                  <span>{isSaving ? 'جارٍ الحفظ...' : 'حفظ التعديلات'}</span>
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default WorldGroupDetail;
-

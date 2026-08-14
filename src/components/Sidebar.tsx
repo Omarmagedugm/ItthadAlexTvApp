@@ -43,7 +43,14 @@ export default function Sidebar({ isOpen, onClose, profile }: SidebarProps) {
   };
 
   // Merge items with fallback to defaults if store items are empty
-  const rawItems = (sidebarMenuItems && sidebarMenuItems.length > 0) ? sidebarMenuItems : DEFAULT_SIDEBAR_ITEMS;
+  let rawItems = (sidebarMenuItems && sidebarMenuItems.length > 0) ? [...sidebarMenuItems] : [...DEFAULT_SIDEBAR_ITEMS];
+
+  // Guarantee that essential default items like world-fans and club-members are present even if an older cached sidebar array exists
+  DEFAULT_SIDEBAR_ITEMS.forEach(defaultItem => {
+    if (!rawItems.some(item => item.id === defaultItem.id || item.path === defaultItem.path)) {
+      rawItems.push(defaultItem);
+    }
+  });
   
   // Filter active and sort by order
   const sortedItems = [...rawItems]

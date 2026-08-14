@@ -11,11 +11,12 @@ import {
   Trophy, 
   Sparkles,
   Search,
-  ShieldCheck
+  ShieldCheck,
+  Settings,
+  PlusCircle
 } from 'lucide-react';
 import { useAppStore } from '../store';
 import { WorldFansHero } from '../components/worldFans/WorldFansHero';
-import { WorldCountryMapGrid } from '../components/worldFans/WorldCountryMapGrid';
 import { WorldGroupsList } from '../components/worldFans/WorldGroupsList';
 import { WorldFeedTab } from '../components/worldFans/WorldFeedTab';
 import { WorldEventsTab } from '../components/worldFans/WorldEventsTab';
@@ -31,13 +32,16 @@ export const WorldFans: React.FC = () => {
     worldGroups, 
     worldPosts, 
     worldEvents, 
-    worldHelpRequests 
+    worldHelpRequests,
+    worldApplications,
+    profile
   } = useAppStore();
+
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'superadmin';
+  const pendingAppsCount = worldApplications.filter(a => a.status === 'pending').length;
 
   const tabParam = searchParams.get('tab') || 'leagues';
   const [activeTab, setActiveTab] = useState<string>(tabParam);
-  const [selectedCountryId, setSelectedCountryId] = useState<string | null>(null);
-  const [selectedRegion, setSelectedRegion] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isFoundLeagueOpen, setIsFoundLeagueOpen] = useState<boolean>(false);
 
@@ -54,24 +58,8 @@ export const WorldFans: React.FC = () => {
     setSearchParams({ tab: tabId });
   };
 
-  // Filter groups based on search & country
-  const filteredGroups = worldGroups.filter((g) => {
-    if (g.status === 'rejected' || g.status === 'suspended') return false;
-    if (selectedCountryId && g.countryId !== selectedCountryId) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchName = g.name.toLowerCase().includes(q);
-      const matchCity = g.city.toLowerCase().includes(q);
-      const matchCountry = g.countryName.toLowerCase().includes(q);
-      if (!matchName && !matchCity && !matchCountry) return false;
-    }
-    return true;
-  });
-
-  const selectedCountryObj = worldCountries.find(c => c.id === selectedCountryId);
-
   const TABS = [
-    { id: 'leagues', label: 'الروابط والبلدان', icon: Globe, count: worldGroups.length },
+    { id: 'leagues', label: 'الروابط المسجلة', icon: Globe, count: worldGroups.length },
     { id: 'feed', label: 'ملتقى المغتربين', icon: MessageSquare, count: worldPosts.length },
     { id: 'events', label: 'تجمعات المباريات', icon: Calendar, count: worldEvents.filter(e => e.status === 'upcoming').length },
     { id: 'help', label: 'دليل المغترب', icon: Compass, count: worldHelpRequests.length },
@@ -91,13 +79,59 @@ export const WorldFans: React.FC = () => {
             <span>العودة للرئيسية</span>
           </button>
 
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-xl border border-emerald-500/20">
-              المجتمع الدولي 🌍
-            </span>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={() => navigate('/admin?tab=world_fans')}
+                className="flex items-center gap-1.5 text-[11px] font-black text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/50 px-3 py-1 rounded-xl border border-amber-400/40 shadow-sm active:scale-95 transition-all"
+              >
+                <Settings size={13} />
+                <span>لوحة تحكم المشرف العام</span>
+                {pendingAppsCount > 0 && (
+                  <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.2 rounded-full animate-bounce">
+                    {pendingAppsCount}
+                  </span>
+                )}
+              </button>
+            )}
+
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-xl border border-emerald-500/20">
+                المجتمع الدولي 🌍
+              </span>
+            </div>
           </div>
         </div>
+
+        {/* Global Admin Fast Action Bar */}
+        {isAdmin && (
+          <div className="mb-4 p-3 rounded-2xl bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-slate-900/20 border border-amber-500/30 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black">
+                👑
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-slate-800 dark:text-white">
+                  أنت مسجل كـ مشرف عام للتطبيق (صلاحيات كاملة)
+                </h4>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
+                  تحكم في كافة الروابط، البلدان، طلبات التأسيس ({pendingAppsCount} معلقة)، الفعاليات والمنشورات.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate('/admin?tab=world_fans')}
+                className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow flex items-center gap-1.5 active:scale-95 transition-all"
+              >
+                <Settings size={14} />
+                <span>إدارة الروابط بالكامل</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Hero Section */}
         <WorldFansHero
@@ -149,19 +183,9 @@ export const WorldFans: React.FC = () => {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {/* World Country Map Grid */}
-              <WorldCountryMapGrid
-                countries={worldCountries}
-                selectedCountryId={selectedCountryId}
-                onSelectCountry={setSelectedCountryId}
-                selectedRegion={selectedRegion}
-                onSelectRegion={setSelectedRegion}
-              />
-
-              {/* World Groups List */}
+              {/* Registered World Groups List Only */}
               <WorldGroupsList
-                groups={filteredGroups}
-                selectedCountryName={selectedCountryObj?.name || selectedCountryObj?.nameAr}
+                groups={worldGroups.filter(g => g.status !== 'rejected' && g.status !== 'suspended')}
                 onOpenFoundLeague={() => setIsFoundLeagueOpen(true)}
               />
             </motion.div>

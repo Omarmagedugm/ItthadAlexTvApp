@@ -12,13 +12,17 @@ import {
   Share2, 
   Coffee, 
   Tv, 
-  Trophy 
+  Trophy,
+  Trash2,
+  Edit2,
+  X
 } from 'lucide-react';
 import { WorldEvent, WorldGroup } from '../../types/worldFans';
 import { useAppStore } from '../../store';
-import { doc, setDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
+import ImageUploader from '../ImageUploader';
 
 interface WorldEventsTabProps {
   events: WorldEvent[];
@@ -48,6 +52,7 @@ export const WorldEventsTab: React.FC<WorldEventsTabProps> = ({
   const [image, setImage] = useState<string>('');
 
   const currentUser = auth.currentUser;
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'superadmin';
 
   const filteredEvents = events.filter(e => {
     if (selectedGroupId && e.groupId !== selectedGroupId) return false;
@@ -81,6 +86,34 @@ export const WorldEventsTab: React.FC<WorldEventsTabProps> = ({
       });
     } catch (err) {
       console.warn('RSVP updated locally:', err);
+    }
+  };
+
+  // Handle Delete Event (Admin or Organizer)
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!window.confirm('هل أنت متأكد من رغبتك في حذف هذا التجمع؟')) return;
+
+    const updated = worldEvents.filter(e => e.id !== eventId);
+    setWorldEvents(updated);
+
+    try {
+      await deleteDoc(doc(db, 'world_events', eventId));
+    } catch (err) {
+      console.warn('Firestore delete event sync:', err);
+    }
+  };
+
+  // Handle Status Change (Admin)
+  const handleStatusChange = async (eventId: string, newStatus: 'upcoming' | 'ongoing' | 'completed' | 'cancelled') => {
+    const updated = worldEvents.map(e => e.id === eventId ? { ...e, status: newStatus } : e);
+    setWorldEvents(updated);
+
+    try {
+      await updateDoc(doc(db, 'world_events', eventId), {
+        status: newStatus
+      });
+    } catch (err) {
+      console.warn('Status change sync:', err);
     }
   };
 
@@ -181,25 +214,73 @@ export const WorldEventsTab: React.FC<WorldEventsTabProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredEvents.map((evt) => {
             const isAttending = evt.participantUids?.includes(currentUser?.uid || '');
+            const canManage = isAdmin || (currentUser?.uid && evt.participantUids?.[0] === currentUser.uid);
 
             return (
               <motion.div
                 key={evt.id}
-                initial={{ opacity: 0, y: 15 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 p-4 sm:p-5 shadow-sm hover:shadow-lg transition-all flex flex-col justify-between"
+                className="rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/70 p-5 shadow-sm flex flex-col justify-between overflow-hidden relative"
               >
-                <div>
-                  {/* Top Bar: Type & Group */}
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-black bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                      <Tv size={12} />
-                      <span>{evt.type === 'match_viewing' ? 'مشاهدة مباراة ⚽' : evt.type === 'gathering' ? 'تجمع أخوي ☕' : 'احتفالية 🏆'}</span>
-                    </span>
+                {/* Event Cover if available */}
+                {evt.image && (
+                  <div className="h-32 -mx-5 -mt-5 mb-4 overflow-hidden relative">
+                    <img
+                      src={evt.image}
+                      alt={evt.title}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent" />
+                  </div>
+                )}
 
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                      {evt.groupName}
-                    </span>
+                <div>
+                  {/* Badge & League */}
+                  <div className="flex items-center justify-between gap-2 mb-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm">{evt.groupFlag || '🌍'}</span>
+                      <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                        {evt.groupName}
+                      </span>
+                    </div>
+
+                    {/* Status & Admin delete */}
+                    <div className="flex items-center gap-1.5">
+                      {isAdmin ? (
+                        <select
+                          value={evt.status || 'upcoming'}
+                          onChange={(e) => handleStatusChange(evt.id, e.target.value as any)}
+                          className="text-[10px] font-bold rounded-lg px-2 py-0.5 bg-slate-100 dark:bg-slate-700 border-none text-slate-700 dark:text-slate-300"
+                        >
+                          <option value="upcoming">قادم ⏳</option>
+                          <option value="ongoing">جارٍ الآن 🟢</option>
+                          <option value="completed">انتهى ✓</option>
+                          <option value="cancelled">ملغي ✕</option>
+                        </select>
+                      ) : (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          evt.status === 'ongoing'
+                            ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 animate-pulse'
+                            : evt.status === 'completed'
+                            ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                            : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                        }`}>
+                          {evt.status === 'ongoing' ? 'جارٍ الآن' : evt.status === 'completed' ? 'انتهى' : 'قادم'}
+                        </span>
+                      )}
+
+                      {canManage && (
+                        <button
+                          onClick={() => handleDeleteEvent(evt.id)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                          title="حذف التجمع"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Title & Desc */}
@@ -354,65 +435,93 @@ export const WorldEventsTab: React.FC<WorldEventsTabProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">الموعد *</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">الموعد والتوقيت</label>
                   <input
                     type="text"
                     value={eventTime}
                     onChange={(e) => setEventTime(e.target.value)}
-                    placeholder="مثال: 07:00 م (بتوقيت مصر)"
+                    placeholder="مثال: 07:00 م بتوقيت القاهرة"
                     className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">مكان التجمع (الكافيه / القاعة) *</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">العنوان / اسم المكان أو الكافيه *</label>
                 <input
                   type="text"
                   required
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder="مثال: كافيه ليالي زمان - حي العليا"
+                  placeholder="مثال: كافيه الأندلس، شارع التحلية"
                   className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">رابط الموقع على خرائط جوجل (اختياري)</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">رابط المكان على خرائط جوجل (اختياري)</label>
                 <input
                   type="url"
                   value={mapsUrl}
                   onChange={(e) => setMapsUrl(e.target.value)}
-                  placeholder="https://maps.google.com/..."
+                  placeholder="https://maps.app.goo.gl/..."
                   className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
+                  dir="ltr"
                 />
               </div>
 
+              {/* Event Image Upload / URL */}
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">تفاصيل إضافية</label>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">صورة الفعالية / المكان (اختياري)</label>
+                <div className="flex items-center gap-2">
+                  <div className="shrink-0">
+                    <ImageUploader
+                      folderName="world_events"
+                      onUploadSuccess={(url) => {
+                        setImage(url);
+                      }}
+                      buttonText="رفع صورة"
+                      buttonClassName="!bg-slate-200 dark:!bg-slate-700 hover:!bg-slate-300 !text-slate-800 dark:!text-white !py-2 !px-3 !rounded-xl !text-xs !font-bold"
+                      showPreview={false}
+                    />
+                  </div>
+                  <input
+                    type="url"
+                    value={image}
+                    onChange={(e) => setImage(e.target.value)}
+                    placeholder="رابط صورة https://..."
+                    className="w-full p-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">تفاصيل إضافية أو تعليمات</label>
                 <textarea
                   rows={2}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="تفاصيل التجمع، شروط الحضور، أو كيفية التواصل..."
-                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold resize-none"
+                  placeholder="مثال: يرجى ارتداء تيشرت الاتحاد الأخضر والحضور قبل المباراة بنصف ساعة..."
+                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
                 />
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-2">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-700">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 font-bold"
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 text-white font-black shadow-md active:scale-95 disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-md flex items-center gap-1.5 active:scale-95 transition-all"
                 >
-                  {isSubmitting ? 'جاري الحفظ...' : 'نشر التجمع'}
+                  <Plus size={15} />
+                  <span>{isSubmitting ? 'جاري الحفظ...' : 'نشر التجمع'}</span>
                 </button>
               </div>
             </form>
