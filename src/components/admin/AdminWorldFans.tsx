@@ -90,6 +90,8 @@ export const AdminWorldFans: React.FC = () => {
   const [groupMembersList, setGroupMembersList] = useState<WorldGroupMember[]>([]);
   const [loadingMembers, setLoadingMembers] = useState<boolean>(false);
   const [memberSearchQuery, setMemberSearchQuery] = useState<string>('');
+  const [editingGroupMembers, setEditingGroupMembers] = useState<WorldGroupMember[]>([]);
+  const [loadingGroupEditMembers, setLoadingGroupEditMembers] = useState<boolean>(false);
 
   // Open Members Modal & fetch from Firestore
   const handleOpenMembersModal = async (group: WorldGroup) => {
@@ -114,6 +116,143 @@ export const AdminWorldFans: React.FC = () => {
       toast.error('تعذر جلب قائمة الأعضاء');
     } finally {
       setLoadingMembers(false);
+    }
+  };
+
+  // Start editing group and load its members for moderator selector
+  const handleStartEditGroup = async (group: WorldGroup) => {
+    setEditingGroup(group);
+    setGroupForm({
+      ...group,
+      adminUid: group.adminUid || '',
+      whatsappGroupUrl: group.whatsappGroupUrl || group.socialLinks?.whatsapp || '',
+      facebookPageUrl: group.facebookPageUrl || group.socialLinks?.facebook || '',
+      adminPhone: group.adminPhone || '',
+      adminWhatsapp: group.adminWhatsapp || '',
+      adminEmail: group.adminEmail || '',
+      coverImage: group.coverImage || '',
+      logo: group.logo || '',
+      description: group.description || '',
+      adminName: group.adminName || '',
+      foundedYear: Number(group.foundedYear) || 2024,
+      memberCount: Number(group.memberCount) || 10,
+    });
+    setIsGroupModalOpen(true);
+
+    setLoadingGroupEditMembers(true);
+    try {
+      const q = query(
+        collection(db, 'world_group_members'),
+        where('groupId', '==', group.id)
+      );
+      const snapshot = await getDocs(q);
+      const members = snapshot.docs.map(d => ({
+        id: d.id,
+        ...(d.data() as Omit<WorldGroupMember, 'id'>)
+      }));
+      setEditingGroupMembers(members);
+    } catch (e) {
+      console.warn('Error fetching group members for edit modal:', e);
+      setEditingGroupMembers([]);
+    } finally {
+      setLoadingGroupEditMembers(false);
+    }
+  };
+  const handleAppointGroupAdmin = async (member: WorldGroupMember) => {
+    if (!selectedGroupForMembers) return;
+    const isAlreadyAdmin = (selectedGroupForMembers.adminUid === member.userId || selectedGroupForMembers.adminName === member.userName);
+    
+    if (isAlreadyAdmin) {
+      toast('هذا العضو هو المشرف الحالي للرابطة بالفعل 👑', { icon: '👑' });
+      return;
+    }
+
+    const confirmMsg = `هل تود تعيين العضو "${member.userName}" ليكون المشرف والمسؤول المعتمد على رابطة "${selectedGroupForMembers.name}"؟`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const groupId = selectedGroupForMembers.id;
+      // 1. Update world_groups in Firestore
+      const updatedGroupData = {
+        adminUid: member.userId,
+        adminName: member.userName,
+        adminEmail: member.userEmail || selectedGroupForMembers.adminEmail || '',
+        updatedAt: new Date().toISOString(),
+      };
+
+      await updateDoc(doc(db, 'world_groups', groupId), cleanFirestoreData(updatedGroupData));
+
+      // 2. Update member role in world_group_members collection
+      await updateDoc(doc(db, 'world_group_members', member.id), {
+        role: 'group_admin',
+        userRole: 'مشرف الرابطة'
+      });
+
+      // 3. Update local members state
+      const updatedMembersList = groupMembersList.map((m) => {
+        if (m.id === member.id) {
+          return { ...m, role: 'group_admin', userRole: 'مشرف الرابطة' };
+        }
+        if (m.userId === selectedGroupForMembers.adminUid || m.userName === selectedGroupForMembers.adminName) {
+          return { ...m, role: 'member', userRole: 'عضو' };
+        }
+        return m;
+      });
+      setGroupMembersList(updatedMembersList);
+
+      // 4. Update group state in store
+      const newGroupState: WorldGroup = {
+        ...selectedGroupForMembers,
+        adminUid: member.userId,
+        adminName: member.userName,
+        adminEmail: member.userEmail || selectedGroupForMembers.adminEmail || '',
+      };
+      setSelectedGroupForMembers(newGroupState);
+
+      const updatedGroups = worldGroups.map(g => g.id === groupId ? { ...g, ...newGroupState } : g);
+      setWorldGroups(updatedGroups);
+
+      toast.success(`تم تعيين "${member.userName}" مشرفاً رسمياً على رابطة "${selectedGroupForMembers.name}" بنجاح! 👑`);
+    } catch (err: any) {
+      console.error('Error appointing group admin:', err);
+      toast.error('حدث خطأ أثناء تعيين المشرف: ' + (err.message || ''));
+    }
+  };
+
+  // Remove Group Admin role
+  const handleRemoveGroupAdmin = async (member: WorldGroupMember) => {
+    if (!selectedGroupForMembers) return;
+    if (!window.confirm(`هل أنت متأكد من إلغاء تكليف الإشراف عن "${member.userName}"؟`)) return;
+
+    try {
+      const groupId = selectedGroupForMembers.id;
+      await updateDoc(doc(db, 'world_groups', groupId), {
+        adminUid: '',
+        adminName: '',
+        updatedAt: new Date().toISOString(),
+      });
+
+      await updateDoc(doc(db, 'world_group_members', member.id), {
+        role: 'member',
+        userRole: 'عضو'
+      });
+
+      const updatedMembersList = groupMembersList.map(m => m.id === member.id ? { ...m, role: 'member', userRole: 'عضو' } : m);
+      setGroupMembersList(updatedMembersList);
+
+      const newGroupState = {
+        ...selectedGroupForMembers,
+        adminUid: '',
+        adminName: '',
+      };
+      setSelectedGroupForMembers(newGroupState);
+      const updatedGroups = worldGroups.map(g => g.id === groupId ? { ...g, adminUid: '', adminName: '' } : g);
+      setWorldGroups(updatedGroups);
+
+      toast.success(`تم إلغاء الإشراف عن "${member.userName}"`);
+    } catch (err: any) {
+      console.error('Error removing group admin:', err);
+      toast.error('تعذر إلغاء الإشراف: ' + (err.message || ''));
     }
   };
 
@@ -164,6 +303,7 @@ export const AdminWorldFans: React.FC = () => {
       verified: groupForm.status === 'official' || Boolean(groupForm.verified),
       featured: Boolean(groupForm.featured),
       memberCount: Number(groupForm.memberCount) || 1,
+      adminUid: (groupForm.adminUid || editingGroup?.adminUid || '').trim(),
       adminName: (groupForm.adminName || '').trim(),
       adminPhone: (groupForm.adminPhone || '').trim(),
       adminEmail: (groupForm.adminEmail || '').trim(),
@@ -564,26 +704,9 @@ export const AdminWorldFans: React.FC = () => {
 
                     <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => {
-                          setEditingGroup(group);
-                          setGroupForm({
-                            ...group,
-                            whatsappGroupUrl: group.whatsappGroupUrl || group.socialLinks?.whatsapp || '',
-                            facebookPageUrl: group.facebookPageUrl || group.socialLinks?.facebook || '',
-                            adminPhone: group.adminPhone || '',
-                            adminWhatsapp: group.adminWhatsapp || '',
-                            adminEmail: group.adminEmail || '',
-                            coverImage: group.coverImage || '',
-                            logo: group.logo || '',
-                            description: group.description || '',
-                            adminName: group.adminName || '',
-                            foundedYear: Number(group.foundedYear) || 2024,
-                            memberCount: Number(group.memberCount) || 10,
-                          });
-                          setIsGroupModalOpen(true);
-                        }}
+                        onClick={() => handleStartEditGroup(group)}
                         className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-bold"
-                        title="تعديل"
+                        title="تعديل بيانات الرابطة والمشرف"
                       >
                         <Edit3 size={14} />
                       </button>
@@ -871,25 +994,93 @@ export const AdminWorldFans: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">مسؤول الرابطة</label>
-                    <input
-                      type="text"
-                      value={groupForm.adminName || ''}
-                      onChange={(e) => setGroupForm({ ...groupForm, adminName: e.target.value })}
-                      placeholder="اسم المسؤول"
-                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
-                    />
+                {/* Group Supervisor Selection */}
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 text-xs">
+                      مشرف ومسؤول الرابطة 👑
+                    </label>
+                    {editingGroupMembers.length > 0 && (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-black">
+                        {editingGroupMembers.length} عضو منضم
+                      </span>
+                    )}
                   </div>
 
+                  {editingGroupMembers.length > 0 ? (
+                    <div className="space-y-2">
+                      <select
+                        value={groupForm.adminUid || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (!val || val === 'custom') {
+                            setGroupForm({ ...groupForm, adminUid: '' });
+                          } else {
+                            const selectedMember = editingGroupMembers.find(m => m.userId === val);
+                            if (selectedMember) {
+                              setGroupForm({
+                                ...groupForm,
+                                adminUid: selectedMember.userId,
+                                adminName: selectedMember.userName,
+                                adminEmail: selectedMember.userEmail || groupForm.adminEmail || '',
+                              });
+                            }
+                          }
+                        }}
+                        className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-800 dark:text-white"
+                      >
+                        <option value="">— اختر عضواً من المنضمين لتعيينه مشرفاً —</option>
+                        {editingGroupMembers.map((m) => (
+                          <option key={m.id} value={m.userId}>
+                            👑 {m.userName} {m.userEmail ? `(${m.userEmail})` : ''} {m.userId === groupForm.adminUid ? '✓ [المشرف الحالي]' : ''}
+                          </option>
+                        ))}
+                        <option value="custom">✏️ إدخال اسم مشرف يدوي آخر...</option>
+                      </select>
+
+                      <input
+                        type="text"
+                        value={groupForm.adminName || ''}
+                        onChange={(e) => setGroupForm({ ...groupForm, adminName: e.target.value })}
+                        placeholder="اسم المسؤول أو المشرف"
+                        className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold text-xs"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="text"
+                        value={groupForm.adminName || ''}
+                        onChange={(e) => setGroupForm({ ...groupForm, adminName: e.target.value })}
+                        placeholder="اسم المسؤول أو المشرف"
+                        className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold text-xs"
+                      />
+                      <span className="text-[10px] text-slate-400 font-medium block mt-1">
+                        يمكنك أيضاً تعيين أي عضو ينضم لاحقاً عبر زر &quot;إدارة الأعضاء&quot;
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">سنة التأسيس</label>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 text-xs">سنة التأسيس</label>
                     <input
                       type="number"
                       value={groupForm.foundedYear || 2024}
                       onChange={(e) => setGroupForm({ ...groupForm, foundedYear: Number(e.target.value) })}
-                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 text-xs">بريد أو هاتف المسؤول</label>
+                    <input
+                      type="text"
+                      value={groupForm.adminEmail || groupForm.adminPhone || ''}
+                      onChange={(e) => setGroupForm({ ...groupForm, adminEmail: e.target.value })}
+                      placeholder="email@example.com"
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-xs"
                     />
                   </div>
                 </div>
@@ -1130,50 +1321,100 @@ export const AdminWorldFans: React.FC = () => {
                       const q = memberSearchQuery.toLowerCase();
                       return m.userName.toLowerCase().includes(q) || (m.userEmail && m.userEmail.toLowerCase().includes(q));
                     })
-                    .map((member) => (
-                      <div
-                        key={member.id}
-                        className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700/60 flex items-center justify-between gap-3"
-                      >
-                        <div className="flex items-center gap-3">
-                          {member.userAvatar ? (
-                            <img
-                              src={member.userAvatar}
-                              alt=""
-                              className="w-9 h-9 rounded-full object-cover border border-emerald-500/30"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 font-black text-xs flex items-center justify-center">
-                              {member.userName?.charAt(0) || 'U'}
-                            </div>
-                          )}
+                    .map((member) => {
+                      const isCurrentAdmin = (selectedGroupForMembers.adminUid === member.userId || selectedGroupForMembers.adminName === member.userName || member.role === 'group_admin');
 
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h5 className="text-xs font-black text-slate-800 dark:text-white">
-                                {member.userName}
-                              </h5>
-                              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                                {member.userRole || 'عضو'}
-                              </span>
+                      return (
+                        <div
+                          key={member.id}
+                          className={`p-3 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                            isCurrentAdmin
+                              ? 'bg-amber-500/10 dark:bg-amber-500/15 border-amber-400/40 shadow-sm'
+                              : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200/70 dark:border-slate-700/60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="relative shrink-0">
+                              {member.userAvatar ? (
+                                <img
+                                  src={member.userAvatar}
+                                  alt=""
+                                  className="w-10 h-10 rounded-full object-cover border-2 border-emerald-500/30"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 font-black text-xs flex items-center justify-center">
+                                  {member.userName?.charAt(0) || 'U'}
+                                </div>
+                              )}
+                              {isCurrentAdmin && (
+                                <span className="absolute -top-1 -right-1 text-xs" title="مشرف الرابطة">
+                                  👑
+                                </span>
+                              )}
                             </div>
-                            <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1 mt-0.5">
-                              <Clock size={10} />
-                              <span>انضم {new Date(member.joinedAt).toLocaleDateString('ar-EG')}</span>
-                            </span>
+
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h5 className="text-xs font-black text-slate-800 dark:text-white truncate">
+                                  {member.userName}
+                                </h5>
+                                {isCurrentAdmin ? (
+                                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 shadow-sm flex items-center gap-1">
+                                    <span>👑</span>
+                                    <span>مشرف الرابطة الرسمي</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                    {member.userRole || 'عضو منضم'}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 text-[10px] text-slate-400 font-semibold mt-0.5 flex-wrap">
+                                {member.userEmail && <span className="truncate max-w-[170px]">{member.userEmail}</span>}
+                                <span className="flex items-center gap-1">
+                                  <Clock size={10} />
+                                  <span>انضم {new Date(member.joinedAt).toLocaleDateString('ar-EG')}</span>
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                            {isCurrentAdmin ? (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveGroupAdmin(member)}
+                                className="px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 text-[11px] font-bold border border-amber-500/30 flex items-center gap-1 active:scale-95 transition-all"
+                                title="إلغاء تكليف الإشراف عن هذا العضو"
+                              >
+                                <span>إلغاء الإشراف</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleAppointGroupAdmin(member)}
+                                className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black shadow-sm flex items-center gap-1.5 active:scale-95 transition-all"
+                                title="تعيين هذا العضو ليكون المشرف الرسمي على الرابطة"
+                              >
+                                <ShieldCheck size={13} />
+                                <span>تعيين كمشرف 👑</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveGroupMember(member.id)}
+                              className="p-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 hover:bg-red-100 text-red-600 dark:text-red-400 text-xs font-bold transition-all"
+                              title="إزالة العضو من الرابطة"
+                            >
+                              <Trash2 size={13} />
+                            </button>
                           </div>
                         </div>
-
-                        <button
-                          onClick={() => handleRemoveGroupMember(member.id)}
-                          className="p-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 hover:bg-red-100 text-red-600 dark:text-red-400 text-xs font-bold"
-                          title="إزالة العضو من الرابطة"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               ) : (
                 <div className="py-16 text-center space-y-2">

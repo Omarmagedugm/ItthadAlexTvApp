@@ -317,6 +317,44 @@ export const WorldGroupDetail: React.FC = () => {
     }
   };
 
+  // General Admin can appoint a member as group leader
+  const handleAppointLeader = async (member: WorldGroupMember) => {
+    if (!isAdmin || !group) return;
+    if (!window.confirm(`هل أنت متأكد من تعيين "${member.userName}" ليكون المشرف الرسمي على رابطة "${group.name}"؟`)) return;
+
+    try {
+      const updatedData = {
+        adminUid: member.userId,
+        adminName: member.userName,
+        adminEmail: member.userEmail || group.adminEmail || '',
+        updatedAt: new Date().toISOString()
+      };
+
+      await updateDoc(doc(db, 'world_groups', group.id), cleanFirestoreData(updatedData));
+      
+      // Update role in members collection
+      await updateDoc(doc(db, 'world_group_members', member.id), {
+        role: 'group_admin',
+        userRole: 'مشرف الرابطة'
+      });
+
+      const updatedGroup = { ...group, ...updatedData };
+      setWorldGroups(worldGroups.map(g => g.id === group.id ? updatedGroup : g));
+      
+      // Update local joined members
+      setJoinedMembers(joinedMembers.map(m => {
+        if (m.id === member.id) return { ...m, role: 'group_admin', userRole: 'مشرف الرابطة' };
+        if (m.userId === group.adminUid || m.userName === group.adminName) return { ...m, role: 'member', userRole: 'عضو' };
+        return m;
+      }));
+
+      toast.success(`تم تعيين "${member.userName}" مشرفاً رسمياً على رابطة "${group.name}" بنجاح 👑`);
+    } catch (err: any) {
+      console.error('Error appointing admin:', err);
+      toast.error('حدث خطأ أثناء تعيين المشرف: ' + (err.message || ''));
+    }
+  };
+
   // Delete Group (Admin only)
   const handleDeleteGroup = async () => {
     if (!window.confirm(`هل أنت متأكد من رغبتك في حذف "${group.name}" نهائياً من قاعدة البيانات؟`)) return;
@@ -740,15 +778,30 @@ export const WorldGroupDetail: React.FC = () => {
                           </div>
                         </div>
 
-                        {isLeader ? (
-                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 shrink-0">
-                            المسؤول
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 shrink-0">
-                            عضو
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isLeader ? (
+                            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 shadow-sm shrink-0 flex items-center gap-1">
+                              <span>👑</span>
+                              <span>المشرف الرسمي</span>
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 shrink-0">
+                              عضو
+                            </span>
+                          )}
+
+                          {isAdmin && !isLeader && (
+                            <button
+                              type="button"
+                              onClick={() => handleAppointLeader(member)}
+                              className="px-2 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black shadow-sm flex items-center gap-1 active:scale-95 transition-all shrink-0"
+                              title="تعيين هذا العضو مشرفاً رسمياً على الرابطة"
+                            >
+                              <span>👑</span>
+                              <span>تعيين كمشرف</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
