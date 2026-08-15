@@ -323,32 +323,39 @@ service cloud.firestore {
     // Club Members Section
     match /club_committees/{committeeId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isLayoutEditor() || isUserManager();
     }
 
     match /club_announcements/{announcementId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isNewsEditor() || isLayoutEditor() || isUserManager();
     }
 
     match /club_services/{serviceId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isLayoutEditor() || isUserManager();
     }
 
     match /club_members_settings/{settingId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isLayoutEditor();
     }
 
     match /club_trips/{tripId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isLayoutEditor() || isUserManager();
     }
 
     match /member_discounts/{discountId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isLayoutEditor() || isUserManager();
+    }
+
+    // Audit Logs
+    match /audit_logs/{logId} {
+      allow read: if isAdmin() || isUserManager();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
     }
 
     // Ittihadawy Business Directory

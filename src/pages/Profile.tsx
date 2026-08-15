@@ -307,8 +307,8 @@ export default function Profile() {
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-500 group-hover:scale-110 transition-transform">
               <span className="material-symbols-outlined font-variation-settings-fill">group</span>
             </div>
-            <span className="mt-1 text-2xl font-black text-slate-900 dark:text-white tabular-nums">{Math.max(users.length, 12)}</span>
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">المتابعين</span>
+            <span className="mt-1 text-2xl font-black text-slate-900 dark:text-white tabular-nums">{users.length}</span>
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">مجتمع المشجعين</span>
           </div>
         </motion.div>
 

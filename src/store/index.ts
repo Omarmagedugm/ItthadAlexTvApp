@@ -401,8 +401,27 @@ export interface ClubService {
   phone?: string;
   requirements?: string;
   image?: string;
+  bookingUrl?: string;
+  bookingText?: string;
   active: boolean;
   order: number;
+}
+
+export interface AuditLogItem {
+  id: string;
+  adminUid: string;
+  adminName: string;
+  adminEmail: string;
+  adminAvatar?: string;
+  actionType: 'create' | 'update' | 'delete' | 'permission_change' | 'status_change' | 'restore';
+  targetCollection: string;
+  targetId: string;
+  targetTitle?: string;
+  timestamp: string;
+  previousData?: any;
+  newData?: any;
+  restored?: boolean;
+  notes?: string;
 }
 
 export interface ClubTrip {
@@ -573,6 +592,7 @@ interface AppState {
   dataLoaded: boolean;
   activePlaylist: Song[];
   undoStack: { collection: string; action: 'add' | 'delete' | 'update'; data: any }[];
+  auditLogs: AuditLogItem[];
   setNews: (news: NewsItem[]) => void;
   addNews: (item: NewsItem) => void;
   deleteNews: (id: string) => void;
@@ -638,6 +658,7 @@ interface AppState {
   setIsAuthReady: (ready: boolean) => void;
   setDataLoaded: (loaded: boolean) => void;
   setActivePlaylist: (songs: Song[]) => void;
+  setAuditLogs: (logs: AuditLogItem[]) => void;
   pushToUndoStack: (op: { collection: string; action: 'add' | 'delete' | 'update'; data: any }) => void;
   popFromUndoStack: () => { collection: string; action: 'add' | 'delete' | 'update'; data: any } | undefined;
 }
@@ -873,6 +894,7 @@ export const useAppStore = create<AppState>()(
       dataLoaded: false,
       activePlaylist: [],
       undoStack: [],
+      auditLogs: [],
       setNews: (news) => set({ news }),
       addNews: (item) => set((state) => ({ news: [item, ...state.news] })),
       deleteNews: (id) => set((state) => ({ news: state.news.filter(n => n.id !== id) })),
@@ -955,6 +977,7 @@ export const useAppStore = create<AppState>()(
       setIsAuthReady: (isAuthReady) => set({ isAuthReady }),
       setDataLoaded: (dataLoaded) => set({ dataLoaded }),
       setActivePlaylist: (activePlaylist) => set({ activePlaylist }),
+      setAuditLogs: (auditLogs) => set({ auditLogs }),
       pushToUndoStack: (op) => set((state) => ({ 
         undoStack: [op, ...state.undoStack].slice(0, 20) // Keep last 20 operations
       })),

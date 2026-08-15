@@ -5,6 +5,7 @@ import { ar } from 'date-fns/locale';
 import { motion } from 'motion/react';
 import { Share2, Bookmark, Heart, ArrowRight, Rss, Edit2 } from 'lucide-react';
 import { getOptimizedImage } from '../lib/cloudinary';
+import toast from 'react-hot-toast';
 
 export default function NewsDetail() {
   const { id } = useParams();
@@ -25,10 +26,27 @@ export default function NewsDetail() {
     );
   }
 
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: article.title,
+          text: article.title,
+          url: window.location.href
+        });
+      } catch (e) {
+        // aborted
+      }
+    } else {
+      navigator.clipboard?.writeText(window.location.href);
+      toast.success('تم نسخ رابط الخبر بنجاح');
+    }
+  };
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: { 
-      opacity: 1,
+      opacity: 1, 
       transition: { staggerChildren: 0.1 }
     }
   } as const;
@@ -44,38 +62,51 @@ export default function NewsDetail() {
 
   return (
     <div className="relative flex-1 flex flex-col bg-background-light dark:bg-background-dark min-h-screen pb-32 overflow-x-hidden">
-      {/* Floating Header */}
-      <header className="fixed top-0 inset-x-0 w-full max-w-md mx-auto z-50 flex items-center justify-between px-4 h-16 backdrop-blur-xl bg-background-light/80 dark:bg-background-dark/80 border-b border-border-light/40 dark:border-border-dark/40 shadow-sm pt-[env(safe-area-inset-top)]">
-        <Link to="/news" className="p-2 rounded-full bg-slate-100 dark:bg-surface-dark text-slate-800 dark:text-white shadow-sm pressable border border-border-light dark:border-border-dark ml-2">
-          <ArrowRight size={20} />
-        </Link>
-        <div className="flex gap-2 mr-2">
-           {profile?.role === 'admin' && (
-             <button 
-               onClick={() => navigate('/admin', { state: { editCategory: 'news', editId: article.id } })}
-               className="p-2 rounded-full bg-primary text-white shadow-sm pressable border border-primary/20"
-             >
-               <Edit2 size={16} />
-             </button>
-           )}
-           <button className="p-2 rounded-full bg-slate-100 dark:bg-surface-dark text-slate-800 dark:text-white shadow-sm pressable border border-border-light dark:border-border-dark">
-             <Share2 size={16} />
-           </button>
-           <button className="p-2 rounded-full bg-slate-100 dark:bg-surface-dark text-slate-800 dark:text-white shadow-sm pressable border border-border-light dark:border-border-dark">
-             <Bookmark size={16} />
-           </button>
+      {/* Sub-bar Actions & Breadcrumb */}
+      <div className="max-w-4xl mx-auto w-full px-4 pt-4 pb-2 flex items-center justify-between">
+        <button
+          onClick={() => {
+            if (window.history.length > 1) {
+              navigate(-1);
+            } else {
+              navigate('/news', { replace: true });
+            }
+          }}
+          className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white dark:bg-card-dark text-slate-700 dark:text-slate-200 border border-border-light dark:border-border-dark text-xs font-black shadow-sm hover:border-primary transition-all pressable"
+        >
+          <ArrowRight size={16} />
+          <span>العودة للأخبار</span>
+        </button>
+
+        <div className="flex items-center gap-2">
+          {profile?.role === 'admin' && (
+            <button 
+              onClick={() => navigate('/admin', { state: { editCategory: 'news', editId: article.id } })}
+              className="p-2.5 rounded-2xl bg-primary text-white shadow-sm hover:bg-primary-dark transition-all pressable border border-primary/20"
+              title="تعديل الخبر"
+            >
+              <Edit2 size={16} />
+            </button>
+          )}
+          <button 
+            onClick={handleShare}
+            className="p-2.5 rounded-2xl bg-white dark:bg-card-dark text-slate-700 dark:text-slate-200 hover:text-primary border border-border-light dark:border-border-dark shadow-sm transition-all pressable"
+            title="مشاركة الخبر"
+          >
+            <Share2 size={16} />
+          </button>
         </div>
-      </header>
+      </div>
 
       <motion.main
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="relative z-20 px-4 pt-[calc(env(safe-area-inset-top)+72px)]"
+        className="relative z-20 px-4 max-w-4xl mx-auto w-full pt-2"
       >
-        <motion.div variants={itemVariants} className="bg-white dark:bg-card-dark rounded-[32px] overflow-hidden shadow-2xl border border-border-light dark:border-border-dark">
+        <motion.div variants={itemVariants} className="bg-white dark:bg-card-dark rounded-[32px] overflow-hidden shadow-xl border border-border-light dark:border-border-dark">
           {/* Full Professional Image Container */}
-          <div className="w-full bg-black/5 dark:bg-black/40 relative flex items-center justify-center min-h-[250px] max-h-[50vh]">
+          <div className="w-full bg-black/5 dark:bg-black/40 relative flex items-center justify-center min-h-[250px] max-h-[55vh]">
             {/* Blurred background for contrast */}
             <div 
               className="absolute inset-0 bg-cover bg-center opacity-30 blur-2xl scale-110"
@@ -85,7 +116,7 @@ export default function NewsDetail() {
             <img 
               src={getOptimizedImage(article.image, 800)} 
               alt={article.title} 
-              className="relative z-10 w-full h-full max-h-[50vh] object-contain drop-shadow-2xl" 
+              className="relative z-10 w-full h-full max-h-[55vh] object-contain drop-shadow-2xl" 
               referrerPolicy="no-referrer"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10"></div>
@@ -98,8 +129,8 @@ export default function NewsDetail() {
             </div>
           </div>
 
-          <div className="p-6">
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white leading-snug mb-4">{article.title}</h1>
+          <div className="p-6 md:p-8">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 dark:text-white leading-snug mb-4">{article.title}</h1>
             
             {(article.tagIds && article.tagIds.length > 0) && (
               <div className="flex flex-wrap gap-2 mb-6">
@@ -117,24 +148,24 @@ export default function NewsDetail() {
 
             <div className="flex items-center justify-between py-4 border-y border-border-light dark:border-border-dark mb-6">
              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                   <span className="material-symbols-outlined !text-[16px]">person</span>
+                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black">
+                   <span className="material-symbols-outlined !text-[18px]">person</span>
                 </div>
                 <div>
-                   <p className="text-xs font-black text-slate-800 dark:text-white">{article.editorName || article.author}</p>
-                   <p className="text-[10px] text-slate-500 font-bold">محرر رياضي</p>
+                   <p className="text-xs font-black text-slate-800 dark:text-white">{article.editorName || article.author || 'المركز الإعلامي'}</p>
+                   <p className="text-[10px] text-slate-500 font-bold">محرر رياضي - نادي الاتحاد السكندري</p>
                 </div>
              </div>
              <div className="flex items-center gap-3 text-slate-400">
                 <div className="flex items-center gap-1">
-                   <Heart size={14} />
-                   <span className="text-[10px] font-bold">124</span>
+                   <Heart size={15} />
+                   <span className="text-xs font-bold">124</span>
                 </div>
              </div>
           </div>
 
           <div className="prose dark:prose-invert max-w-none">
-            <p className="text-sm font-bold text-slate-700 dark:text-slate-300 leading-relaxed text-justify whitespace-pre-wrap">
+            <p className="text-sm md:text-base font-bold text-slate-700 dark:text-slate-300 leading-relaxed text-justify whitespace-pre-wrap">
               {article.content || 'لا يوجد محتوى متاح لهذا الخبر في الوقت الحالي.'}
             </p>
             {article.type === 'rss' && (
@@ -157,8 +188,6 @@ export default function NewsDetail() {
           </div>
           </div>
         </motion.div>
-
-        {/* Similar News or interactions could go here */}
       </motion.main>
     </div>
   );

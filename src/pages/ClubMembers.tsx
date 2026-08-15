@@ -970,17 +970,28 @@ export default function ClubMembers() {
                 )}
               </div>
 
-              {selectedService.phone && (
-                <div className="p-4 border-t border-slate-100 dark:border-border-dark bg-slate-50 dark:bg-card-dark shrink-0">
+              <div className="p-4 border-t border-slate-100 dark:border-border-dark bg-slate-50 dark:bg-card-dark shrink-0 flex flex-col gap-2">
+                {selectedService.bookingUrl && (
+                  <a
+                    href={selectedService.bookingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all text-xs"
+                  >
+                    <ExternalLink size={16} />
+                    {selectedService.bookingText || 'حجز الخدمة إلكترونياً'}
+                  </a>
+                )}
+                {selectedService.phone && (
                   <a
                     href={`tel:${selectedService.phone}`}
                     className="w-full py-3 bg-primary hover:bg-primary-dark text-white rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg shadow-primary/20 transition-all text-xs"
                   >
                     <Phone size={16} />
-                    اتصل للاستفسار والحجز ({selectedService.phone})
+                    اتصل للاستفسار ({selectedService.phone})
                   </a>
-                </div>
-              )}
+                )}
+              </div>
             </motion.div>
           </div>
         )}

@@ -12,7 +12,8 @@ export function useFirestoreSync() {
     setClubStats, setClubTitles, setHistoryEvents, setStadiums, setDataLoaded, setOrders,
     setClubCommittees, setClubAnnouncements, setClubServices, setClubTrips, setClubMembersSettings, setMemberDiscounts,
     setBusinesses, setBusinessUpdates, setBusinessReports,
-    setWorldCountries, setWorldGroups, setWorldPosts, setWorldEvents, setWorldHelpRequests, setWorldApplications
+    setWorldCountries, setWorldGroups, setWorldPosts, setWorldEvents, setWorldHelpRequests, setWorldApplications,
+    setAuditLogs
   } = useAppStore();
 
   const isFetchedRef = useRef(false);
@@ -241,6 +242,47 @@ export function useFirestoreSync() {
         setWorldApplications(data as any);
       }, 'world_applications'));
 
+      // Realtime listeners for Club Members, Stadiums, History and Audit Logs
+      unsubs.push(subscribeSnapshot(collection(db, 'club_services'), s => {
+        setClubServices(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+      }, 'club_services'));
+
+      unsubs.push(subscribeSnapshot(collection(db, 'club_stadiums'), s => {
+        setStadiums(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+      }, 'club_stadiums'));
+
+      unsubs.push(subscribeSnapshot(collection(db, 'club_timeline'), s => {
+        setHistoryEvents(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+      }, 'club_timeline'));
+
+      unsubs.push(subscribeSnapshot(collection(db, 'club_titles'), s => {
+        setClubTitles(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+      }, 'club_titles'));
+
+      unsubs.push(subscribeSnapshot(collection(db, 'club_stats'), s => {
+        setClubStats(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+      }, 'club_stats'));
+
+      unsubs.push(subscribeSnapshot(collection(db, 'club_committees'), s => {
+        setClubCommittees(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+      }, 'club_committees'));
+
+      unsubs.push(subscribeSnapshot(collection(db, 'club_announcements'), s => {
+        setClubAnnouncements(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+      }, 'club_announcements'));
+
+      unsubs.push(subscribeSnapshot(collection(db, 'club_trips'), s => {
+        setClubTrips(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+      }, 'club_trips'));
+
+      unsubs.push(subscribeSnapshot(collection(db, 'member_discounts'), s => {
+        setMemberDiscounts(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+      }, 'member_discounts'));
+
+      unsubs.push(subscribeSnapshot(query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'), limit(150)), s => {
+        setAuditLogs(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+      }, 'audit_logs'));
+
       const currentUser = auth.currentUser;
       if (currentUser) {
         unsubs.push(unsubProfile(currentUser.uid));
@@ -360,40 +402,7 @@ export function useFirestoreSync() {
         fetchCol('custom_pages', setCustomPages),
         fetchCol('songs', setSongs),
         fetchCol('books', setBooks),
-        fetchCol('media_playlists', setMediaPlaylists),
-        (async () => {
-          try {
-            const snap = await getDoc(doc(db, 'settings', 'newsCategories'));
-            if (snap.exists() && Array.isArray(snap.data()?.list)) {
-              setNewsCategories(snap.data().list);
-            }
-          } catch (e) {}
-        })(),
-        (async () => {
-          try {
-            const snap = await getDoc(doc(db, 'settings', 'newsTags'));
-            if (snap.exists() && Array.isArray(snap.data()?.tags)) {
-              setNewsTags(snap.data().tags);
-            }
-          } catch (e) {}
-        })(),
-        (async () => {
-          try {
-            const snap = await getDoc(doc(db, 'settings', 'sidebar_layout'));
-            if (snap.exists() && Array.isArray(snap.data()?.items)) {
-              setSidebarMenuItems(snap.data().items);
-            }
-          } catch (e) {}
-        })(),
-        fetchCol('club_titles', setClubTitles),
-        fetchCol('club_stats', setClubStats),
-        fetchCol('club_stadiums', setStadiums),
-        fetchCol('club_timeline', setHistoryEvents),
-        fetchCol('club_committees', setClubCommittees),
-        fetchCol('club_announcements', setClubAnnouncements),
-        fetchCol('club_services', setClubServices),
-        fetchCol('club_trips', setClubTrips),
-        fetchCol('member_discounts', setMemberDiscounts)
+        fetchCol('media_playlists', setMediaPlaylists)
       ]);
       
       isFetchedRef.current = true;

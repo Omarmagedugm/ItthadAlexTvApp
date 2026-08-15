@@ -1504,6 +1504,8 @@ export default function Admin() {
             phone: formData.phone || '',
             requirements: formData.requirements || '',
             image: formData.image || '',
+            bookingUrl: formData.bookingUrl || '',
+            bookingText: formData.bookingText || '',
             active: formData.active ?? true,
             order: Number(formData.order || 0)
           };
@@ -6568,6 +6570,16 @@ export default function Admin() {
                         <div>
                           <label className="text-[10px] font-black text-slate-500 mb-1 block">المستندات والأوراق المطلوبة</label>
                           <textarea placeholder="• بطاقة الرقم القومي&#10;• صورة شخصية..." className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm min-h-[90px]" value={formData.requirements || ''} onChange={(e) => setFormData({...formData, requirements: e.target.value})} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-black text-slate-500 mb-1 block">رابط الحجز الإلكتروني (اختياري)</label>
+                            <input type="url" placeholder="https://..." className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm" value={formData.bookingUrl || ''} onChange={(e) => setFormData({...formData, bookingUrl: e.target.value})} />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black text-slate-500 mb-1 block">نص زر الحجز</label>
+                            <input type="text" placeholder="حجز الخدمة إلكترونياً" className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm" value={formData.bookingText || ''} onChange={(e) => setFormData({...formData, bookingText: e.target.value})} />
+                          </div>
                         </div>
                         <UploadOrUrlField label="صورة تظهر للخدمة" fieldName="image" currentUrl={formData.image} formData={formData} setFormData={setFormData} uploading={uploading} handleFileUpload={handleFileUpload} />
                       </>

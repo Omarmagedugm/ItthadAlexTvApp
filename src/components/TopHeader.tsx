@@ -77,7 +77,7 @@ export default function TopHeader() {
   }, [profile?.uid]);
 
   const hideHeaderPaths = ['/auth'];
-  if (hideHeaderPaths.includes(location.pathname) || location.pathname.startsWith('/news/')) return null;
+  if (hideHeaderPaths.includes(location.pathname)) return null;
 
   const isHome = location.pathname === '/';
   
