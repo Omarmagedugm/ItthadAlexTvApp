@@ -95,8 +95,8 @@ export default function AdminSidebar({ activeTab, setActiveTab, onClose }: Admin
       { id: 'city', icon: <CloudSun size={18} />, label: 'طقس الإسكندرية', show: hasRole('layout_editor') },
     ]},
     { title: 'التفاعل والجماهير', items: [
-      { id: 'world-fans', icon: <Globe size={18} />, label: 'رابطة اتحاداوية العالم', show: hasRole(['user_manager', 'layout_editor', 'news_editor']), badge: pendingWorldApplicationsCount },
-      { id: 'fanzone', icon: <UsersIcon size={18} />, label: 'منطقة الجماهير', show: hasRole(['news_editor', 'user_manager']) },
+      { id: 'world-fans', icon: <Globe size={18} />, label: 'رابطة اتحاداوية العالم', show: hasRole(['user_manager', 'layout_editor', 'news_editor', 'media_editor']), badge: pendingWorldApplicationsCount },
+      { id: 'fanzone', icon: <UsersIcon size={18} />, label: 'منطقة الجماهير', show: hasRole(['news_editor', 'media_editor', 'user_manager']) },
       { id: 'posts', icon: <MessageSquare size={18} />, label: 'المنشورات', show: hasRole('user_manager') },
       { id: 'fan-comments', icon: <MessageCircle size={18} />, label: 'التعليقات والمناقشات', show: hasRole('user_manager') },
       { id: 'polls', icon: <BarChart3 size={18} />, label: 'الاستطلاعات', show: hasRole(['layout_editor', 'user_manager']) },

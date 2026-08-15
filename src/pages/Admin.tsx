@@ -377,7 +377,7 @@ const APP_ROLES: {
     id: 'news_editor', 
     label: 'محرر الأخبار والتغطيات', 
     shortLabel: 'محرر أخبار',
-    description: 'نشر وتعديل الأخبار، الأقسام، والوسوم الصحفية',
+    description: 'نشر وتعديل الأخبار، الأقسام، الوسوم الصحفية، منطقة الجماهير، ورابطة العالم',
     icon: Newspaper, 
     color: 'text-blue-500',
     badgeBg: 'bg-blue-500/10 text-blue-500 border-blue-500/20'
@@ -395,7 +395,7 @@ const APP_ROLES: {
     id: 'media_editor', 
     label: 'مدير الوسائط والمكتبة', 
     shortLabel: 'مدير وسائط',
-    description: 'إدارة الملتيميديا، الفيديوهات، الأغاني، والكتب والمجلات الرقمية',
+    description: 'إدارة الملتيميديا، الفيديوهات، الأغاني، الكتب والمجلات، منطقة الجماهير، ورابطة العالم',
     icon: PlayCircle, 
     color: 'text-purple-500',
     badgeBg: 'bg-purple-500/10 text-purple-500 border-purple-500/20'
@@ -856,7 +856,7 @@ export default function Admin() {
       'news': ['news_editor'],
       'news-categories': ['news_editor'],
       'news-tags': ['news_editor'],
-      'fanzone': ['news_editor', 'user_manager'],
+      'fanzone': ['news_editor', 'media_editor', 'user_manager'],
       'media': ['media_editor'],
       'music': ['media_editor'],
       'books': ['media_editor'],
@@ -868,7 +868,7 @@ export default function Admin() {
       'products': ['store_editor'],
       'orders': ['store_editor'],
       'business': ['store_editor', 'layout_editor', 'user_manager'],
-      'world-fans': ['user_manager', 'layout_editor', 'news_editor'],
+      'world-fans': ['user_manager', 'layout_editor', 'news_editor', 'media_editor'],
       'layout': ['layout_editor'],
       'sidebar-menu': ['layout_editor'],
       'city': ['layout_editor'],
@@ -910,7 +910,7 @@ export default function Admin() {
   // Redirection logic based on role permissions
   useEffect(() => {
     if (!isTabAllowed(activeTab)) {
-      const allowedTabs = ['overview', 'news', 'media', 'matches', 'live', 'users', 'settings', 'clubs', 'polls', 'comments', 'posts', 'predictions', 'fanzone', 'history', 'news-categories', 'news-tags', 'products', 'orders', 'layout', 'sidebar-menu', 'music', 'books', 'city', 'notifications', 'backup'];
+      const allowedTabs = ['overview', 'news', 'news-categories', 'news-tags', 'fanzone', 'world-fans', 'media', 'music', 'books', 'matches', 'live', 'clubs', 'club_members', 'products', 'orders', 'business', 'layout', 'sidebar-menu', 'city', 'history', 'ai-studio', 'polls', 'predictions', 'posts', 'fan-comments', 'comments', 'users', 'notifications', 'settings', 'backup'];
       const firstAllowed = allowedTabs.find(tab => isTabAllowed(tab));
       if (firstAllowed) {
         setActiveTab(firstAllowed as any);
