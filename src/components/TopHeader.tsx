@@ -183,25 +183,24 @@ export default function TopHeader() {
             </Link>
           </div>
 
-          {/* Desktop Navigation Links (Visible on PC / Tablet) */}
-          <nav className="hidden md:flex items-center gap-1 lg:gap-1.5 flex-wrap">
+          {/* Desktop Navigation Links (Visible on PC / Tablet) - Strict single line */}
+          <nav className="hidden md:flex items-center gap-1 lg:gap-1.5 flex-nowrap shrink whitespace-nowrap overflow-x-auto no-scrollbar py-1">
             {[
               { path: '/', label: 'الرئيسية' },
               { path: '/news', label: 'الأخبار' },
               { path: '/matches', label: 'المباريات' },
               { path: '/fan-zone', label: 'فان زون' },
-              { path: '/library', label: 'المكتبة والوسائط' },
+              { path: '/library', label: 'المكتبة' },
               { path: '/world-fans', label: 'اتحاداوية العالم 🌍' },
               { path: '/history', label: 'تاريخ النادي' },
-              { path: '/discounts', label: 'دليل الخصومات' },
-              { path: '/store', label: 'المتجر' },
+              { path: '/discounts', label: 'الخصومات' },
             ].map(item => {
               const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
               return (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-200 ${
+                  className={`px-2.5 lg:px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-200 shrink-0 ${
                     isActive 
                       ? 'bg-primary text-white shadow-sm shadow-primary/30' 
                       : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-surface-dark hover:text-primary'

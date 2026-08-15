@@ -87,6 +87,7 @@ import {
   CheckCircle2,
   Layers,
   ShieldCheck,
+  ShoppingBag,
   FileSpreadsheet,
   RefreshCw,
   Upload
@@ -354,14 +355,87 @@ const UploadOrUrlField = ({
 // Triggering deployment change
 const ADMIN_VERSION = '1.3.0';
 
-const APP_ROLES: { id: AppRole; label: string; icon: any; color: string }[] = [
-  { id: 'admin', label: 'مدير كامل', icon: Shield, color: 'text-red-500' },
-  { id: 'news_editor', label: 'محرر أخبار', icon: Newspaper, color: 'text-blue-500' },
-  { id: 'media_editor', label: 'مدير الميديا', icon: PlayCircle, color: 'text-purple-500' },
-  { id: 'matches_editor', label: 'مدير المباريات', icon: Trophy, color: 'text-orange-500' },
-  { id: 'store_editor', label: 'مدير المتجر', icon: ShoppingCart, color: 'text-green-500' },
-  { id: 'layout_editor', label: 'مدير الواجهة', icon: LayoutDashboard, color: 'text-accent' },
-  { id: 'user_manager', label: 'مدير أعضاء', icon: UsersIcon, color: 'text-indigo-500' },
+const APP_ROLES: { 
+  id: AppRole; 
+  label: string; 
+  shortLabel: string;
+  description: string;
+  icon: any; 
+  color: string;
+  badgeBg: string;
+}[] = [
+  { 
+    id: 'admin', 
+    label: 'مدير نظام كامل (Super Admin)', 
+    shortLabel: 'مدير كامل',
+    description: 'الوصول لكافة الأقسام، إعدادات النظام، النسخ الاحتياطي، وإدارة المشرفين بالكامل',
+    icon: Shield, 
+    color: 'text-red-500',
+    badgeBg: 'bg-red-500/10 text-red-500 border-red-500/20'
+  },
+  { 
+    id: 'news_editor', 
+    label: 'محرر الأخبار والتغطيات', 
+    shortLabel: 'محرر أخبار',
+    description: 'نشر وتعديل الأخبار، الأقسام، والوسوم الصحفية',
+    icon: Newspaper, 
+    color: 'text-blue-500',
+    badgeBg: 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+  },
+  { 
+    id: 'matches_editor', 
+    label: 'مدير المباريات والبث', 
+    shortLabel: 'مدير مباريات',
+    description: 'إدارة جدول المباريات، البث المباشر، قائمة الأندية، وتوقعات المباريات',
+    icon: Trophy, 
+    color: 'text-orange-500',
+    badgeBg: 'bg-orange-500/10 text-orange-500 border-orange-500/20'
+  },
+  { 
+    id: 'media_editor', 
+    label: 'مدير الوسائط والمكتبة', 
+    shortLabel: 'مدير وسائط',
+    description: 'إدارة الملتيميديا، الفيديوهات، الأغاني، والكتب والمجلات الرقمية',
+    icon: PlayCircle, 
+    color: 'text-purple-500',
+    badgeBg: 'bg-purple-500/10 text-purple-500 border-purple-500/20'
+  },
+  { 
+    id: 'store_editor', 
+    label: 'مدير المتجر والتجارة', 
+    shortLabel: 'مدير متجر',
+    description: 'إدارة منتجات المتجر، طلبات الشراء، ومشاريع اتحاداوي بيزنس',
+    icon: ShoppingBag, 
+    color: 'text-emerald-500',
+    badgeBg: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+  },
+  { 
+    id: 'layout_editor', 
+    label: 'مدير الواجهة والتصميم', 
+    shortLabel: 'مدير واجهة',
+    description: 'تخصيص وترتيب أقسام الصفحة الرئيسية، القائمة الجانبية، التاريخ، والطقس',
+    icon: LayoutDashboard, 
+    color: 'text-amber-500',
+    badgeBg: 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+  },
+  { 
+    id: 'user_manager', 
+    label: 'مدير الأعضاء والتفاعل', 
+    shortLabel: 'مدير أعضاء',
+    description: 'إدارة حسابات الأعضاء، المنشورات، تعليقات الجماهير، الاستطلاعات، والإشعارات',
+    icon: UsersIcon, 
+    color: 'text-indigo-500',
+    badgeBg: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20'
+  },
+  { 
+    id: 'members_editor', 
+    label: 'مدير بوابة الأعضاء والخدمات', 
+    shortLabel: 'مدير خدمات النادي',
+    description: 'إدارة لجان النادي، الخدمات الحكومية، الرحلات، الإعلانات، وتخفيضات العضوية',
+    icon: ShieldCheck, 
+    color: 'text-teal-500',
+    badgeBg: 'bg-teal-500/10 text-teal-500 border-teal-500/20'
+  },
 ];
 
 export default function Admin() {
@@ -435,9 +509,9 @@ export default function Admin() {
 
   const isOmar = profile.email?.toLowerCase() === 'omarmagedugm@ittihad.club';
   const isDev = profile.email?.toLowerCase() === 'copyrightofficialco@gmail.com';
-  const isAdminUser = profile.role === 'admin' || profile.role === 'superadmin' || (profile.roles && profile.roles.includes('admin'));
-  const isModeratorUser = profile.role === 'moderator' || (profile.roles && profile.roles.includes('moderator'));
-  const hasAdminAccess = isAdminUser || isModeratorUser || isOmar || isDev;
+  const isSuperAdmin = isDev || isOmar || profile.role === 'admin' || profile.role === 'superadmin' || (profile.roles && profile.roles.includes('admin'));
+  const hasGranularRole = (profile.roles && profile.roles.length > 0) || profile.role === 'moderator' || profile.role === 'writer';
+  const hasAdminAccess = isSuperAdmin || hasGranularRole;
 
   if (profile.uid && !hasAdminAccess) {
     return <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark">
@@ -761,20 +835,21 @@ export default function Admin() {
   }, [location.state, news, media, matches]);
 
   const hasPermission = (roles: AppRole | AppRole[]) => {
-    if (isDev || isOmar) return true;
-    if (profile.role === 'admin' || isAdminUser) return true;
+    if (isSuperAdmin) return true;
     const userRoles = [...(profile.roles || [])];
     
     // Legacy support for writer/moderator roles
-    if (profile.role === 'writer') userRoles.push('news_editor');
-    if (profile.role === 'moderator') userRoles.push('user_manager');
+    if (profile.role === 'writer' && !userRoles.includes('news_editor')) userRoles.push('news_editor');
+    if (profile.role === 'moderator' && userRoles.length === 0) {
+      userRoles.push('user_manager');
+    }
     
     const requiredRoles = Array.isArray(roles) ? roles : [roles];
     return requiredRoles.some(r => userRoles.includes(r));
   };
 
   const isTabAllowed = (tab: string) => {
-    if (isDev || isOmar || profile.role === 'admin' || isAdminUser) return true;
+    if (isSuperAdmin) return true;
     if (tab === 'overview') return true;
     
     const roleMap: Record<string, AppRole[]> = {
@@ -789,18 +864,24 @@ export default function Admin() {
       'live': ['matches_editor'],
       'comments': ['matches_editor', 'user_manager'],
       'clubs': ['matches_editor', 'layout_editor'],
+      'club_members': ['members_editor', 'layout_editor', 'user_manager'],
       'products': ['store_editor'],
       'orders': ['store_editor'],
+      'business': ['store_editor', 'layout_editor', 'user_manager'],
+      'world-fans': ['user_manager', 'layout_editor', 'news_editor'],
       'layout': ['layout_editor'],
       'sidebar-menu': ['layout_editor'],
       'city': ['layout_editor'],
       'history': ['layout_editor'],
+      'ai-studio': ['layout_editor'],
       'polls': ['layout_editor', 'user_manager'],
       'users': ['user_manager'],
       'notifications': ['user_manager'],
       'posts': ['user_manager'],
       'fan-comments': ['user_manager'],
       'predictions': ['user_manager', 'matches_editor'],
+      'settings': ['admin'],
+      'backup': ['admin'],
     };
 
     const required = roleMap[tab];
@@ -4238,18 +4319,30 @@ export default function Admin() {
                           {member.tier === 'premium' && <Star size={12} className="text-yellow-500 fill-current" />}
                         </h4>
                         <p className="text-[10px] font-bold text-slate-400">{member.email}</p>
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                           <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase ${member.role === 'admin' ? 'bg-red-500/10 text-red-500' : member.role === 'moderator' ? 'bg-indigo-500/10 text-indigo-500' : 'bg-primary/10 text-primary'}`}>
-                             {member.role === 'admin' ? 'مدير التطبيق' : member.role === 'moderator' ? 'مشرف' : member.role === 'writer' ? 'محرر' : 'عضو'}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                           <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase ${
+                             member.role === 'admin' ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20' : 
+                             member.role === 'moderator' ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20' : 
+                             member.role === 'writer' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 
+                             'bg-slate-100 dark:bg-surface-dark text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-border-dark'
+                           }`}>
+                             {member.role === 'admin' ? 'مدير التطبيق' : member.role === 'moderator' ? 'مشرف مخصص' : member.role === 'writer' ? 'محرر' : 'عضو'}
                            </span>
                            {member.tier && (
-                             <span className="px-2 py-0.5 rounded-lg text-[9px] font-black bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                             <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                                {member.tier === 'premium' ? 'عضو ملكي 👑' : member.tier === 'diamond' ? 'عضو ماسي 💎' : member.tier === 'gold' ? 'عضو ذهبي 🥇' : member.tier === 'silver' ? 'عضو فضي 🥈' : member.tier === 'bronze' ? 'عضو برونزي 🥉' : 'عضو جديد'}
                              </span>
                            )}
-                           {member.roles?.slice(0, 2).map(r => (
-                             <span key={r} className="px-2 py-0.5 rounded-lg text-[8px] font-black bg-slate-100 dark:bg-surface-dark text-slate-500 uppercase">{r}</span>
-                           ))}
+                           {member.roles && member.roles.length > 0 && (
+                             member.roles.map(r => {
+                               const roleDef = APP_ROLES.find(ar => ar.id === r);
+                               return (
+                                 <span key={r} className={`px-2 py-0.5 rounded-lg text-[9px] font-black border flex items-center gap-1 ${roleDef?.badgeBg || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                   {roleDef?.shortLabel || r}
+                                 </span>
+                               );
+                             })
+                           )}
                         </div>
                       </div>
                     </div>
@@ -5882,7 +5975,7 @@ export default function Admin() {
                  <>
                    <div className="flex flex-col items-center mb-4">
                      {formData.avatar && formData.avatar.trim() !== '' ? (
-                       <img src={formData.avatar} className="w-20 h-20 rounded-full border-2 border-primary mb-2 shadow-lg" alt="avatar" referrerPolicy="no-referrer" />
+                       <img src={formData.avatar} className="w-20 h-20 rounded-full border-2 border-primary mb-2 shadow-lg object-cover" alt="avatar" referrerPolicy="no-referrer" />
                      ) : (
                        <div className="w-20 h-20 rounded-full bg-slate-100 border-2 border-slate-200 mb-2 flex items-center justify-center">
                          <UsersIcon size={32} className="text-slate-300" />
@@ -5898,68 +5991,165 @@ export default function Admin() {
                      <label className="text-[10px] font-black text-slate-500 mb-1 block">البريد الإلكتروني (للعرض فقط)</label>
                      <input type="text" disabled className="w-full p-3 rounded-xl border border-border-light bg-slate-200 dark:bg-slate-800 dark:border-border-dark text-sm opacity-50 cursor-not-allowed text-left dir-ltr" value={formData.email || ''} />
                    </div>
-                    <div className="grid grid-cols-2 gap-3 mt-3">
-                      <div>
-                        <label className="text-[10px] font-black text-slate-500 mb-1 block">الصلاحيات الأساسية</label>
-                        <select className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm font-bold" value={formData.role || 'user'} onChange={(e) => setFormData({...formData, role: e.target.value})}>
-                          <option value="user">عضو عادي</option>
-                          <option value="writer">محرر بسيط</option>
-                          <option value="moderator">مشرف</option>
-                          <option value="admin">مدير نظام كامل</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-black text-slate-500 mb-1 block">الرتبة (Tier)</label>
-                        <select className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm font-bold" value={formData.tier || 'new'} onChange={(e) => setFormData({...formData, tier: e.target.value})}>
-                          <option value="new">عضو جديد (New)</option>
-                          <option value="bronze">عضو برونزي (Bronze)</option>
-                          <option value="silver">عضو فضي (Silver)</option>
-                          <option value="gold">عضو ذهبي (Gold)</option>
-                          <option value="diamond">عضو ماسي (Diamond)</option>
-                          <option value="premium">عضو ملكي (Premium)</option>
-                        </select>
-                      </div>
-                    </div>
+                   <div className="grid grid-cols-2 gap-3 mt-3">
+                     <div>
+                       <label className="text-[10px] font-black text-slate-500 mb-1 block">نوع الحساب الأساسي</label>
+                       <select 
+                         className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm font-bold" 
+                         value={formData.role || 'user'} 
+                         onChange={(e) => {
+                           const newRole = e.target.value;
+                           let updatedRoles = formData.roles || [];
+                           if (newRole === 'admin') {
+                             updatedRoles = APP_ROLES.map(r => r.id);
+                           } else if (newRole === 'user') {
+                             updatedRoles = [];
+                           }
+                           setFormData({ ...formData, role: newRole, roles: updatedRoles });
+                         }}
+                       >
+                         <option value="user">عضو عادي (بدون لوحة تحكم)</option>
+                         <option value="moderator">مشرف مخصص الصلاحيات (Granular)</option>
+                         <option value="writer">محرر أخبار</option>
+                         <option value="admin">مدير نظام كامل (Super Admin)</option>
+                       </select>
+                     </div>
+                     <div>
+                       <label className="text-[10px] font-black text-slate-500 mb-1 block">الرتبة التقديرية (Tier)</label>
+                       <select className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm font-bold" value={formData.tier || 'new'} onChange={(e) => setFormData({...formData, tier: e.target.value})}>
+                         <option value="new">عضو جديد (New)</option>
+                         <option value="bronze">عضو برونزي (Bronze)</option>
+                         <option value="silver">عضو فضي (Silver)</option>
+                         <option value="gold">عضو ذهبي (Gold)</option>
+                         <option value="diamond">عضو ماسي (Diamond)</option>
+                         <option value="premium">عضو ملكي (Premium)</option>
+                       </select>
+                     </div>
+                   </div>
 
-                    <div className="mt-4 p-4 bg-slate-50 dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark">
-                      <label className="text-xs font-black text-slate-800 dark:text-white mb-3 block">الرتب والصلاحيات المخصصة</label>
-                      <div className="grid grid-cols-1 gap-2">
-                        {APP_ROLES.map(role => (
-                          <label 
-                            key={role.id} 
-                            className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                              formData.roles?.includes(role.id) 
-                                ? 'bg-primary/5 border-primary/20' 
-                                : 'bg-white dark:bg-card-dark border-transparent hover:border-slate-200'
-                            }`}
-                          >
-                            <input 
-                              type="checkbox"
-                              className="hidden"
-                              checked={formData.roles?.includes(role.id)}
-                              onChange={(e) => {
-                                const currentRoles = formData.roles || [];
-                                if (e.target.checked) {
-                                  setFormData({ ...formData, roles: [...currentRoles, role.id] });
-                                } else {
-                                  setFormData({ ...formData, roles: currentRoles.filter((r: string) => r !== role.id) });
-                                }
-                              }}
-                            />
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${formData.roles?.includes(role.id) ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-surface-dark text-slate-400'}`}>
-                              <role.icon size={16} />
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-xs font-black">{role.label}</p>
-                              <p className="text-[10px] text-slate-400 font-bold uppercase">{role.id.replace('_', ' ')}</p>
-                            </div>
-                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${formData.roles?.includes(role.id) ? 'bg-primary border-primary text-white' : 'border-slate-300 dark:border-slate-600'}`}>
-                              {formData.roles?.includes(role.id) && <Check size={12} strokeWidth={4} />}
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
+                   <div className="mt-4 p-4 bg-slate-50 dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark">
+                     <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                       <div>
+                         <label className="text-xs font-black text-slate-800 dark:text-white block">الصلاحيات المخصصة للمشرف</label>
+                         <span className="text-[10px] text-slate-400 font-bold">حدد الأقسام المسموح لهذا المشرف بالوصول إليها فقط</span>
+                       </div>
+                       <div className="flex items-center gap-1.5 flex-wrap">
+                         <button
+                           type="button"
+                           onClick={() => setFormData({ ...formData, role: 'admin', roles: APP_ROLES.map(r => r.id) })}
+                           className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-lg text-[10px] font-black transition-all"
+                         >
+                           منح كل الصلاحيات
+                         </button>
+                         <button
+                           type="button"
+                           onClick={() => setFormData({ ...formData, role: 'user', roles: [] })}
+                           className="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 rounded-lg text-[10px] font-black transition-all"
+                         >
+                           تفريغ الصلاحيات
+                         </button>
+                       </div>
+                     </div>
+
+                     {/* Quick Role Templates */}
+                     <div className="mb-3 p-2.5 bg-white dark:bg-card-dark rounded-xl border border-slate-100 dark:border-border-dark">
+                       <p className="text-[10px] font-black text-slate-400 mb-2">قوالب جاهزة سريعة:</p>
+                       <div className="flex flex-wrap gap-1.5">
+                         <button
+                           type="button"
+                           onClick={() => setFormData({ ...formData, role: 'moderator', roles: ['news_editor'] })}
+                           className="px-2.5 py-1 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg text-[10px] font-black hover:bg-blue-100 transition-all border border-blue-200 dark:border-blue-500/20"
+                         >
+                           📰 محرر أخبار
+                         </button>
+                         <button
+                           type="button"
+                           onClick={() => setFormData({ ...formData, role: 'moderator', roles: ['matches_editor'] })}
+                           className="px-2.5 py-1 bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-lg text-[10px] font-black hover:bg-orange-100 transition-all border border-orange-200 dark:border-orange-500/20"
+                         >
+                           🏆 مدير مباريات
+                         </button>
+                         <button
+                           type="button"
+                           onClick={() => setFormData({ ...formData, role: 'moderator', roles: ['store_editor'] })}
+                           className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-[10px] font-black hover:bg-emerald-100 transition-all border border-emerald-200 dark:border-emerald-500/20"
+                         >
+                           🛍️ مدير المتجر
+                         </button>
+                         <button
+                           type="button"
+                           onClick={() => setFormData({ ...formData, role: 'moderator', roles: ['media_editor'] })}
+                           className="px-2.5 py-1 bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-lg text-[10px] font-black hover:bg-purple-100 transition-all border border-purple-200 dark:border-purple-500/20"
+                         >
+                           🎬 مدير الوسائط
+                         </button>
+                         <button
+                           type="button"
+                           onClick={() => setFormData({ ...formData, role: 'moderator', roles: ['members_editor'] })}
+                           className="px-2.5 py-1 bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 rounded-lg text-[10px] font-black hover:bg-teal-100 transition-all border border-teal-200 dark:border-teal-500/20"
+                         >
+                           🛡️ خدمات الأعضاء
+                         </button>
+                         <button
+                           type="button"
+                           onClick={() => setFormData({ ...formData, role: 'moderator', roles: ['layout_editor'] })}
+                           className="px-2.5 py-1 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-lg text-[10px] font-black hover:bg-amber-100 transition-all border border-amber-200 dark:border-amber-500/20"
+                         >
+                           🎨 مدير الواجهة
+                         </button>
+                       </div>
+                     </div>
+
+                     <div className="grid grid-cols-1 gap-2.5">
+                       {APP_ROLES.map(role => {
+                         const isChecked = formData.roles?.includes(role.id) || formData.role === 'admin';
+                         return (
+                           <label 
+                             key={role.id} 
+                             className={`flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                               isChecked 
+                                 ? 'bg-primary/5 border-primary shadow-sm dark:bg-primary/10' 
+                                 : 'bg-white dark:bg-card-dark border-slate-200 dark:border-border-dark hover:border-slate-300'
+                             }`}
+                           >
+                             <input 
+                               type="checkbox"
+                               className="hidden"
+                               checked={isChecked}
+                               onChange={(e) => {
+                                 const currentRoles = formData.roles || [];
+                                 let newRoles: AppRole[];
+                                 if (e.target.checked) {
+                                   newRoles = Array.from(new Set([...currentRoles, role.id]));
+                                 } else {
+                                   newRoles = currentRoles.filter((r: string) => r !== role.id);
+                                 }
+                                 const newRole = newRoles.length > 0 ? (newRoles.includes('admin') ? 'admin' : 'moderator') : 'user';
+                                 setFormData({ ...formData, roles: newRoles, role: newRole });
+                               }}
+                             />
+                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                               isChecked ? 'bg-primary text-white shadow-md shadow-primary/30' : 'bg-slate-100 dark:bg-surface-dark text-slate-400'
+                             }`}>
+                               <role.icon size={20} />
+                             </div>
+                             <div className="flex-1">
+                               <div className="flex items-center justify-between">
+                                 <p className={`text-xs font-black ${isChecked ? 'text-primary' : 'text-slate-800 dark:text-white'}`}>{role.label}</p>
+                                 <span className="text-[9px] font-bold text-slate-400 uppercase">{role.id}</span>
+                               </div>
+                               <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold mt-0.5 leading-relaxed">{role.description}</p>
+                             </div>
+                             <div className={`w-6 h-6 rounded-xl border flex items-center justify-center shrink-0 transition-all ${
+                               isChecked ? 'bg-primary border-primary text-white shadow-sm' : 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-surface-dark'
+                             }`}>
+                               {isChecked && <Check size={14} strokeWidth={3.5} />}
+                             </div>
+                           </label>
+                         );
+                       })}
+                     </div>
+                   </div>
                  </>
                )}
 

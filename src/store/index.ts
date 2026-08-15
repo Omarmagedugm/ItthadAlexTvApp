@@ -485,7 +485,7 @@ export interface StoreOrder {
   createdAt: string;
 }
 
-export type AppRole = 'admin' | 'moderator' | 'news_editor' | 'media_editor' | 'matches_editor' | 'store_editor' | 'layout_editor' | 'user_manager';
+export type AppRole = 'admin' | 'moderator' | 'news_editor' | 'media_editor' | 'matches_editor' | 'store_editor' | 'layout_editor' | 'user_manager' | 'members_editor';
 
 export interface UserProfile {
   uid?: string;

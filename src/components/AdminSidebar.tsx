@@ -52,66 +52,68 @@ export default function AdminSidebar({ activeTab, setActiveTab, onClose }: Admin
   );
 
   const isDev = auth.currentUser?.email === 'copyrightofficialco@gmail.com' || auth.currentUser?.email === 'omarmagedugm@ittihad.club';
+  const isSuperAdmin = isDev || profile.role === 'admin' || profile.role === 'superadmin' || (profile.roles && profile.roles.includes('admin'));
   
   const hasRole = (role: AppRole | AppRole[]) => {
-    if (isDev) return true;
-    if (profile.role === 'admin' || profile.role === 'superadmin') return true;
+    if (isSuperAdmin) return true;
     const userRoles = [...(profile.roles || [])];
     
-    // Legacy support
-    if (profile.role === 'writer') userRoles.push('news_editor');
-    if (profile.role === 'moderator') userRoles.push('user_manager');
+    // Legacy support for older roles
+    if (profile.role === 'writer' && !userRoles.includes('news_editor')) userRoles.push('news_editor');
+    if (profile.role === 'moderator' && userRoles.length === 0) {
+      userRoles.push('user_manager');
+    }
     
     const requiredRoles = Array.isArray(role) ? role : [role];
     return requiredRoles.some(r => userRoles.includes(r));
   };
 
-  const isAdmin = isDev || profile.role === 'admin' || profile.role === 'superadmin';
+  const isAdmin = isSuperAdmin;
 
   const groupedTabs = [
     { title: 'الرئيسية', items: [
       { id: 'overview', icon: <LayoutDashboard size={18} />, label: 'لوحة القيادة', show: true },
-      { id: 'layout', icon: <LayoutDashboard size={18} />, label: 'إدارة الصفحة الرئيسية', show: isAdmin || hasRole('layout_editor') },
-      { id: 'sidebar-menu', icon: <Menu size={18} />, label: 'ترتيب القائمة الجانبية', show: isAdmin || hasRole('layout_editor') },
+      { id: 'layout', icon: <LayoutDashboard size={18} />, label: 'إدارة الصفحة الرئيسية', show: hasRole('layout_editor') },
+      { id: 'sidebar-menu', icon: <Menu size={18} />, label: 'ترتيب القائمة الجانبية', show: hasRole('layout_editor') },
     ]},
     { title: 'إدارة الأخبار', items: [
-      { id: 'news', icon: <Newspaper size={18} />, label: 'الأخبار والمقالات', show: isAdmin || hasRole('news_editor') },
-      { id: 'news-categories', icon: <Tags size={18} />, label: 'أقسام الأخبار', show: isAdmin || hasRole('news_editor') },
-      { id: 'news-tags', icon: <Tags size={18} />, label: 'وسوم الأخبار', show: isAdmin || hasRole('news_editor') },
+      { id: 'news', icon: <Newspaper size={18} />, label: 'الأخبار والمقالات', show: hasRole('news_editor') },
+      { id: 'news-categories', icon: <Tags size={18} />, label: 'أقسام الأخبار', show: hasRole('news_editor') },
+      { id: 'news-tags', icon: <Tags size={18} />, label: 'وسوم الأخبار', show: hasRole('news_editor') },
     ]},
     { title: 'المباريات والفعاليات', items: [
-      { id: 'clubs', icon: <Shield size={18} />, label: 'قائمة الأندية', show: isAdmin || hasRole(['matches_editor', 'layout_editor']) },
-      { id: 'matches', icon: <Trophy size={18} />, label: 'المباريات', show: isAdmin || hasRole('matches_editor') },
-      { id: 'live', icon: <Radio size={18} />, label: 'البث المباشر', show: isAdmin || hasRole('matches_editor') },
+      { id: 'clubs', icon: <Shield size={18} />, label: 'قائمة الأندية', show: hasRole(['matches_editor', 'layout_editor']) },
+      { id: 'matches', icon: <Trophy size={18} />, label: 'المباريات', show: hasRole('matches_editor') },
+      { id: 'live', icon: <Radio size={18} />, label: 'البث المباشر', show: hasRole('matches_editor') },
     ]},
     { title: 'محتوى المنصة', items: [
-      { id: 'club_members', icon: <ShieldCheck size={18} />, label: 'أعضاء النادي', show: isAdmin || hasRole('layout_editor') },
-      { id: 'media', icon: <PlayCircle size={18} />, label: 'المالتيميديا والفيديو', show: isAdmin || hasRole('media_editor') },
-      { id: 'music', icon: <Music size={18} />, label: 'المكتبة الموسيقية', show: isAdmin || hasRole('media_editor') },
-      { id: 'books', icon: <BookOpen size={18} />, label: 'الكتب والمجلات', show: isAdmin || hasRole('media_editor') },
-      { id: 'history', icon: <HistoryIcon size={18} />, label: 'تاريخ النادي', show: isAdmin || hasRole('layout_editor') },
-      { id: 'city', icon: <CloudSun size={18} />, label: 'طقس الإسكندرية', show: isAdmin || hasRole('layout_editor') },
+      { id: 'club_members', icon: <ShieldCheck size={18} />, label: 'أعضاء النادي', show: hasRole(['members_editor', 'layout_editor', 'user_manager']) },
+      { id: 'media', icon: <PlayCircle size={18} />, label: 'المالتيميديا والفيديو', show: hasRole('media_editor') },
+      { id: 'music', icon: <Music size={18} />, label: 'المكتبة الموسيقية', show: hasRole('media_editor') },
+      { id: 'books', icon: <BookOpen size={18} />, label: 'الكتب والمجلات', show: hasRole('media_editor') },
+      { id: 'history', icon: <HistoryIcon size={18} />, label: 'تاريخ النادي', show: hasRole('layout_editor') },
+      { id: 'city', icon: <CloudSun size={18} />, label: 'طقس الإسكندرية', show: hasRole('layout_editor') },
     ]},
     { title: 'التفاعل والجماهير', items: [
-      { id: 'world-fans', icon: <Globe size={18} />, label: 'رابطة اتحاداوية العالم', show: isAdmin || hasRole(['user_manager', 'layout_editor', 'news_editor']), badge: pendingWorldApplicationsCount },
-      { id: 'fanzone', icon: <UsersIcon size={18} />, label: 'منطقة الجماهير', show: isAdmin || hasRole(['news_editor', 'user_manager']) },
-      { id: 'posts', icon: <MessageSquare size={18} />, label: 'المنشورات', show: isAdmin || hasRole(['user_manager']) },
-      { id: 'fan-comments', icon: <MessageCircle size={18} />, label: 'التعليقات والمناقشات', show: isAdmin || hasRole(['user_manager']) },
-      { id: 'polls', icon: <BarChart3 size={18} />, label: 'الاستطلاعات', show: isAdmin || hasRole(['layout_editor', 'user_manager']) },
-      { id: 'predictions', icon: <Trophy size={18} />, label: 'توقعات المباريات', show: isAdmin || hasRole(['matches_editor', 'user_manager']) },
-      { id: 'ai-studio', icon: <Sparkles size={18} />, label: 'استوديو الصور (AI)', show: isAdmin || hasRole('layout_editor') },
-      { id: 'comments', icon: <MessageSquare size={18} />, label: 'تعليقات البث المباشر', show: isAdmin || hasRole(['matches_editor', 'user_manager']) },
+      { id: 'world-fans', icon: <Globe size={18} />, label: 'رابطة اتحاداوية العالم', show: hasRole(['user_manager', 'layout_editor', 'news_editor']), badge: pendingWorldApplicationsCount },
+      { id: 'fanzone', icon: <UsersIcon size={18} />, label: 'منطقة الجماهير', show: hasRole(['news_editor', 'user_manager']) },
+      { id: 'posts', icon: <MessageSquare size={18} />, label: 'المنشورات', show: hasRole('user_manager') },
+      { id: 'fan-comments', icon: <MessageCircle size={18} />, label: 'التعليقات والمناقشات', show: hasRole('user_manager') },
+      { id: 'polls', icon: <BarChart3 size={18} />, label: 'الاستطلاعات', show: hasRole(['layout_editor', 'user_manager']) },
+      { id: 'predictions', icon: <Trophy size={18} />, label: 'توقعات المباريات', show: hasRole(['matches_editor', 'user_manager']) },
+      { id: 'ai-studio', icon: <Sparkles size={18} />, label: 'استوديو الصور (AI)', show: hasRole('layout_editor') },
+      { id: 'comments', icon: <MessageSquare size={18} />, label: 'تعليقات البث المباشر', show: hasRole(['matches_editor', 'user_manager']) },
     ]},
     { title: 'المتجر والتجارة', items: [
-      { id: 'products', icon: <ShoppingBag size={18} />, label: 'إدارة المتجر والمنتجات', show: isAdmin || hasRole('store_editor') },
-      { id: 'orders', icon: <ShoppingCart size={18} />, label: 'طلبات الشراء', show: isAdmin || hasRole('store_editor'), badge: pendingOrdersCount },
-      { id: 'business', icon: <Building2 size={18} />, label: 'اتحاداوي بيزنس', show: isAdmin || hasRole(['store_editor', 'layout_editor', 'user_manager']), badge: pendingBusinessesCount },
+      { id: 'products', icon: <ShoppingBag size={18} />, label: 'إدارة المتجر والمنتجات', show: hasRole('store_editor') },
+      { id: 'orders', icon: <ShoppingCart size={18} />, label: 'طلبات الشراء', show: hasRole('store_editor'), badge: pendingOrdersCount },
+      { id: 'business', icon: <Building2 size={18} />, label: 'اتحاداوي بيزنس', show: hasRole(['store_editor', 'layout_editor', 'user_manager']), badge: pendingBusinessesCount },
     ]},
     { title: 'النظام والإدارة', items: [
-      { id: 'users', icon: <UsersIcon size={18} />, label: 'إدارة الأعضاء', show: isAdmin || hasRole('user_manager') },
-      { id: 'notifications', icon: <Bell size={18} />, label: 'إرسال إشعارات', show: isAdmin || hasRole('user_manager') },
-      { id: 'settings', icon: <SettingsIcon size={18} />, label: 'إعدادات النظام', show: isAdmin },
-      { id: 'backup', icon: <Database size={18} />, label: 'نسخة احتياطية', show: isAdmin },
+      { id: 'users', icon: <UsersIcon size={18} />, label: 'إدارة الأعضاء والصلاحيات', show: isSuperAdmin || hasRole('user_manager') },
+      { id: 'notifications', icon: <Bell size={18} />, label: 'إرسال إشعارات', show: isSuperAdmin || hasRole('user_manager') },
+      { id: 'settings', icon: <SettingsIcon size={18} />, label: 'إعدادات النظام', show: isSuperAdmin },
+      { id: 'backup', icon: <Database size={18} />, label: 'نسخة احتياطية', show: isSuperAdmin },
     ]}
   ];
 
