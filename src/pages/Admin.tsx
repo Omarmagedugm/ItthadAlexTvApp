@@ -377,7 +377,7 @@ const APP_ROLES: {
     id: 'news_editor', 
     label: 'محرر الأخبار والتغطيات', 
     shortLabel: 'محرر أخبار',
-    description: 'نشر وتعديل الأخبار، الأقسام، الوسوم الصحفية، منطقة الجماهير، ورابطة العالم',
+    description: 'نشر وتعديل الأخبار، الأقسام، والوسوم الصحفية',
     icon: Newspaper, 
     color: 'text-blue-500',
     badgeBg: 'bg-blue-500/10 text-blue-500 border-blue-500/20'
@@ -395,7 +395,7 @@ const APP_ROLES: {
     id: 'media_editor', 
     label: 'مدير الوسائط والمكتبة', 
     shortLabel: 'مدير وسائط',
-    description: 'إدارة الملتيميديا، الفيديوهات، الأغاني، الكتب والمجلات، منطقة الجماهير، ورابطة العالم',
+    description: 'إدارة الملتيميديا، الفيديوهات، الأغاني، والكتب والمجلات الرقمية',
     icon: PlayCircle, 
     color: 'text-purple-500',
     badgeBg: 'bg-purple-500/10 text-purple-500 border-purple-500/20'
@@ -856,7 +856,7 @@ export default function Admin() {
       'news': ['news_editor'],
       'news-categories': ['news_editor'],
       'news-tags': ['news_editor'],
-      'fanzone': ['news_editor', 'media_editor', 'user_manager'],
+      'fanzone': ['user_manager'],
       'media': ['media_editor'],
       'music': ['media_editor'],
       'books': ['media_editor'],
@@ -868,7 +868,7 @@ export default function Admin() {
       'products': ['store_editor'],
       'orders': ['store_editor'],
       'business': ['store_editor', 'layout_editor', 'user_manager'],
-      'world-fans': ['user_manager', 'layout_editor', 'news_editor', 'media_editor'],
+      'world-fans': ['user_manager', 'layout_editor'],
       'layout': ['layout_editor'],
       'sidebar-menu': ['layout_editor'],
       'city': ['layout_editor'],
@@ -919,6 +919,8 @@ export default function Admin() {
   }, [profile.roles, profile.role, isDev]);
 
   const [userSearch, setUserSearch] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'admin' | 'moderator' | 'writer' | 'user'>('all');
+  const [userTierFilter, setUserTierFilter] = useState<string>('all');
   const [contentSearch, setContentSearch] = useState('');
   const [newsTags, setNewsTags] = useState<string[]>([]);
   const [featuredMatchId, setFeaturedMatchId] = useState<string | null>(null);
@@ -4259,36 +4261,112 @@ export default function Admin() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                 <div className="bg-white dark:bg-card-dark p-6 rounded-[32px] border border-border-light dark:border-border-dark shadow-sm">
-                    <div className="flex items-center gap-4">
-                       <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center"><UsersIcon size={24} /></div>
-                       <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase">إجمالي الأعضاء</p>
-                          <h4 className="text-xl font-black">{users.length}</h4>
-                       </div>
+              {/* Statistics & Classification Bar */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                 <button
+                   type="button"
+                   onClick={() => setUserRoleFilter('all')}
+                   className={`p-4 rounded-2xl border text-right transition-all flex items-center justify-between ${userRoleFilter === 'all' ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-[1.02]' : 'bg-white dark:bg-card-dark border-border-light dark:border-border-dark text-slate-700 dark:text-slate-200 hover:border-slate-300'}`}
+                 >
+                    <div>
+                       <p className={`text-[10px] font-bold uppercase ${userRoleFilter === 'all' ? 'text-white/80' : 'text-slate-400'}`}>الكل</p>
+                       <h4 className="text-xl font-black">{users.length}</h4>
                     </div>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${userRoleFilter === 'all' ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'}`}>
+                      <UsersIcon size={20} />
+                    </div>
+                 </button>
+
+                 <button
+                   type="button"
+                   onClick={() => setUserRoleFilter('admin')}
+                   className={`p-4 rounded-2xl border text-right transition-all flex items-center justify-between ${userRoleFilter === 'admin' ? 'bg-red-600 text-white border-red-600 shadow-lg shadow-red-600/20 scale-[1.02]' : 'bg-white dark:bg-card-dark border-border-light dark:border-border-dark text-slate-700 dark:text-slate-200 hover:border-slate-300'}`}
+                 >
+                    <div>
+                       <p className={`text-[10px] font-bold uppercase ${userRoleFilter === 'admin' ? 'text-white/80' : 'text-slate-400'}`}>المديرون</p>
+                       <h4 className="text-xl font-black">{users.filter(u => u.role === 'admin' || (u.roles && u.roles.includes('admin'))).length}</h4>
+                    </div>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${userRoleFilter === 'admin' ? 'bg-white/20 text-white' : 'bg-red-500/10 text-red-500'}`}>
+                      <Shield size={20} />
+                    </div>
+                 </button>
+
+                 <button
+                   type="button"
+                   onClick={() => setUserRoleFilter('moderator')}
+                   className={`p-4 rounded-2xl border text-right transition-all flex items-center justify-between ${userRoleFilter === 'moderator' ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-600/20 scale-[1.02]' : 'bg-white dark:bg-card-dark border-border-light dark:border-border-dark text-slate-700 dark:text-slate-200 hover:border-slate-300'}`}
+                 >
+                    <div>
+                       <p className={`text-[10px] font-bold uppercase ${userRoleFilter === 'moderator' ? 'text-white/80' : 'text-slate-400'}`}>المشرفون</p>
+                       <h4 className="text-xl font-black">{users.filter(u => (u.role === 'moderator' || (u.roles && u.roles.length > 0 && !u.roles.includes('admin') && u.role !== 'writer')) && u.role !== 'admin').length}</h4>
+                    </div>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${userRoleFilter === 'moderator' ? 'bg-white/20 text-white' : 'bg-indigo-500/10 text-indigo-500'}`}>
+                      <ShieldCheck size={20} />
+                    </div>
+                 </button>
+
+                 <button
+                   type="button"
+                   onClick={() => setUserRoleFilter('writer')}
+                   className={`p-4 rounded-2xl border text-right transition-all flex items-center justify-between ${userRoleFilter === 'writer' ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20 scale-[1.02]' : 'bg-white dark:bg-card-dark border-border-light dark:border-border-dark text-slate-700 dark:text-slate-200 hover:border-slate-300'}`}
+                 >
+                    <div>
+                       <p className={`text-[10px] font-bold uppercase ${userRoleFilter === 'writer' ? 'text-white/80' : 'text-slate-400'}`}>المحررون</p>
+                       <h4 className="text-xl font-black">{users.filter(u => u.role === 'writer' || (u.roles && u.roles.includes('news_editor') && u.role !== 'admin')).length}</h4>
+                    </div>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${userRoleFilter === 'writer' ? 'bg-white/20 text-white' : 'bg-blue-500/10 text-blue-500'}`}>
+                      <Newspaper size={20} />
+                    </div>
+                 </button>
+
+                 <button
+                   type="button"
+                   onClick={() => setUserRoleFilter('user')}
+                   className={`p-4 rounded-2xl border text-right transition-all flex items-center justify-between ${userRoleFilter === 'user' ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-600/20 scale-[1.02]' : 'bg-white dark:bg-card-dark border-border-light dark:border-border-dark text-slate-700 dark:text-slate-200 hover:border-slate-300'}`}
+                 >
+                    <div>
+                       <p className={`text-[10px] font-bold uppercase ${userRoleFilter === 'user' ? 'text-white/80' : 'text-slate-400'}`}>الأعضاء العاديون</p>
+                       <h4 className="text-xl font-black">{users.filter(u => (!u.role || u.role === 'user') && (!u.roles || u.roles.length === 0)).length}</h4>
+                    </div>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${userRoleFilter === 'user' ? 'bg-white/20 text-white' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                      <UsersIcon size={20} />
+                    </div>
+                 </button>
+              </div>
+
+              {/* Search & Sub-Filter Bar */}
+              <div className="bg-white dark:bg-card-dark p-4 rounded-3xl border border-border-light dark:border-border-dark shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                 <div className="relative flex-1 w-full">
+                    <div className="absolute inset-y-0 right-4 flex items-center text-slate-400"><Search size={18} /></div>
+                    <input 
+                      type="text" 
+                      placeholder="ابحث عن عضو بالإسم أو البريد الإلكتروني أو الصلاحية..." 
+                      className="w-full pr-12 pl-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-surface-dark border border-slate-100 dark:border-border-dark text-sm font-bold focus:border-primary outline-none transition-all"
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                    />
+                    {userSearch && (
+                      <button onClick={() => setUserSearch('')} className="absolute inset-y-0 left-4 flex items-center text-slate-400 hover:text-slate-600">
+                        <X size={16} />
+                      </button>
+                    )}
                  </div>
-                 <div className="bg-white dark:bg-card-dark p-6 rounded-[32px] border border-border-light dark:border-border-dark shadow-sm">
-                    <div className="flex items-center gap-4">
-                       <div className="w-12 h-12 rounded-2xl bg-accent/10 text-accent flex items-center justify-center"><Star size={24} /></div>
-                       <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase">الأعضاء بريميوم</p>
-                          <h4 className="text-xl font-black">{users.filter(u => u.tier === 'premium').length}</h4>
-                       </div>
-                    </div>
-                 </div>
-                 <div className="bg-white dark:bg-card-dark p-6 rounded-[32px] border border-border-light dark:border-border-dark shadow-sm flex-1 md:col-span-2">
-                    <div className="relative h-full flex items-center">
-                      <div className="absolute inset-y-0 right-4 flex items-center text-slate-400"><Search size={18} /></div>
-                      <input 
-                        type="text" 
-                        placeholder="ابحث عن عضو بالإسم أو البريد..." 
-                        className="w-full pr-12 pl-4 py-4 rounded-2xl bg-slate-50 dark:bg-surface-dark border border-slate-100 dark:border-border-dark text-sm font-bold focus:border-primary outline-none transition-all"
-                        value={userSearch}
-                        onChange={(e) => setUserSearch(e.target.value)}
-                      />
-                    </div>
+
+                 <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+                    <span className="text-xs font-black text-slate-400 shrink-0">الرتبة:</span>
+                    <select
+                      value={userTierFilter}
+                      onChange={(e) => setUserTierFilter(e.target.value)}
+                      className="px-3.5 py-3 rounded-2xl bg-slate-50 dark:bg-surface-dark border border-slate-100 dark:border-border-dark text-xs font-bold text-slate-700 dark:text-white outline-none shrink-0 cursor-pointer"
+                    >
+                      <option value="all">جميع الرتب (Tiers)</option>
+                      <option value="premium">عضو ملكي 👑 (Premium)</option>
+                      <option value="diamond">عضو ماسي 💎 (Diamond)</option>
+                      <option value="gold">عضو ذهبي 🥇 (Gold)</option>
+                      <option value="silver">عضو فضي 🥈 (Silver)</option>
+                      <option value="bronze">عضو برونزي 🥉 (Bronze)</option>
+                      <option value="new">عضو جديد (New)</option>
+                    </select>
                  </div>
               </div>
 
@@ -4298,7 +4376,28 @@ export default function Admin() {
                     const searchLower = userSearch.toLowerCase();
                     const nameMatch = (u.name || '').toLowerCase().includes(searchLower);
                     const emailMatch = (u.email || '').toLowerCase().includes(searchLower);
-                    return nameMatch || emailMatch;
+                    const roleMatch = (u.roles || []).some((r: string) => r.toLowerCase().includes(searchLower));
+                    const matchesSearch = nameMatch || emailMatch || roleMatch;
+
+                    // Role Filter
+                    let matchesRole = true;
+                    if (userRoleFilter === 'admin') {
+                      matchesRole = u.role === 'admin' || (u.roles && u.roles.includes('admin'));
+                    } else if (userRoleFilter === 'moderator') {
+                      matchesRole = (u.role === 'moderator' || (u.roles && u.roles.length > 0 && !u.roles.includes('admin') && u.role !== 'writer')) && u.role !== 'admin';
+                    } else if (userRoleFilter === 'writer') {
+                      matchesRole = (u.role === 'writer' || (u.roles && u.roles.includes('news_editor'))) && u.role !== 'admin';
+                    } else if (userRoleFilter === 'user') {
+                      matchesRole = (!u.role || u.role === 'user') && (!u.roles || u.roles.length === 0);
+                    }
+
+                    // Tier Filter
+                    let matchesTier = true;
+                    if (userTierFilter !== 'all') {
+                      matchesTier = (u.tier || 'new') === userTierFilter;
+                    }
+
+                    return matchesSearch && matchesRole && matchesTier;
                   })
                   .map(member => (
                   <div key={member.uid} className="bg-white dark:bg-card-dark p-4 rounded-[28px] border border-border-light dark:border-border-dark flex items-center justify-between group hover:shadow-xl transition-all duration-300">
@@ -4366,7 +4465,48 @@ export default function Admin() {
                     </div>
                   </div>
                 ))}
-                {users.length === 0 && <div className="py-20 text-center bg-white dark:bg-card-dark rounded-[32px] border-2 border-dashed border-slate-200 text-slate-400 font-bold">لا يوجد أعضاء مضافون</div>}
+                {users.length === 0 ? (
+                  <div className="py-20 text-center bg-white dark:bg-card-dark rounded-[32px] border-2 border-dashed border-slate-200 text-slate-400 font-bold">لا يوجد أعضاء مضافون بعد</div>
+                ) : (
+                  users.filter(u => {
+                    const searchLower = userSearch.toLowerCase();
+                    const nameMatch = (u.name || '').toLowerCase().includes(searchLower);
+                    const emailMatch = (u.email || '').toLowerCase().includes(searchLower);
+                    const roleMatch = (u.roles || []).some((r: string) => r.toLowerCase().includes(searchLower));
+                    const matchesSearch = nameMatch || emailMatch || roleMatch;
+
+                    let matchesRole = true;
+                    if (userRoleFilter === 'admin') {
+                      matchesRole = u.role === 'admin' || (u.roles && u.roles.includes('admin'));
+                    } else if (userRoleFilter === 'moderator') {
+                      matchesRole = (u.role === 'moderator' || (u.roles && u.roles.length > 0 && !u.roles.includes('admin') && u.role !== 'writer')) && u.role !== 'admin';
+                    } else if (userRoleFilter === 'writer') {
+                      matchesRole = (u.role === 'writer' || (u.roles && u.roles.includes('news_editor'))) && u.role !== 'admin';
+                    } else if (userRoleFilter === 'user') {
+                      matchesRole = (!u.role || u.role === 'user') && (!u.roles || u.roles.length === 0);
+                    }
+
+                    let matchesTier = true;
+                    if (userTierFilter !== 'all') {
+                      matchesTier = (u.tier || 'new') === userTierFilter;
+                    }
+
+                    return matchesSearch && matchesRole && matchesTier;
+                  }).length === 0 && (
+                    <div className="py-16 text-center bg-white dark:bg-card-dark rounded-[28px] border border-dashed border-slate-200 dark:border-border-dark text-slate-400 font-bold flex flex-col items-center justify-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-surface-dark flex items-center justify-center text-slate-400">
+                        <UsersIcon size={24} />
+                      </div>
+                      <p className="text-sm">لا توجد نتائج تطابق التصنيف أو البحث المحدد</p>
+                      <button 
+                        onClick={() => { setUserRoleFilter('all'); setUserTierFilter('all'); setUserSearch(''); }}
+                        className="px-4 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-xl text-xs font-black transition-all"
+                      >
+                        إعادة ضبط الفلاتر
+                      </button>
+                    </div>
+                  )
+                )}
               </div>
             </div>
           )}
