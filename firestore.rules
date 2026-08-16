@@ -254,7 +254,7 @@ service cloud.firestore {
     match /albums/{id} { allow read: if true; allow write: if isAdmin() || isMediaEditor(); }
     match /playlists/{id} { allow read: if true; allow write: if isAdmin() || isMediaEditor(); }
     match /books/{id} { allow read: if true; allow write: if isAdmin() || isMediaEditor(); }
-    match /radio_stations/{id} { allow read: if true; allow write: if isAdmin() || isMediaEditor() || isMatchesEditor(); }
+    match /radio_stations/{id} { allow read: if true; allow write: if isAdmin() || isMediaEditor() || isMatchesEditor() || isLayoutEditor() || isUserManager(); }
     match /radio_comments/{commentId} {
       allow read: if true;
       allow create: if isSignedIn();

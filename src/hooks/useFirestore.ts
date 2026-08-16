@@ -286,13 +286,24 @@ export function useFirestoreSync() {
         setMemberDiscounts(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
       }, 'member_discounts'));
 
+      let radioInitializedRef = false;
       unsubs.push(subscribeSnapshot(collection(db, 'radio_stations'), s => {
         const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
         if (data.length > 0) {
           data.sort((a: any, b: any) => (a.order ?? 99) - (b.order ?? 99));
           setRadioStations(data as any);
-        } else {
+          radioInitializedRef = true;
+        } else if (!radioInitializedRef) {
+          // On first load, seed default stations into Firestore so they exist as real Firestore documents
+          radioInitializedRef = true;
           setRadioStations(DEFAULT_RADIO_STATIONS);
+          import('firebase/firestore').then(({ setDoc, doc }) => {
+            DEFAULT_RADIO_STATIONS.forEach(station => {
+              setDoc(doc(db, 'radio_stations', station.id), station, { merge: true }).catch(() => {});
+            });
+          });
+        } else {
+          setRadioStations([]);
         }
       }, 'radio_stations'));
 

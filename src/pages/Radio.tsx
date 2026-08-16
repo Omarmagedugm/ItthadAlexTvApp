@@ -44,12 +44,12 @@ import { collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp 
 
 export default function Radio() {
   const { radioStations, profile } = useAppStore();
-  const stationsList = (radioStations && radioStations.length > 0) ? radioStations : DEFAULT_RADIO_STATIONS;
+  const stationsList = radioStations || [];
   const activeStations = stationsList.filter(s => s.isActive !== false);
 
   // Primary or default selected station
   const defaultStation = activeStations.find(s => s.isPrimary) || activeStations[0] || DEFAULT_RADIO_STATIONS[0];
-  const [currentStation, setCurrentStation] = useState<RadioStation>(defaultStation);
+  const [currentStation, setCurrentStation] = useState<RadioStation | null>(defaultStation || null);
   const [isPlaying, setIsPlaying] = useState(true);
   const [volume, setVolume] = useState(0.9);
   const [isMuted, setIsMuted] = useState(false);
@@ -72,6 +72,8 @@ export default function Radio() {
       if (!match) {
         setCurrentStation(activeStations[0]);
       }
+    } else {
+      setCurrentStation(null);
     }
   }, [radioStations]);
 
@@ -293,157 +295,169 @@ export default function Radio() {
         {/* Hero Player Container (2 Cols on desktop) */}
         <div className="lg:col-span-2 bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col">
           
-          {/* Media Viewport */}
-          <div className="relative aspect-video w-full bg-slate-900 overflow-hidden flex items-center justify-center">
-            {/* YouTube Embed Player */}
-            {currentStation.type === 'youtube' && isYouTubeUrl(currentStation.url) && showVideoEmbed && (
-              <iframe
-                className="w-full h-full absolute inset-0 border-0"
-                src={getYouTubeEmbedUrl(currentStation.url, isPlaying)}
-                title={currentStation.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            )}
+          {!currentStation ? (
+            <div className="aspect-video w-full flex flex-col items-center justify-center p-8 text-center text-slate-400 space-y-3">
+              <RadioIcon size={48} className="text-slate-600 animate-pulse" />
+              <h3 className="font-black text-lg text-white">لا توجد إذاعة أو بث مباشر حالياً</h3>
+              <p className="text-xs text-slate-400 max-w-sm">
+                يمكن للمشرفين إضافة محطات واستوديوهات جديدة من لوحة التحكم.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Media Viewport */}
+              <div className="relative aspect-video w-full bg-slate-900 overflow-hidden flex items-center justify-center">
+                {/* YouTube Embed Player */}
+                {currentStation.type === 'youtube' && isYouTubeUrl(currentStation.url) && showVideoEmbed && (
+                  <iframe
+                    className="w-full h-full absolute inset-0 border-0"
+                    src={getYouTubeEmbedUrl(currentStation.url, isPlaying)}
+                    title={currentStation.title}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                )}
 
-            {/* Facebook Video Embed Player */}
-            {currentStation.type === 'facebook' && isFacebookUrl(currentStation.url) && showVideoEmbed && (
-              <iframe
-                className="w-full h-full absolute inset-0 border-0"
-                src={getFacebookEmbedUrl(currentStation.url, isPlaying)}
-                title={currentStation.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
-                allowFullScreen
-              />
-            )}
+                {/* Facebook Video Embed Player */}
+                {currentStation.type === 'facebook' && isFacebookUrl(currentStation.url) && showVideoEmbed && (
+                  <iframe
+                    className="w-full h-full absolute inset-0 border-0"
+                    src={getFacebookEmbedUrl(currentStation.url, isPlaying)}
+                    title={currentStation.title}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                  />
+                )}
 
-            {/* Audio Stream Mode or Custom Stream View */}
-            {(currentStation.type === 'audio' || currentStation.type === 'custom_stream' || !showVideoEmbed) && (
-              <div className="relative w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-t from-slate-950 via-slate-900 to-slate-950 text-white text-center">
-                {/* Background Artwork */}
-                <div 
-                  className="absolute inset-0 bg-cover bg-center opacity-20 blur-md scale-105"
-                  style={{ backgroundImage: `url(${currentStation.coverUrl || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=1000'})` }}
-                />
-
-                {/* Animated Turntable Artwork */}
-                <div className="relative z-10 mb-4">
-                  <div className={`w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-emerald-500/40 p-1.5 shadow-2xl shadow-emerald-500/20 relative ${isPlaying ? 'animate-spin-slow' : ''}`}>
-                    <img 
-                      src={currentStation.coverUrl || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=1000'}
-                      alt={currentStation.title}
-                      className="w-full h-full object-cover rounded-full"
+                {/* Audio Stream Mode or Custom Stream View */}
+                {(currentStation.type === 'audio' || currentStation.type === 'custom_stream' || !showVideoEmbed) && (
+                  <div className="relative w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-t from-slate-950 via-slate-900 to-slate-950 text-white text-center">
+                    {/* Background Artwork */}
+                    <div 
+                      className="absolute inset-0 bg-cover bg-center opacity-20 blur-md scale-105"
+                      style={{ backgroundImage: `url(${currentStation.coverUrl || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=1000'})` }}
                     />
-                    <div className="absolute inset-0 m-auto w-10 h-10 bg-slate-950 border-2 border-emerald-400 rounded-full flex items-center justify-center">
-                      <Disc size={18} className="text-emerald-400" />
+
+                    {/* Animated Turntable Artwork */}
+                    <div className="relative z-10 mb-4">
+                      <div className={`w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-emerald-500/40 p-1.5 shadow-2xl shadow-emerald-500/20 relative ${isPlaying ? 'animate-spin-slow' : ''}`}>
+                        <img 
+                          src={currentStation.coverUrl || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=1000'}
+                          alt={currentStation.title}
+                          className="w-full h-full object-cover rounded-full"
+                        />
+                        <div className="absolute inset-0 m-auto w-10 h-10 bg-slate-950 border-2 border-emerald-400 rounded-full flex items-center justify-center">
+                          <Disc size={18} className="text-emerald-400" />
+                        </div>
+                      </div>
                     </div>
+
+                    <div className="relative z-10 space-y-1 max-w-lg">
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-black border border-emerald-500/30">
+                        <Mic size={12} />
+                        {currentStation.frequency || 'بث مباشر'}
+                      </div>
+                      <h3 className="text-lg sm:text-xl font-black text-white line-clamp-1">{currentStation.title}</h3>
+                      <p className="text-xs text-slate-400 line-clamp-1">{currentStation.presenter || 'صوت زعيم الثغر'}</p>
+                    </div>
+
+                    {/* Hidden Audio Tag for direct streams */}
+                    <audio
+                      ref={audioRef}
+                      src={currentStation.url}
+                      preload="auto"
+                      onEnded={() => setIsPlaying(false)}
+                    />
                   </div>
-                </div>
+                )}
 
-                <div className="relative z-10 space-y-1 max-w-lg">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-black border border-emerald-500/30">
-                    <Mic size={12} />
-                    {currentStation.frequency || 'بث مباشر'}
+                {/* Live Indicator Overlay */}
+                {currentStation.isLive && (
+                  <div className="absolute top-4 right-4 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-600/90 backdrop-blur-md text-white text-xs font-black shadow-lg">
+                    <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                    مباشر LIVE
                   </div>
-                  <h3 className="text-lg sm:text-xl font-black text-white line-clamp-1">{currentStation.title}</h3>
-                  <p className="text-xs text-slate-400 line-clamp-1">{currentStation.presenter || 'صوت زعيم الثغر'}</p>
-                </div>
+                )}
 
-                {/* Hidden Audio Tag for direct streams */}
-                <audio
-                  ref={audioRef}
-                  src={currentStation.url}
-                  preload="auto"
-                  onEnded={() => setIsPlaying(false)}
-                />
-              </div>
-            )}
-
-            {/* Live Indicator Overlay */}
-            {currentStation.isLive && (
-              <div className="absolute top-4 right-4 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-600/90 backdrop-blur-md text-white text-xs font-black shadow-lg">
-                <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-                مباشر LIVE
-              </div>
-            )}
-
-            {/* Video / Audio Switcher toggle for YouTube & Facebook */}
-            {(currentStation.type === 'youtube' || currentStation.type === 'facebook') && (
-              <button
-                onClick={() => setShowVideoEmbed(!showVideoEmbed)}
-                className="absolute top-4 left-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-xs font-bold border border-white/10 transition-all"
-                title="تبديل وضع العرض"
-              >
-                {showVideoEmbed ? <Headphones size={14} /> : <Tv size={14} />}
-                <span>{showVideoEmbed ? 'الوضع الصوتي' : 'وضع الفيديو'}</span>
-              </button>
-            )}
-          </div>
-
-          {/* Player Info & Bottom Controls Bar */}
-          <div className="p-4 sm:p-6 bg-slate-900 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1 min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-[11px] font-black border border-emerald-500/20">
-                  {getCategoryLabel(currentStation.category)}
-                </span>
-                <span className="text-xs text-slate-400 font-bold">
-                  {getSourceIcon(currentStation.type)}
-                </span>
-                {currentStation.airTime && (
-                  <span className="flex items-center gap-1 text-[11px] text-slate-400 font-medium">
-                    <Clock size={12} />
-                    {currentStation.airTime}
-                  </span>
+                {/* Video / Audio Switcher toggle for YouTube & Facebook */}
+                {(currentStation.type === 'youtube' || currentStation.type === 'facebook') && (
+                  <button
+                    onClick={() => setShowVideoEmbed(!showVideoEmbed)}
+                    className="absolute top-4 left-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-xs font-bold border border-white/10 transition-all"
+                    title="تبديل وضع العرض"
+                  >
+                    {showVideoEmbed ? <Headphones size={14} /> : <Tv size={14} />}
+                    <span>{showVideoEmbed ? 'الوضع الصوتي' : 'وضع الفيديو'}</span>
+                  </button>
                 )}
               </div>
 
-              <h2 className="text-lg sm:text-xl font-black text-white truncate">
-                {currentStation.title}
-              </h2>
-              {currentStation.subtitle && (
-                <p className="text-xs text-slate-400 line-clamp-1">
-                  {currentStation.subtitle}
-                </p>
-              )}
-            </div>
+              {/* Player Info & Bottom Controls Bar */}
+              <div className="p-4 sm:p-6 bg-slate-900 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-[11px] font-black border border-emerald-500/20">
+                      {getCategoryLabel(currentStation.category)}
+                    </span>
+                    <span className="text-xs text-slate-400 font-bold">
+                      {getSourceIcon(currentStation.type)}
+                    </span>
+                    {currentStation.airTime && (
+                      <span className="flex items-center gap-1 text-[11px] text-slate-400 font-medium">
+                        <Clock size={12} />
+                        {currentStation.airTime}
+                      </span>
+                    )}
+                  </div>
 
-            {/* Action & Playback Controls */}
-            <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-              {/* Volume Slider (for audio mode) */}
-              {(currentStation.type === 'audio' || currentStation.type === 'custom_stream') && (
-                <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-2 rounded-xl border border-slate-700">
-                  <button 
-                    onClick={() => setIsMuted(!isMuted)} 
-                    className="text-slate-400 hover:text-white transition-colors"
-                  >
-                    {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
-                  </button>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={isMuted ? 0 : volume}
-                    onChange={(e) => {
-                      setVolume(parseFloat(e.target.value));
-                      setIsMuted(false);
-                    }}
-                    className="w-16 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                  />
+                  <h2 className="text-lg sm:text-xl font-black text-white truncate">
+                    {currentStation.title}
+                  </h2>
+                  {currentStation.subtitle && (
+                    <p className="text-xs text-slate-400 line-clamp-1">
+                      {currentStation.subtitle}
+                    </p>
+                  )}
                 </div>
-              )}
 
-              {/* Play / Pause Main Button */}
-              <button
-                onClick={handleTogglePlay}
-                className="flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-2xl font-black text-sm shadow-xl shadow-emerald-500/25 transition-all hover:scale-105 active:scale-95"
-              >
-                {isPlaying ? <Pause size={18} /> : <Play size={18} className="fill-current" />}
-                <span>{isPlaying ? 'إيقاف مؤقت' : 'تشغيل البث'}</span>
-              </button>
-            </div>
-          </div>
+                {/* Action & Playback Controls */}
+                <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                  {/* Volume Slider (for audio mode) */}
+                  {(currentStation.type === 'audio' || currentStation.type === 'custom_stream') && (
+                    <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-2 rounded-xl border border-slate-700">
+                      <button 
+                        onClick={() => setIsMuted(!isMuted)} 
+                        className="text-slate-400 hover:text-white transition-colors"
+                      >
+                        {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                      </button>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={isMuted ? 0 : volume}
+                        onChange={(e) => {
+                          setVolume(parseFloat(e.target.value));
+                          setIsMuted(false);
+                        }}
+                        className="w-16 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                      />
+                    </div>
+                  )}
+
+                  {/* Play / Pause Main Button */}
+                  <button
+                    onClick={handleTogglePlay}
+                    className="flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-2xl font-black text-sm shadow-xl shadow-emerald-500/25 transition-all hover:scale-105 active:scale-95"
+                  >
+                    {isPlaying ? <Pause size={18} /> : <Play size={18} className="fill-current" />}
+                    <span>{isPlaying ? 'إيقاف مؤقت' : 'تشغيل البث'}</span>
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Live Chat / Listener Messages Sidebar */}

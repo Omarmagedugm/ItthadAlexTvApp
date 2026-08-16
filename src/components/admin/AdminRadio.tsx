@@ -40,7 +40,7 @@ import { logAdminActivity } from '../../lib/auditLogger';
 
 export default function AdminRadio() {
   const { radioStations, setRadioStations } = useAppStore();
-  const stationsList = (radioStations && radioStations.length > 0) ? radioStations : DEFAULT_RADIO_STATIONS;
+  const stationsList = radioStations || [];
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStation, setEditingStation] = useState<RadioStation | null>(null);
@@ -180,9 +180,21 @@ export default function AdminRadio() {
     }
 
     try {
+      // 1. Optimistic local update
+      const remaining = stationsList.filter(s => s.id !== station.id);
+      setRadioStations(remaining);
+
+      // 2. Delete from Firestore
       await deleteDoc(doc(db, 'radio_stations', station.id));
 
-      // Audit log with full snapshot for recycle bin restore
+      // 3. If collection had not been fully seeded in Firestore yet, batch persist remaining stations
+      const batch = writeBatch(db);
+      remaining.forEach(st => {
+        batch.set(doc(db, 'radio_stations', st.id), st, { merge: true });
+      });
+      await batch.commit().catch(() => {});
+
+      // 4. Audit log with full snapshot for recycle bin restore
       await logAdminActivity({
         action: 'delete',
         collectionName: 'radio_stations',
@@ -195,9 +207,9 @@ export default function AdminRadio() {
       });
 
       toast.success('تم حذف المحطة ونقلها إلى سلة المحذوفات 🗑️');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error deleting station:', err);
-      toast.error('فشل حذف المحطة');
+      toast.error(`فشل حذف المحطة: ${err?.message || ''}`);
     }
   };
 
