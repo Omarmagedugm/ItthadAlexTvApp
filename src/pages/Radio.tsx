@@ -27,7 +27,8 @@ import {
   Disc,
   RadioTower,
   Volume1,
-  Maximize2
+  Maximize2,
+  Waves
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppStore, RadioStation } from '../store';
@@ -39,6 +40,7 @@ import {
   isFacebookUrl,
   getYouTubeThumbnail 
 } from '../lib/videoUtils';
+import AudioVisualizer from '../components/AudioVisualizer';
 import { db, auth } from '../lib/firebase';
 import { collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from 'firebase/firestore';
 
@@ -64,6 +66,8 @@ export default function Radio() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const heroPlayerRef = useRef<HTMLDivElement | null>(null);
+  const ytIframeRef = useRef<HTMLIFrameElement | null>(null);
+  const bgIframeRef = useRef<HTMLIFrameElement | null>(null);
 
   // Keep selected station in sync if stations update
   useEffect(() => {
@@ -94,6 +98,27 @@ export default function Radio() {
     }
   }, [isPlaying, volume, isMuted, currentStation]);
 
+  // YouTube / Video iframe control on play/pause
+  useEffect(() => {
+    if (currentStation?.type === 'youtube') {
+      const msg = JSON.stringify({
+        event: 'command',
+        func: isPlaying ? 'playVideo' : 'pauseVideo',
+        args: []
+      });
+      if (ytIframeRef.current?.contentWindow) {
+        try {
+          ytIframeRef.current.contentWindow.postMessage(msg, '*');
+        } catch (e) {}
+      }
+      if (bgIframeRef.current?.contentWindow) {
+        try {
+          bgIframeRef.current.contentWindow.postMessage(msg, '*');
+        } catch (e) {}
+      }
+    }
+  }, [isPlaying, currentStation]);
+
   // Realtime comments for current station
   useEffect(() => {
     if (!currentStation?.id) return;
@@ -117,7 +142,12 @@ export default function Radio() {
   const handleSelectStation = (station: RadioStation) => {
     setCurrentStation(station);
     setIsPlaying(true);
-    setShowVideoEmbed(true);
+    // If it's a direct audio station, always show audio visualizer
+    if (station.type === 'audio' || station.type === 'custom_stream') {
+      setShowVideoEmbed(false);
+    } else {
+      setShowVideoEmbed(true);
+    }
     
     // Smooth scroll to hero player on mobile
     if (heroPlayerRef.current && window.innerWidth < 768) {
@@ -130,6 +160,7 @@ export default function Radio() {
   };
 
   const handleShare = () => {
+    if (!currentStation) return;
     if (navigator.share) {
       navigator.share({
         title: `${currentStation.title} - راديو زعيم الثغر`,
@@ -217,6 +248,9 @@ export default function Radio() {
       default: return 'إذاعة عامة';
     }
   };
+
+  const isVideoSource = currentStation?.type === 'youtube' || currentStation?.type === 'facebook';
+  const isDirectAudioSource = currentStation?.type === 'audio' || currentStation?.type === 'custom_stream';
 
   return (
     <div className="flex-1 w-full max-w-6xl mx-auto px-4 py-6 pb-28 text-slate-800 dark:text-slate-100 min-h-screen animate-fade-in">
@@ -307,9 +341,11 @@ export default function Radio() {
             <>
               {/* Media Viewport */}
               <div className="relative aspect-video w-full bg-slate-900 overflow-hidden flex items-center justify-center">
-                {/* YouTube Embed Player */}
+                
+                {/* 1. VISIBLE VIDEO MODE: YouTube Embed Player */}
                 {currentStation.type === 'youtube' && isYouTubeUrl(currentStation.url) && showVideoEmbed && (
                   <iframe
+                    ref={ytIframeRef}
                     className="w-full h-full absolute inset-0 border-0"
                     src={getYouTubeEmbedUrl(currentStation.url, isPlaying)}
                     title={currentStation.title}
@@ -318,7 +354,7 @@ export default function Radio() {
                   />
                 )}
 
-                {/* Facebook Video Embed Player */}
+                {/* 2. VISIBLE VIDEO MODE: Facebook Video Embed Player */}
                 {currentStation.type === 'facebook' && isFacebookUrl(currentStation.url) && showVideoEmbed && (
                   <iframe
                     className="w-full h-full absolute inset-0 border-0"
@@ -329,46 +365,53 @@ export default function Radio() {
                   />
                 )}
 
-                {/* Audio Stream Mode or Custom Stream View */}
-                {(currentStation.type === 'audio' || currentStation.type === 'custom_stream' || !showVideoEmbed) && (
-                  <div className="relative w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-t from-slate-950 via-slate-900 to-slate-950 text-white text-center">
-                    {/* Background Artwork */}
-                    <div 
-                      className="absolute inset-0 bg-cover bg-center opacity-20 blur-md scale-105"
-                      style={{ backgroundImage: `url(${currentStation.coverUrl || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=1000'})` }}
-                    />
-
-                    {/* Animated Turntable Artwork */}
-                    <div className="relative z-10 mb-4">
-                      <div className={`w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-emerald-500/40 p-1.5 shadow-2xl shadow-emerald-500/20 relative ${isPlaying ? 'animate-spin-slow' : ''}`}>
-                        <img 
-                          src={currentStation.coverUrl || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=1000'}
-                          alt={currentStation.title}
-                          className="w-full h-full object-cover rounded-full"
-                        />
-                        <div className="absolute inset-0 m-auto w-10 h-10 bg-slate-950 border-2 border-emerald-400 rounded-full flex items-center justify-center">
-                          <Disc size={18} className="text-emerald-400" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="relative z-10 space-y-1 max-w-lg">
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-black border border-emerald-500/30">
-                        <Mic size={12} />
-                        {currentStation.frequency || 'بث مباشر'}
-                      </div>
-                      <h3 className="text-lg sm:text-xl font-black text-white line-clamp-1">{currentStation.title}</h3>
-                      <p className="text-xs text-slate-400 line-clamp-1">{currentStation.presenter || 'صوت زعيم الثغر'}</p>
-                    </div>
-
-                    {/* Hidden Audio Tag for direct streams */}
-                    <audio
-                      ref={audioRef}
-                      src={currentStation.url}
-                      preload="auto"
-                      onEnded={() => setIsPlaying(false)}
+                {/* 3. AUDIO-ONLY MODE & DIRECT STREAMS: Professional Visualizer */}
+                {(!showVideoEmbed || isDirectAudioSource) && (
+                  <div className="w-full h-full absolute inset-0">
+                    <AudioVisualizer
+                      isPlaying={isPlaying}
+                      coverUrl={currentStation.coverUrl || (currentStation.type === 'youtube' ? getYouTubeThumbnail(currentStation.url) || '' : undefined)}
+                      title={currentStation.title}
+                      presenter={currentStation.presenter}
+                      frequency={currentStation.frequency || '90.5 FM'}
+                      volume={volume}
+                      isMuted={isMuted}
                     />
                   </div>
+                )}
+
+                {/* Hidden Background Player for Audio-only mode on YouTube/FB so sound is never cut off */}
+                {!showVideoEmbed && currentStation.type === 'youtube' && isYouTubeUrl(currentStation.url) && (
+                  <div className="absolute -top-[9999px] -left-[9999px] w-[1px] h-[1px] opacity-0 pointer-events-none overflow-hidden">
+                    <iframe
+                      ref={bgIframeRef}
+                      className="w-[200px] h-[200px]"
+                      src={getYouTubeEmbedUrl(currentStation.url, isPlaying)}
+                      title={`${currentStation.title} (Background Audio)`}
+                      allow="autoplay"
+                    />
+                  </div>
+                )}
+
+                {!showVideoEmbed && currentStation.type === 'facebook' && isFacebookUrl(currentStation.url) && (
+                  <div className="absolute -top-[9999px] -left-[9999px] w-[1px] h-[1px] opacity-0 pointer-events-none overflow-hidden">
+                    <iframe
+                      className="w-[200px] h-[200px]"
+                      src={getFacebookEmbedUrl(currentStation.url, isPlaying)}
+                      title={`${currentStation.title} (Background Audio)`}
+                      allow="autoplay"
+                    />
+                  </div>
+                )}
+
+                {/* Direct HTML5 Audio stream element */}
+                {isDirectAudioSource && (
+                  <audio
+                    ref={audioRef}
+                    src={currentStation.url}
+                    preload="auto"
+                    onEnded={() => setIsPlaying(false)}
+                  />
                 )}
 
                 {/* Live Indicator Overlay */}
@@ -380,14 +423,23 @@ export default function Radio() {
                 )}
 
                 {/* Video / Audio Switcher toggle for YouTube & Facebook */}
-                {(currentStation.type === 'youtube' || currentStation.type === 'facebook') && (
+                {isVideoSource && (
                   <button
                     onClick={() => setShowVideoEmbed(!showVideoEmbed)}
-                    className="absolute top-4 left-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-md text-white text-xs font-bold border border-white/10 transition-all"
+                    className="absolute top-4 left-4 z-20 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-black/70 hover:bg-black/90 backdrop-blur-md text-white text-xs font-bold border border-white/20 transition-all shadow-lg hover:scale-105"
                     title="تبديل وضع العرض"
                   >
-                    {showVideoEmbed ? <Headphones size={14} /> : <Tv size={14} />}
-                    <span>{showVideoEmbed ? 'الوضع الصوتي' : 'وضع الفيديو'}</span>
+                    {showVideoEmbed ? (
+                      <>
+                        <Headphones size={15} className="text-emerald-400" />
+                        <span>الوضع الصوتي (Visualizer 📻)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Tv size={15} className="text-blue-400" />
+                        <span>وضع الفيديو (📺)</span>
+                      </>
+                    )}
                   </button>
                 )}
               </div>
@@ -422,29 +474,28 @@ export default function Radio() {
 
                 {/* Action & Playback Controls */}
                 <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                  {/* Volume Slider (for audio mode) */}
-                  {(currentStation.type === 'audio' || currentStation.type === 'custom_stream') && (
-                    <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-2 rounded-xl border border-slate-700">
-                      <button 
-                        onClick={() => setIsMuted(!isMuted)} 
-                        className="text-slate-400 hover:text-white transition-colors"
-                      >
-                        {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
-                      </button>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
-                        value={isMuted ? 0 : volume}
-                        onChange={(e) => {
-                          setVolume(parseFloat(e.target.value));
-                          setIsMuted(false);
-                        }}
-                        className="w-16 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                      />
-                    </div>
-                  )}
+                  {/* Volume Slider & Mute */}
+                  <div className="flex items-center gap-2 bg-slate-800/90 px-3 py-2 rounded-xl border border-slate-700">
+                    <button 
+                      onClick={() => setIsMuted(!isMuted)} 
+                      className="text-slate-400 hover:text-white transition-colors"
+                      title={isMuted ? "إلغاء الكتم" : "كتم الصوت"}
+                    >
+                      {isMuted || volume === 0 ? <VolumeX size={17} className="text-rose-400" /> : <Volume2 size={17} className="text-emerald-400" />}
+                    </button>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={isMuted ? 0 : volume}
+                      onChange={(e) => {
+                        setVolume(parseFloat(e.target.value));
+                        setIsMuted(false);
+                      }}
+                      className="w-16 sm:w-20 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                    />
+                  </div>
 
                   {/* Play / Pause Main Button */}
                   <button
@@ -746,3 +797,4 @@ export default function Radio() {
     </div>
   );
 }
+
