@@ -662,7 +662,7 @@ export default function FanZone() {
       });
       setMomentPost({ content: '', image: '' });
       setShowMomentForm(false);
-      toast.success('تمت مشاركة اللحظة بنجاح!');
+      toast.success('تم نشر صورتك في الماتش بنجاح! 📸');
     } catch (error) {
       console.error('Error creating moment:', error);
       toast.error('فشل في النشر');
@@ -977,13 +977,17 @@ export default function FanZone() {
                               initial={{ width: 0 }}
                               animate={{ width: `${percentage}%` }}
                               transition={{ duration: 1.5, ease: 'circOut' }}
-                              className="absolute inset-y-0 right-0 bg-primary/30" 
+                              className={`absolute inset-y-0 right-0 ${
+                                isSelected 
+                                  ? 'bg-gradient-to-l from-amber-500/80 via-amber-600/70 to-yellow-600/50 border-l-2 border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.4)]' 
+                                  : 'bg-gradient-to-l from-amber-600/75 via-amber-700/65 to-yellow-800/40 border-l-2 border-amber-400/80'
+                              }`} 
                             />
                             <span className="relative z-10 flex items-center gap-3">
                                <span className="text-[10px] opacity-40 font-bold tabular-nums">0{idx + 1}</span>
                                <span className="group-hover:text-accent transition-colors">{opt}</span>
                             </span>
-                            <span className="relative z-10 text-[10px] font-black opacity-60 tabular-nums">%{percentage}</span>
+                            <span className="relative z-10 text-[11px] font-black text-amber-200 dark:text-amber-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] tabular-nums px-2 py-0.5 bg-black/40 border border-amber-400/40 rounded-lg">%{percentage}</span>
                           </motion.button>
                         );
                       })}
@@ -1154,11 +1158,17 @@ export default function FanZone() {
                               className={`w-full relative h-[52px] rounded-2xl overflow-hidden glass-card border flex items-center justify-between px-5 group transition-all ${isSelected ? 'border-primary ring-1 ring-primary' : 'border-border-light dark:border-border-dark hover:border-primary/40 active:scale-95'}`}
                             >
                               <div 
-                                className={`absolute inset-y-0 right-0 ${hasVoted ? 'bg-primary/20' : 'bg-primary/10'} transition-all duration-700`} 
+                                className={`absolute inset-y-0 right-0 ${
+                                  isSelected
+                                    ? 'bg-gradient-to-l from-amber-500/80 via-amber-600/60 to-yellow-600/40 border-l-2 border-amber-400'
+                                    : hasVoted
+                                    ? 'bg-gradient-to-l from-amber-600/70 via-amber-700/50 to-yellow-800/30 border-l-2 border-amber-500'
+                                    : 'bg-amber-500/15'
+                                } transition-all duration-700`} 
                                 style={{ width: `${percentage}%` }}
                               />
                               <span className="relative z-10 text-[11px] font-black text-slate-800 dark:text-white uppercase tracking-tighter">{option}</span>
-                              <span className="relative z-10 text-[10px] font-black text-slate-400 tabular-nums">%{percentage}</span>
+                              <span className="relative z-10 text-[11px] font-black text-amber-600 dark:text-amber-400 tabular-nums px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-lg">%{percentage}</span>
                             </button>
                           );
                         })}
@@ -1951,14 +1961,20 @@ export default function FanZone() {
                               initial={{ width: 0 }}
                               animate={{ width: `${percentage}%` }}
                               transition={{ duration: 1, ease: "easeOut" }}
-                              className="absolute inset-y-0 right-0 bg-primary/10" 
+                              className={`absolute inset-y-0 right-0 ${
+                                isSelected
+                                  ? 'bg-gradient-to-l from-amber-500/80 via-amber-600/60 to-yellow-600/40 border-l-2 border-amber-400'
+                                  : hasVoted
+                                  ? 'bg-gradient-to-l from-amber-600/70 via-amber-700/50 to-yellow-800/30 border-l-2 border-amber-500'
+                                  : 'bg-amber-500/15'
+                              }`} 
                             />
                             <div className="relative flex justify-between items-center z-10">
                               <span className={`font-bold text-xs ${hasVoted && votes === Math.max(...Object.values(poll.votes || {})) ? 'text-primary' : 'text-slate-600 dark:text-slate-300'}`}>
                                 {option}
                               </span>
                               {hasVoted && (
-                                <span className="text-[10px] font-black text-primary tabular-nums">%{percentage}</span>
+                                <span className="text-[11px] font-black text-amber-600 dark:text-amber-400 tabular-nums px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-lg shadow-sm">%{percentage}</span>
                               )}
                             </div>
                           </button>
@@ -2070,7 +2086,7 @@ export default function FanZone() {
                           >
                             <span className="relative z-10">{icons[choice]}</span>
                             <span className="text-xs font-black relative z-10 transition-colors">{labels[choice]}</span>
-                            <span className="text-[10px] font-black opacity-60 tabular-nums relative z-10 tracking-widest">%{pct}</span>
+                            <span className="text-[11px] font-black text-amber-300 dark:text-amber-300 tabular-nums relative z-10 tracking-wider drop-shadow-sm px-2 py-0.5 bg-black/20 rounded-lg">%{pct}</span>
                           </button>
                         );
                       })}
@@ -2078,26 +2094,17 @@ export default function FanZone() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
-                   <button onClick={() => setActiveTab('chat')} className="p-6 glass-card rounded-[32px] border border-primary/20 flex flex-col items-center gap-4 hover:bg-primary/5 transition-all shadow-premium group">
-                      <div className="w-16 h-16 bg-primary/10 rounded-[24px] flex items-center justify-center text-primary group-hover:scale-110 transition-transform shadow-inner">
-                        <MessageCircle size={32} />
-                      </div>
-                      <div className="text-center">
-                        <span className="text-[11px] font-black uppercase text-slate-800 dark:text-white tracking-widest block italic mb-1">الدردشة الحية</span>
-                        <span className="text-[8px] font-bold text-slate-400 uppercase">Live Fan Room</span>
-                      </div>
-                   </button>
+                <div className="w-full">
                    <button 
                     onClick={() => setShowMomentForm(!showMomentForm)} 
-                    className={`p-6 glass-card rounded-[32px] border flex flex-col items-center gap-4 transition-all shadow-premium group ${showMomentForm ? 'bg-accent/10 border-accent/40' : 'border-accent/20 hover:bg-accent/5'}`}
+                    className={`w-full p-6 glass-card rounded-[32px] border flex items-center justify-center gap-4 transition-all shadow-premium group ${showMomentForm ? 'bg-accent/10 border-accent/40 ring-2 ring-accent/30' : 'border-accent/20 hover:bg-accent/5'}`}
                    >
-                      <div className={`w-16 h-16 rounded-[24px] flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner ${showMomentForm ? 'bg-accent text-white' : 'bg-accent/10 text-accent'}`}>
-                        <Camera size={32} />
+                      <div className={`w-14 h-14 rounded-[22px] flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner ${showMomentForm ? 'bg-accent text-white' : 'bg-accent/10 text-accent'}`}>
+                        <Camera size={28} />
                       </div>
-                      <div className="text-center">
-                        <span className="text-[11px] font-black uppercase text-slate-800 dark:text-white tracking-widest block italic mb-1">شارك لحظتك</span>
-                        <span className="text-[8px] font-bold text-slate-400 uppercase">Post Wall Moment</span>
+                      <div className="text-right">
+                        <span className="text-sm font-black uppercase text-slate-800 dark:text-white tracking-wide block italic mb-0.5">صورتك في الماتش</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">انقر لرفع صورة ومشاركتها مع الجماهير 📸</span>
                       </div>
                    </button>
                 </div>
@@ -2117,8 +2124,11 @@ export default function FanZone() {
                     <div className="relative z-10 space-y-6">
                       <div className="flex items-center justify-between">
                          <div className="flex flex-col">
-                           <h3 className="font-black text-xl text-slate-800 dark:text-white uppercase italic tracking-tighter">أضف لحظتك الخاصة</h3>
-                           <span className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] mt-1">Capture The Spirit</span>
+                           <h3 className="font-black text-xl text-slate-800 dark:text-white uppercase italic tracking-tighter flex items-center gap-2">
+                             <Camera size={22} className="text-accent" />
+                             صورتك في الماتش
+                           </h3>
+                           <span className="text-[10px] font-bold text-accent uppercase tracking-[0.2em] mt-1">ارفع صورتك من المدرج مع تعليق اختياري</span>
                          </div>
                          <button 
                            onClick={() => setShowMomentForm(false)}
@@ -2129,42 +2139,48 @@ export default function FanZone() {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Text Content Box */}
+                        {/* Image Upload Box - Primary */}
                         <div className="space-y-3">
-                          <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
-                             <MessageSquare size={12} /> خانة التعليق
-                          </label>
-                          <div className="bg-slate-100/50 dark:bg-black/40 rounded-[24px] border border-border-light dark:border-white/10 focus-within:ring-2 focus-within:ring-accent/20 transition-all shadow-inner p-1">
-                            <textarea
-                              placeholder="ماذا يحدث في المدرج؟ أكتب تعليقك هنا..."
-                              className="w-full bg-transparent rounded-[24px] p-5 text-[15px] font-bold text-slate-800 dark:text-white focus:outline-none min-h-[160px] resize-none"
-                              value={momentPost.content}
-                              onChange={(e) => setMomentPost({ ...momentPost, content: e.target.value })}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Image Upload Box */}
-                        <div className="space-y-3">
-                          <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
-                             <Camera size={12} /> خانة الصورة
+                          <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center justify-between">
+                             <span className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                               <Camera size={13} className="text-accent" /> رفع صورة من قلب الحدث (موصى بها)
+                             </span>
+                             {momentPost.image && <span className="text-emerald-500 font-bold text-[9px]">تم اختيار الصورة ✓</span>}
                           </label>
                           <div className="h-[160px] relative">
                              <ImageUploader 
                               folderName="matchday_moments"
                               onUploadSuccess={(url) => setMomentPost({ ...momentPost, image: url })}
-                              className="h-full bg-slate-50 dark:bg-surface-dark border-2 border-dashed border-accent/20 rounded-[24px] hover:border-accent/40 flex items-center justify-center transition-all overflow-hidden"
+                              className="h-full bg-slate-50 dark:bg-surface-dark border-2 border-dashed border-accent/20 rounded-[24px] hover:border-accent/40 flex items-center justify-center transition-all overflow-hidden cursor-pointer"
                             />
                             {momentPost.image && (
                               <div className="absolute inset-0 rounded-[24px] overflow-hidden group">
-                                <img src={getOptimizedImage(momentPost.image, 150)} className="w-full h-full object-cover" alt="preview" />
+                                <img src={getOptimizedImage(momentPost.image, 250)} className="w-full h-full object-cover" alt="preview" />
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <button onClick={() => setMomentPost({...momentPost, image: ''})} className="bg-red-500 text-white p-2 rounded-full shadow-lg">
+                                  <button onClick={() => setMomentPost({...momentPost, image: ''})} className="bg-red-500 text-white p-2 rounded-full shadow-lg hover:scale-110 transition-transform">
                                     <Trash2 size={16} />
                                   </button>
                                 </div>
                               </div>
                             )}
+                          </div>
+                        </div>
+
+                        {/* Text Content Box - Optional */}
+                        <div className="space-y-3">
+                          <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center justify-between">
+                             <span className="flex items-center gap-2">
+                               <MessageSquare size={13} /> كتابة تعليق أو رسالة
+                             </span>
+                             <span className="text-[10px] font-bold text-amber-500/90 bg-amber-500/10 px-2 py-0.5 rounded-md">اختياري</span>
+                          </label>
+                          <div className="bg-slate-100/50 dark:bg-black/40 rounded-[24px] border border-border-light dark:border-white/10 focus-within:ring-2 focus-within:ring-accent/20 transition-all shadow-inner p-1">
+                            <textarea
+                              placeholder="أكتب تعليقك أو هتافك من المدرج (اختياري)..."
+                              className="w-full bg-transparent rounded-[24px] p-5 text-[15px] font-bold text-slate-800 dark:text-white focus:outline-none min-h-[160px] resize-none"
+                              value={momentPost.content}
+                              onChange={(e) => setMomentPost({ ...momentPost, content: e.target.value })}
+                            />
                           </div>
                         </div>
                       </div>
@@ -2177,7 +2193,7 @@ export default function FanZone() {
                         className="w-full h-16 bg-accent text-white rounded-[24px] font-black text-lg shadow-premium flex items-center justify-center gap-3 hover:bg-black transition-all disabled:opacity-50 group overflow-hidden relative"
                       >
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
-                        <span className="relative z-10">{isPostingMoment ? 'جاري المشاركة...' : 'أنشر للحائط الآن'}</span>
+                        <span className="relative z-10">{isPostingMoment ? 'جاري المشاركة...' : 'نشر صورتك في الماتش الآن 📸'}</span>
                         <Upload size={22} className="relative z-10 group-hover:-translate-y-1 transition-transform" />
                       </motion.button>
                     </div>
@@ -2190,13 +2206,13 @@ export default function FanZone() {
                 <div className="flex items-center justify-between px-2">
                   <div className="flex flex-col">
                     <h3 className="text-lg font-black text-slate-800 dark:text-white leading-none italic flex items-center gap-2">
-                      <Grid size={20} className="text-accent" />
-                      جدار اللحظات
+                      <Camera size={20} className="text-accent" />
+                      صورتك في الماتش
                     </h3>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Live Match Day Feed</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Live Match Day Fan Photos</span>
                   </div>
                   <div className="bg-accent/10 px-3 py-1.5 rounded-xl text-accent font-black text-[10px] uppercase">
-                    {matchDayMoments.length} Moment
+                    {matchDayMoments.length} {matchDayMoments.length === 1 ? 'صورة' : 'صور'}
                   </div>
                 </div>
 
@@ -2249,8 +2265,8 @@ export default function FanZone() {
                     </motion.div>
                   )) : (
                     <div className="col-span-full py-20 text-center glass-card rounded-[40px] opacity-40 border-2 border-dashed">
-                       <Zap size={48} className="mx-auto mb-4" />
-                       <p className="font-black text-sm">كن أول من يشارك لحظة في المدرج!</p>
+                       <Camera size={48} className="mx-auto mb-4 text-accent" />
+                       <p className="font-black text-sm">كن أول من يشارك صورته في الماتش!</p>
                     </div>
                   )}
                 </div>

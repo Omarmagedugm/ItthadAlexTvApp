@@ -50,6 +50,7 @@ import HtmlWidget from "../components/HtmlWidget";
 import ClubMembersWidget from "../components/ClubMembersWidget";
 import BusinessWidget from "../components/BusinessWidget";
 import WorldFansWidget from "../components/worldFans/WorldFansWidget";
+import VideoEmbedWidget from "../components/widgets/VideoEmbedWidget";
 import { SafeImage } from "../components/SafeImage";
 import { getOptimizedImage } from "../lib/cloudinary";
 
@@ -1172,6 +1173,28 @@ export default function Home() {
             className="overflow-hidden rounded-2xl shadow-sm"
           >
             <HtmlWidget htmlCode={section.htmlCode} id={section.id} />
+          </motion.section>
+        );
+
+      case "video":
+      case "video_embed":
+      case "youtube":
+      case "facebook":
+        if (!section.videoUrl) return null;
+        return (
+          <motion.section
+            key={section.id}
+            variants={itemVariants}
+          >
+            <VideoEmbedWidget 
+              id={section.id}
+              title={section.title}
+              subtitle={section.subtitle}
+              videoUrl={section.videoUrl}
+              videoType={section.videoType}
+              aspectRatio={section.aspectRatio}
+              autoplay={section.autoplay}
+            />
           </motion.section>
         );
 

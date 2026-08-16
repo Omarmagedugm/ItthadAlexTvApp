@@ -26,12 +26,17 @@ export { type RadioStation } from '../data/defaultRadioData';
 
 export interface HomeSection {
   id: string;
-  type: 'hero' | 'matches' | 'news' | 'media' | 'history' | 'stadiums' | 'store' | 'polls' | 'live' | 'custom' | 'widget' | 'city' | 'ads' | 'advertise' | 'image' | 'ai_banner' | 'tickets' | 'club_members' | 'club_members_ad' | 'club_members_banner' | 'business' | 'business_directory' | 'ittihad_business' | 'social' | 'social_media' | 'world_fans' | 'world_association';
+  type: 'hero' | 'matches' | 'news' | 'media' | 'history' | 'stadiums' | 'store' | 'polls' | 'live' | 'custom' | 'widget' | 'city' | 'ads' | 'advertise' | 'image' | 'ai_banner' | 'tickets' | 'club_members' | 'club_members_ad' | 'club_members_banner' | 'business' | 'business_directory' | 'ittihad_business' | 'social' | 'social_media' | 'world_fans' | 'world_association' | 'video' | 'video_embed' | 'youtube' | 'facebook';
   title?: string;
+  subtitle?: string;
   active: boolean;
   order: number;
   htmlCode?: string;
   imageUrl?: string;
+  videoUrl?: string;
+  videoType?: 'youtube' | 'facebook' | 'direct' | 'auto';
+  aspectRatio?: '16/9' | '4/3' | '1/1' | '9/16';
+  autoplay?: boolean;
   link?: string;
   spacing?: number;
   pinned?: boolean;

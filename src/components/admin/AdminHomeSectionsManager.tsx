@@ -39,9 +39,12 @@ import {
   ArrowDownToLine,
   Sliders,
   Copy,
-  Info
+  Info,
+  Play,
+  ExternalLink
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { isYouTubeUrl, isFacebookUrl, getYouTubeThumbnail, getYouTubeEmbedUrl, getFacebookEmbedUrl } from '../../lib/videoUtils';
 
 export const DEFAULT_HOME_SECTIONS_LIST: HomeSection[] = [
   { id: 'hero', type: 'hero', active: true, order: 0, title: 'المباراة القادمة / الحية', spacing: 20 },
@@ -68,6 +71,12 @@ export const SECTION_METADATA: Record<string, { label: string; icon: React.React
     icon: <Flame size={16} />, 
     color: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
     desc: 'البطاقة الرئيسية للمباراة الحالية أو القادمة مع العداد والتشكيلة'
+  },
+  video: { 
+    label: 'فيديو يوتيوب أو فيسبوك', 
+    icon: <Tv size={16} />, 
+    color: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
+    desc: 'تضمين فيديو يوتيوب أو فيسبوك مع مشغل تفاعلي وعناوين مخصصة'
   },
   matches: { 
     label: 'جدول المباريات والنتائج', 
@@ -182,8 +191,12 @@ export default function AdminHomeSectionsManager() {
 
   // New section modal / form state
   const [isAddingNew, setIsAddingNew] = useState(false);
-  const [newSectionType, setNewSectionType] = useState<HomeSection['type']>('news');
+  const [newSectionType, setNewSectionType] = useState<HomeSection['type']>('video');
   const [newSectionTitle, setNewSectionTitle] = useState('');
+  const [newSectionSubtitle, setNewSectionSubtitle] = useState('');
+  const [newSectionVideoUrl, setNewSectionVideoUrl] = useState('');
+  const [newSectionAspectRatio, setNewSectionAspectRatio] = useState<'16/9' | '4/3' | '1/1' | '9/16'>('16/9');
+  const [newSectionAutoplay, setNewSectionAutoplay] = useState(false);
   const [newSectionHtml, setNewSectionHtml] = useState('');
   const [newSectionImageUrl, setNewSectionImageUrl] = useState('');
   const [newSectionLink, setNewSectionLink] = useState('');
@@ -326,10 +339,16 @@ export default function AdminHomeSectionsManager() {
       id: `${newSectionType}_${uuidv4().slice(0, 8)}`,
       type: newSectionType,
       title: newSectionTitle.trim() || defaultMeta?.label || 'ويدجت جديد',
+      subtitle: newSectionSubtitle.trim() || undefined,
       active: true,
       order: sections.length,
       spacing: newSectionSpacing || 20,
       pinned: false,
+      videoUrl: (newSectionType === 'video' || newSectionType === 'video_embed' || newSectionType === 'youtube' || newSectionType === 'facebook') 
+        ? newSectionVideoUrl.trim() 
+        : undefined,
+      aspectRatio: newSectionAspectRatio,
+      autoplay: newSectionAutoplay,
       htmlCode: newSectionType === 'widget' ? newSectionHtml : undefined,
       imageUrl: newSectionType === 'image' ? newSectionImageUrl : undefined,
       link: (newSectionType === 'image' || newSectionType === 'tickets') ? newSectionLink : undefined
@@ -339,9 +358,12 @@ export default function AdminHomeSectionsManager() {
     normalizeAndSetSections(newArr);
     setIsAddingNew(false);
     setNewSectionTitle('');
+    setNewSectionSubtitle('');
+    setNewSectionVideoUrl('');
     setNewSectionHtml('');
     setNewSectionImageUrl('');
     setNewSectionLink('');
+    setNewSectionAutoplay(false);
     toast.success('تمت إضافة الويدجت بنجاح للقائمة');
   };
 
@@ -366,6 +388,11 @@ export default function AdminHomeSectionsManager() {
         order: index,
         pinned: !!s.pinned,
         spacing: typeof s.spacing === 'number' ? s.spacing : 20,
+        ...(s.subtitle ? { subtitle: s.subtitle } : {}),
+        ...(s.videoUrl ? { videoUrl: s.videoUrl } : {}),
+        ...(s.videoType ? { videoType: s.videoType } : {}),
+        ...(s.aspectRatio ? { aspectRatio: s.aspectRatio } : {}),
+        ...(typeof s.autoplay === 'boolean' ? { autoplay: s.autoplay } : {}),
         ...(s.htmlCode ? { htmlCode: s.htmlCode } : {}),
         ...(s.imageUrl ? { imageUrl: s.imageUrl } : {}),
         ...(s.link ? { link: s.link } : {})
@@ -387,7 +414,7 @@ export default function AdminHomeSectionsManager() {
           adminEmail: auth.currentUser?.email || 'admin@ittihad.club',
           action: 'تعديل تنظيم وترتيب ويدجات الصفحة الرئيسية',
           category: 'layout',
-          details: `تم حفظ وإعادة ترتيب ${cleanSections.length} ويدجت بنجاح.`,
+          details: `تم حفظ وإعادة ترتيب ${cleanSections.length} ويدجت بنجاح (بما في ذلك ويدجات الفيديو).`,
           timestamp: new Date().toISOString(),
           createdAt: serverTimestamp()
         });
@@ -423,7 +450,7 @@ export default function AdminHomeSectionsManager() {
             )}
           </div>
           <p className="text-xs text-slate-400 font-bold mt-1">
-            تحكم كامل في ترتيب، تسميات، تباعد، وظهور جميع أقسام وويدجات التطبيق
+            تحكم كامل في ترتيب، تسميات، فيديوهات اليوتيوب والفيسبوك، وظهور جميع أقسام التطبيق
           </p>
         </div>
 
@@ -440,7 +467,11 @@ export default function AdminHomeSectionsManager() {
 
           {/* Add new widget */}
           <button
-            onClick={() => setIsAddingNew(true)}
+            onClick={() => {
+              setNewSectionType('video');
+              setNewSectionTitle('فيديو مميز 🎥');
+              setIsAddingNew(true);
+            }}
             className="px-4 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-2xl text-xs font-black flex items-center gap-1.5 transition-all shadow-sm"
           >
             <Plus size={16} />
@@ -476,7 +507,7 @@ export default function AdminHomeSectionsManager() {
       <div className="flex items-center gap-3 p-4 bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/20 rounded-2xl text-blue-800 dark:text-blue-300 text-xs font-bold">
         <Info size={18} className="shrink-0 text-blue-500" />
         <p>
-          💡 <strong>نصيحة:</strong> يمكنك تغيير ترتيب أي قسم باستخدام أسهم الصعود والنزول، وتخصيص تسمية أي ويدجت بالضغط على أيقونة التعديل <Edit3 size={12} className="inline mx-1" />، مع التحكم في المسافة السفلية والإخفاء/الإظهار الفوري.
+          💡 <strong>إضافة فيديو يوتيوب أو فيسبوك:</strong> اضغط على <strong>"إضافة ويدجت جديد"</strong> واختر <strong>"فيديو يوتيوب أو فيسبوك"</strong> وضع رابط الفيديو مباشرة (يدعم جميع صيغ روابط YouTube و Facebook Watch) ليظهر بمشغل احترافي في الصفحة الرئيسية.
         </p>
       </div>
 
@@ -484,11 +515,13 @@ export default function AdminHomeSectionsManager() {
       <div className="bg-white dark:bg-card-dark rounded-[32px] p-4 sm:p-6 border border-border-light dark:border-border-dark shadow-sm space-y-3">
         {sections.map((section, index) => {
           const meta = SECTION_METADATA[section.type] || {
-            label: section.type,
-            icon: <Layers size={16} />,
+            label: section.type === 'video' ? 'فيديو يوتيوب / فيسبوك' : section.type,
+            icon: section.type === 'video' ? <Tv size={16} /> : <Layers size={16} />,
             color: 'bg-slate-500/10 text-slate-500 border-slate-500/20',
             desc: 'ويدجت مخصص'
           };
+
+          const isVideoWidget = section.type === 'video' || section.type === 'video_embed' || section.type === 'youtube' || section.type === 'facebook';
 
           return (
             <div
@@ -534,6 +567,18 @@ export default function AdminHomeSectionsManager() {
                       {meta.icon}
                       {meta.label}
                     </span>
+
+                    {isVideoWidget && section.videoUrl && (
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black border ${
+                        isYouTubeUrl(section.videoUrl)
+                          ? 'bg-red-500/10 text-red-600 border-red-500/20'
+                          : isFacebookUrl(section.videoUrl)
+                          ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                          : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                      }`}>
+                        {isYouTubeUrl(section.videoUrl) ? '🔴 YouTube' : isFacebookUrl(section.videoUrl) ? '🔵 Facebook' : '🎬 Video'}
+                      </span>
+                    )}
                     
                     {section.pinned && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black bg-amber-500/10 text-amber-600 border border-amber-500/20">
@@ -547,7 +592,13 @@ export default function AdminHomeSectionsManager() {
                     </h4>
                   </div>
                   <p className="text-[10px] text-slate-400 font-medium mt-0.5 line-clamp-1">
-                    {meta.desc}
+                    {isVideoWidget && section.videoUrl ? (
+                      <span className="font-mono text-slate-500 dark:text-slate-400 dir-ltr inline-block">
+                        {section.videoUrl}
+                      </span>
+                    ) : (
+                      meta.desc
+                    )}
                   </p>
                 </div>
 
@@ -595,7 +646,7 @@ export default function AdminHomeSectionsManager() {
                     title="تعديل العنوان وتفاصيل الويدجت"
                   >
                     <Edit3 size={13} className="text-primary" />
-                    <span className="text-[10px] font-bold">تعديل التسمية والخصائص</span>
+                    <span className="text-[10px] font-bold">تعديل الإعدادات والفيديو</span>
                   </button>
 
                   {/* Copy section */}
@@ -680,7 +731,7 @@ export default function AdminHomeSectionsManager() {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-800 dark:text-white">
-                    تعديل تسمية وخصائص الويدجت
+                    تعديل إعدادات وخصائص الويدجت
                   </h3>
                   <p className="text-[10px] text-slate-400 font-bold">
                     نوع الويدجت: {SECTION_METADATA[editingSection.type]?.label || editingSection.type}
@@ -711,6 +762,118 @@ export default function AdminHomeSectionsManager() {
                   className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark text-xs font-bold"
                 />
               </div>
+
+              {/* Subtitle input (for video) */}
+              {(editingSection.type === 'video' || editingSection.type === 'video_embed') && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-700 dark:text-slate-300">
+                    النص الفرعي / الوصف القصير (اختياري)
+                  </label>
+                  <input
+                    type="text"
+                    value={editingSection.subtitle || ''}
+                    onChange={(e) => setEditingSection({ ...editingSection, subtitle: e.target.value })}
+                    placeholder="مثال: ملخص وأهداف مباراة الأمس بصوت المعلق..."
+                    className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark text-xs font-bold"
+                  />
+                </div>
+              )}
+
+              {/* Video URL input (for video widget) */}
+              {(editingSection.type === 'video' || editingSection.type === 'video_embed' || editingSection.type === 'youtube' || editingSection.type === 'facebook') && (
+                <div className="space-y-3 p-3.5 bg-slate-50 dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-border-dark">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <Tv size={14} className="text-primary" />
+                        <span>رابط فيديو يوتيوب أو فيسبوك (Video URL) *</span>
+                      </label>
+                      {editingSection.videoUrl && (
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                          isYouTubeUrl(editingSection.videoUrl)
+                            ? 'bg-red-500/10 text-red-600'
+                            : isFacebookUrl(editingSection.videoUrl)
+                            ? 'bg-blue-500/10 text-blue-600'
+                            : 'bg-emerald-500/10 text-emerald-600'
+                        }`}>
+                          {isYouTubeUrl(editingSection.videoUrl) ? '🔴 YouTube detected' : isFacebookUrl(editingSection.videoUrl) ? '🔵 Facebook detected' : '🎬 Direct Video'}
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={editingSection.videoUrl || ''}
+                      onChange={(e) => setEditingSection({ ...editingSection, videoUrl: e.target.value })}
+                      placeholder="https://www.youtube.com/watch?v=... أو https://www.facebook.com/.../videos/..."
+                      className="w-full p-3 rounded-xl border border-border-light bg-white dark:bg-card-dark text-xs font-mono text-left dir-ltr"
+                    />
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      يدعم روابط اليوتيوب العادية والمختصرة (youtu.be) وروابط الفيسبوك (fb.watch / videos).
+                    </p>
+                  </div>
+
+                  {/* Aspect ratio */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-slate-700 dark:text-slate-300">
+                        أبعاد المشغل (Aspect Ratio)
+                      </label>
+                      <select
+                        value={editingSection.aspectRatio || '16/9'}
+                        onChange={(e) => setEditingSection({ ...editingSection, aspectRatio: e.target.value as any })}
+                        className="w-full p-2.5 rounded-xl border border-border-light bg-white dark:bg-card-dark text-xs font-bold"
+                      >
+                        <option value="16/9">شاشة عريضة (16:9 - قياسي)</option>
+                        <option value="4/3">شاشة كلاسيكية (4:3)</option>
+                        <option value="1/1">مربع (1:1 - إنستغرام)</option>
+                        <option value="9/16">عمودي (9:16 - شورتس / ريلز)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5 flex flex-col justify-end">
+                      <label className="flex items-center gap-2 p-2.5 rounded-xl bg-white dark:bg-card-dark border border-border-light dark:border-border-dark cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={!!editingSection.autoplay}
+                          onChange={(e) => setEditingSection({ ...editingSection, autoplay: e.target.checked })}
+                          className="rounded border-slate-300 text-primary focus:ring-primary h-4 w-4"
+                        />
+                        <span className="text-xs font-black text-slate-700 dark:text-slate-300">
+                          تشغيل تلقائي (Autoplay)
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Live Mini Preview */}
+                  {editingSection.videoUrl && (
+                    <div className="mt-2 pt-2 border-t border-slate-200 dark:border-border-dark">
+                      <p className="text-[10px] font-black text-slate-500 mb-1.5">معاينة المشغل:</p>
+                      <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-slate-800">
+                        {isYouTubeUrl(editingSection.videoUrl) ? (
+                          <iframe
+                            src={getYouTubeEmbedUrl(editingSection.videoUrl, false)}
+                            className="w-full h-full"
+                            title="Preview"
+                            allowFullScreen
+                          />
+                        ) : isFacebookUrl(editingSection.videoUrl) ? (
+                          <iframe
+                            src={getFacebookEmbedUrl(editingSection.videoUrl, false)}
+                            className="w-full h-full"
+                            title="Preview"
+                            allowFullScreen
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xs text-white">
+                            <span>فيديو: {editingSection.videoUrl}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Spacing input */}
               <div className="space-y-1.5">
@@ -853,7 +1016,7 @@ export default function AdminHomeSectionsManager() {
                   onChange={(e) => {
                     const t = e.target.value as HomeSection['type'];
                     setNewSectionType(t);
-                    if (!newSectionTitle) {
+                    if (!newSectionTitle || newSectionTitle === SECTION_METADATA[newSectionType]?.label) {
                       setNewSectionTitle(SECTION_METADATA[t]?.label || '');
                     }
                   }}
@@ -880,6 +1043,86 @@ export default function AdminHomeSectionsManager() {
                   className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark text-xs font-bold"
                 />
               </div>
+
+              {/* Video Specific fields */}
+              {(newSectionType === 'video' || newSectionType === 'video_embed' || newSectionType === 'youtube' || newSectionType === 'facebook') && (
+                <div className="space-y-3 p-3.5 bg-slate-50 dark:bg-surface-dark rounded-2xl border border-slate-200 dark:border-border-dark">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <Tv size={14} className="text-primary" />
+                        <span>رابط فيديو يوتيوب أو فيسبوك *</span>
+                      </label>
+                      {newSectionVideoUrl && (
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                          isYouTubeUrl(newSectionVideoUrl)
+                            ? 'bg-red-500/10 text-red-600'
+                            : isFacebookUrl(newSectionVideoUrl)
+                            ? 'bg-blue-500/10 text-blue-600'
+                            : 'bg-emerald-500/10 text-emerald-600'
+                        }`}>
+                          {isYouTubeUrl(newSectionVideoUrl) ? '🔴 YouTube detected' : isFacebookUrl(newSectionVideoUrl) ? '🔵 Facebook detected' : '🎬 Direct Video'}
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={newSectionVideoUrl}
+                      onChange={(e) => setNewSectionVideoUrl(e.target.value)}
+                      placeholder="https://www.youtube.com/watch?v=... أو https://facebook.com/.../videos/..."
+                      className="w-full p-3 rounded-xl border border-border-light bg-white dark:bg-card-dark text-xs font-mono text-left dir-ltr"
+                    />
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      يمكنك لصق رابط يوتيوب مباشر أو شورتس، أو رابط فيديو فيسبوك Watch.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-700 dark:text-slate-300">
+                      الوصف / النص الفرعي (اختياري)
+                    </label>
+                    <input
+                      type="text"
+                      value={newSectionSubtitle}
+                      onChange={(e) => setNewSectionSubtitle(e.target.value)}
+                      placeholder="مثال: شاهد ملخص المباراة وأبرز اللقطات..."
+                      className="w-full p-3 rounded-xl border border-border-light bg-white dark:bg-card-dark text-xs font-bold"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-black text-slate-700 dark:text-slate-300">
+                        أبعاد المشغل
+                      </label>
+                      <select
+                        value={newSectionAspectRatio}
+                        onChange={(e) => setNewSectionAspectRatio(e.target.value as any)}
+                        className="w-full p-2.5 rounded-xl border border-border-light bg-white dark:bg-card-dark text-xs font-bold"
+                      >
+                        <option value="16/9">شاشة عريضة (16:9)</option>
+                        <option value="4/3">شاشة كلاسيكية (4:3)</option>
+                        <option value="1/1">مربع (1:1)</option>
+                        <option value="9/16">عمودي (9:16)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5 flex flex-col justify-end">
+                      <label className="flex items-center gap-2 p-2.5 rounded-xl bg-white dark:bg-card-dark border border-border-light dark:border-border-dark cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newSectionAutoplay}
+                          onChange={(e) => setNewSectionAutoplay(e.target.checked)}
+                          className="rounded border-slate-300 text-primary focus:ring-primary h-4 w-4"
+                        />
+                        <span className="text-xs font-black text-slate-700 dark:text-slate-300">
+                          تشغيل تلقائي
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* HTML Code for widget */}
               {newSectionType === 'widget' && (
