@@ -3,17 +3,16 @@ import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Globe, Users, Calendar, MapPin, ChevronLeft, Sparkles, Plus, ArrowLeft } from 'lucide-react';
 import { useAppStore } from '../../store';
-import { defaultWorldCountries, defaultWorldGroups } from '../../data/defaultWorldFansData';
 import { CountryFlag } from '../worldFans/CountryFlag';
 
 export const WorldFansWidget: React.FC = () => {
   const navigate = useNavigate();
   const { worldGroups, worldCountries, worldEvents } = useAppStore();
 
-  const allGroups = (worldGroups && worldGroups.length > 0) ? worldGroups : defaultWorldGroups;
+  const allGroups = worldGroups || [];
   const activeGroups = allGroups.filter(g => g.active !== false && g.status !== 'rejected');
 
-  const allCountries = (worldCountries && worldCountries.length > 0) ? worldCountries : defaultWorldCountries;
+  const allCountries = worldCountries || [];
   const activeCountries = allCountries.filter(c => c.active !== false);
 
   const featuredGroups = activeGroups.slice(0, 6);

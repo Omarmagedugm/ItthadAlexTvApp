@@ -11,12 +11,12 @@ import {
   WorldGroupApplication 
 } from '../types/worldFans';
 import { 
-  defaultWorldCountries, 
-  defaultWorldGroups, 
-  defaultWorldPosts, 
-  defaultWorldEvents, 
-  defaultWorldHelpRequests 
+  defaultWorldCountries
 } from '../data/defaultWorldFansData';
+import { 
+  DEFAULT_MEDIA_ITEMS,
+  DEFAULT_MEDIA_PLAYLISTS
+} from '../data/defaultMediaData';
 
 export interface HomeSection {
   id: string;
@@ -682,26 +682,7 @@ const defaultNews: NewsItem[] = [
   }
 ];
 
-const defaultMedia: MediaItem[] = [
-  {
-    id: uuidv4(),
-    title: 'أجمل أهداف فريق الاتحاد هذا الموسم',
-    type: 'video',
-    url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1510563399035-7140409890a5?q=80&w=1000&auto=format&fit=crop',
-    date: new Date(Date.now() - 24 * 3600000).toISOString(),
-    duration: '04:20',
-    views: '150K',
-  },
-  {
-    id: uuidv4(),
-    title: 'صور مران الفريق الصباحي اليوم',
-    type: 'photo',
-    url: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=1000&auto=format&fit=crop',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=1000&auto=format&fit=crop',
-    date: new Date().toISOString(),
-  }
-];
+const defaultMedia: MediaItem[] = DEFAULT_MEDIA_ITEMS;
 
 const defaultMatches: MatchItem[] = [
   {
@@ -861,7 +842,7 @@ export const useAppStore = create<AppState>()(
       businesses: [],
       businessUpdates: [],
       businessReports: [],
-      worldCountries: defaultWorldCountries,
+      worldCountries: [],
       worldGroups: [],
       worldPosts: [],
       worldEvents: [],
@@ -883,7 +864,7 @@ export const useAppStore = create<AppState>()(
       songs: [],
       albums: [],
       playlists: [],
-      mediaPlaylists: [],
+      mediaPlaylists: DEFAULT_MEDIA_PLAYLISTS,
       books: [],
       cityInfo: null,
       aiConfig: { enabled: true },

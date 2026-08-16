@@ -433,6 +433,13 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || isUserManager();
     }
 
+    // Audit Logs & Recycle Bin (سجل نشاط المشرفين وسلة المحذوفات)
+    match /audit_logs/{logId} {
+      allow read: if isAdmin() || isUserManager();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
     // Global Admin Override
     match /{document=**} {
       allow read, write: if isAdmin();

@@ -42,6 +42,7 @@ import { useAppStore } from '../store';
 import { collection, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { getOptimizedImage } from '../lib/cloudinary';
+import { DEFAULT_MEDIA_ITEMS, DEFAULT_MEDIA_PLAYLISTS } from '../data/defaultMediaData';
 
 type TabType = 'photos' | 'videos' | 'songs' | 'books';
 
@@ -209,8 +210,12 @@ export default function Library() {
     }
   };
 
+  // Effective media items with robust fallback to default library data
+  const effectiveMedia = media.length > 0 ? media : DEFAULT_MEDIA_ITEMS;
+  const effectiveMediaPlaylists = mediaPlaylists.length > 0 ? mediaPlaylists : DEFAULT_MEDIA_PLAYLISTS;
+
   // Photos strictly from Media section, sorted newest first
-  const mediaPhotos = media
+  const mediaPhotos = effectiveMedia
     .filter(m => m.type === 'photo')
     .sort((a, b) => {
       const timeA = a.date ? new Date(a.date).getTime() : ((a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0);
@@ -229,7 +234,7 @@ export default function Library() {
     return true;
   });
 
-  const videos = media.filter(m => 
+  const videos = effectiveMedia.filter(m => 
     m.type === 'video' && 
     (!selectedPlaylistId || m.playlistId === selectedPlaylistId) &&
     (m.title?.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -252,8 +257,8 @@ export default function Library() {
     (b.title?.toLowerCase().includes(searchQuery.toLowerCase()) || b.author?.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const photoPlaylists = mediaPlaylists.filter(p => (p.type as string) === 'photo' || (p.type as string) === 'all');
-  const videoPlaylists = mediaPlaylists.filter(p => (p.type as string) === 'video' || (p.type as string) === 'all');
+  const photoPlaylists = effectiveMediaPlaylists.filter(p => (p.type as string) === 'photo' || (p.type as string) === 'all');
+  const videoPlaylists = effectiveMediaPlaylists.filter(p => (p.type as string) === 'video' || (p.type as string) === 'all');
 
   const handlePlaySong = (song: any) => {
     if (currentSong?.id === song.id) {

@@ -588,6 +588,35 @@
         "adminNotes": { "type": "string" },
         "createdAt": { "type": "string" }
       }
+    },
+    "AuditLog": {
+      "title": "Audit Log",
+      "description": "Supervisor activity logs and recycle bin snapshots for deleted/modified items",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "action": { "type": "string", "enum": ["delete", "create", "update", "restore"] },
+        "collectionName": { "type": "string" },
+        "collectionLabel": { "type": "string" },
+        "itemId": { "type": "string" },
+        "itemTitle": { "type": "string" },
+        "itemThumbnail": { "type": "string" },
+        "itemData": { "type": "object" },
+        "performedBy": {
+          "type": "object",
+          "properties": {
+            "uid": { "type": "string" },
+            "name": { "type": "string" },
+            "email": { "type": "string" },
+            "role": { "type": "string" },
+            "avatar": { "type": "string" }
+          }
+        },
+        "timestamp": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "deleted", "restored"] },
+        "details": { "type": "string" }
+      },
+      "required": ["id", "action", "collectionName", "itemId", "timestamp"]
     }
   },
   "firestore": {
@@ -625,6 +654,7 @@
     "world_posts": { "schema": "WorldPost", "description": "Community posts and moments from fans abroad" },
     "world_events": { "schema": "WorldEvent", "description": "Match viewing gatherings and activities abroad" },
     "world_help_requests": { "schema": "WorldHelpRequest", "description": "Expatriate support and guides directory" },
-    "world_applications": { "schema": "WorldGroupApplication", "description": "Applications to found new leagues" }
+    "world_applications": { "schema": "WorldGroupApplication", "description": "Applications to found new leagues" },
+    "audit_logs": { "schema": "AuditLog", "description": "Collection of supervisor audit logs and trash snapshots" }
   }
 }

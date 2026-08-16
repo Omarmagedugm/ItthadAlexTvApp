@@ -97,10 +97,13 @@ import AdminSidebar from '../components/AdminSidebar';
 import AdminSidebarManager from '../components/AdminSidebarManager';
 import AdminBusiness from '../components/AdminBusiness';
 import AdminWorldFans from '../components/admin/AdminWorldFans';
+import AdminAuditLogs from '../components/admin/AdminAuditLogs';
 import ScoreSelector from '../components/ScoreSelector';
 import ImageUploader from '../components/ImageUploader';
 import CsvMatchesImporter from '../components/CsvMatchesImporter';
 import { getOptimizedImage } from '../lib/cloudinary';
+import { logAdminActivity } from '../lib/auditLogger';
+import { DEFAULT_MEDIA_ITEMS, DEFAULT_MEDIA_PLAYLISTS } from '../data/defaultMediaData';
 
 const handleFileUploadFn = async (
   e: React.ChangeEvent<HTMLInputElement>, 
@@ -868,7 +871,7 @@ export default function Admin() {
       'products': ['store_editor'],
       'orders': ['store_editor'],
       'business': ['store_editor', 'layout_editor', 'user_manager'],
-      'world-fans': ['user_manager', 'layout_editor'],
+      'world-fans': ['user_manager'],
       'layout': ['layout_editor'],
       'sidebar-menu': ['layout_editor'],
       'city': ['layout_editor'],
@@ -876,6 +879,7 @@ export default function Admin() {
       'ai-studio': ['layout_editor'],
       'polls': ['layout_editor', 'user_manager'],
       'users': ['user_manager'],
+      'audit-logs': ['user_manager', 'admin'],
       'notifications': ['user_manager'],
       'posts': ['user_manager'],
       'fan-comments': ['user_manager'],
@@ -910,7 +914,7 @@ export default function Admin() {
   // Redirection logic based on role permissions
   useEffect(() => {
     if (!isTabAllowed(activeTab)) {
-      const allowedTabs = ['overview', 'news', 'news-categories', 'news-tags', 'fanzone', 'world-fans', 'media', 'music', 'books', 'matches', 'live', 'clubs', 'club_members', 'products', 'orders', 'business', 'layout', 'sidebar-menu', 'city', 'history', 'ai-studio', 'polls', 'predictions', 'posts', 'fan-comments', 'comments', 'users', 'notifications', 'settings', 'backup'];
+      const allowedTabs = ['overview', 'news', 'news-categories', 'news-tags', 'fanzone', 'world-fans', 'media', 'music', 'books', 'matches', 'live', 'clubs', 'club_members', 'products', 'orders', 'business', 'layout', 'sidebar-menu', 'city', 'history', 'ai-studio', 'polls', 'predictions', 'posts', 'fan-comments', 'comments', 'audit-logs', 'users', 'notifications', 'settings', 'backup'];
       const firstAllowed = allowedTabs.find(tab => isTabAllowed(tab));
       if (firstAllowed) {
         setActiveTab(firstAllowed as any);
@@ -1680,21 +1684,122 @@ export default function Admin() {
     if (window.confirm('هل أنت متأكد من الحذف؟')) {
       try {
         const docRef = doc(db, coll, id);
-        // Find item for undo
+        // Find item for undo and audit logging snapshot
         let item: any = null;
-        if (coll === 'club_stats') item = clubStats.find(i => i.id === id);
-        else if (coll === 'club_titles') item = clubTitles.find(i => i.id === id);
-        else if (coll === 'club_timeline') item = historyEvents.find(i => i.id === id);
-        else if (coll === 'club_stadiums') item = stadiums.find(i => i.id === id);
-        else if (coll === 'songs') item = songs.find(i => i.id === id);
-        else if (coll === 'albums') item = albums.find(i => i.id === id);
-        else if (coll === 'books') item = books.find(i => i.id === id);
-        else if (coll === 'jerseys') item = jerseys.find(i => i.id === id);
+        let itemTitle = 'عنصر بدون عنوان';
+
+        if (coll === 'media') {
+          item = media.find(i => i.id === id);
+          itemTitle = item?.title || 'عنصر ميديا';
+        } else if (coll === 'media_playlists') {
+          item = mediaPlaylists.find(i => i.id === id);
+          itemTitle = item?.title || 'قائمة تشغيل وسائط';
+        } else if (coll === 'news') {
+          item = news.find(i => i.id === id);
+          itemTitle = item?.title || 'خبر';
+        } else if (coll === 'matches') {
+          item = matches.find(i => i.id === id);
+          itemTitle = item ? `${item.homeTeam} ضد ${item.awayTeam}` : 'مباراة';
+        } else if (coll === 'products') {
+          item = products.find(i => i.id === id);
+          itemTitle = item?.name || 'منتج';
+        } else if (coll === 'orders') {
+          item = orders.find(i => i.id === id);
+          itemTitle = item ? `طلب #${item.id?.slice(0, 6)} - ${item.userName}` : 'طلب متجر';
+        } else if (coll === 'songs') {
+          item = songs.find(i => i.id === id);
+          itemTitle = item?.title || 'أغنية';
+        } else if (coll === 'albums') {
+          item = albums.find(i => i.id === id);
+          itemTitle = item?.title || 'ألبوم';
+        } else if (coll === 'playlists') {
+          item = playlists.find(i => i.id === id);
+          itemTitle = item?.title || 'قائمة أغانٍ';
+        } else if (coll === 'books') {
+          item = books.find(i => i.id === id);
+          itemTitle = item?.title || 'كتاب';
+        } else if (coll === 'fan_posts') {
+          item = fanPosts.find(i => i.id === id);
+          itemTitle = item?.content?.slice(0, 40) || 'منشور جماهير';
+        } else if (coll === 'fan_comments') {
+          item = fanComments.find(i => i.id === id);
+          itemTitle = item?.content?.slice(0, 40) || 'تعليق جماهير';
+        } else if (coll === 'polls') {
+          item = polls.find(i => i.id === id);
+          itemTitle = item?.question || 'استطلاع رأي';
+        } else if (coll === 'predictions') {
+          item = predictions.find(i => i.id === id);
+          itemTitle = item ? `توقع ${item.userName}` : 'توقع مباراة';
+        } else if (coll === 'clubs') {
+          item = clubs.find(i => i.id === id);
+          itemTitle = item?.name || 'نادي';
+        } else if (coll === 'club_committees') {
+          item = clubCommittees.find(i => i.id === id);
+          itemTitle = item?.name || 'لجنة';
+        } else if (coll === 'club_announcements') {
+          item = clubAnnouncements.find(i => i.id === id);
+          itemTitle = item?.title || 'إعلان';
+        } else if (coll === 'club_services') {
+          item = clubServices.find(i => i.id === id);
+          itemTitle = item?.name || 'خدمة';
+        } else if (coll === 'club_trips') {
+          item = clubTrips.find(i => i.id === id);
+          itemTitle = item?.title || 'رحلة';
+        } else if (coll === 'member_discounts') {
+          item = memberDiscounts.find(i => i.id === id);
+          itemTitle = item?.name || 'خصم أعضاء';
+        } else if (coll === 'businesses') {
+          item = businesses.find(i => i.id === id);
+          itemTitle = item?.businessName || 'نشاط تجاري';
+        } else if (coll === 'world_groups') {
+          item = worldGroups.find(i => i.id === id);
+          itemTitle = item?.name || item?.countryName || 'رابطة اتحاداوية';
+        } else if (coll === 'world_events') {
+          item = worldEvents.find(i => i.id === id);
+          itemTitle = item?.title || 'فعالية';
+        } else if (coll === 'world_posts') {
+          item = worldPosts.find(i => i.id === id);
+          itemTitle = item?.content?.slice(0, 40) || 'منشور مغتربين';
+        } else if (coll === 'world_help_requests') {
+          item = worldHelpRequests.find(i => i.id === id);
+          itemTitle = item?.title || 'طلب مساعدة';
+        } else if (coll === 'club_stats') {
+          item = clubStats.find(i => i.id === id);
+          itemTitle = item?.label || 'إحصائية';
+        } else if (coll === 'club_titles') {
+          item = clubTitles.find(i => i.id === id);
+          itemTitle = item?.name || 'بطولة';
+        } else if (coll === 'club_timeline') {
+          item = historyEvents.find(i => i.id === id);
+          itemTitle = item?.title || 'حدث تاريخي';
+        } else if (coll === 'club_stadiums') {
+          item = stadiums.find(i => i.id === id);
+          itemTitle = item?.name || 'ملعب';
+        } else if (coll === 'jerseys') {
+          item = jerseys.find(i => i.id === id);
+          itemTitle = item?.name || 'قميص نادي';
+        } else if (coll === 'custom_pages') {
+          item = customPages.find(i => i.id === id);
+          itemTitle = item?.title || 'صفحة مخصصة';
+        } else if (coll === 'users') {
+          item = users.find(i => i.uid === id || i.id === id);
+          itemTitle = item?.name || 'عضو';
+        }
 
         if (item) pushToUndoStack({ collection: coll, action: 'delete', data: { ...item } });
 
+        // Save complete snapshot to audit_logs collection for history and one-click restoration
+        await logAdminActivity({
+          action: 'delete',
+          collectionName: coll,
+          itemId: id,
+          itemTitle: itemTitle,
+          itemData: item ? { ...item } : { id },
+          details: `تم الحذف من لوحة التحكم بواسطة ${profile.name || auth.currentUser?.email || 'مشرف'}`
+        });
+
         await deleteDoc(docRef);
-        toast.success('تم الحذف بنجاح');
+        toast.success('تم الحذف ونقل نسخة احتياطية لسلة المحذوفات بنجاح 🗑️');
       } catch (err) {
         handleFirestoreError(err, OperationType.DELETE, `${coll}/${id}`);
       }
@@ -1722,11 +1827,21 @@ export default function Admin() {
   };
 
   const handleDeleteMember = async (member: any) => {
-    if (!window.confirm(`هل أنت متأكد من حذف العضو "${member.name}" نهائياً من التطبيق؟ لا يمكن التراجع عن هذا الإجراء.`)) return;
+    if (!window.confirm(`هل أنت متأكد من حذف العضو "${member.name || member.email}" نهائياً من التطبيق؟ سيتم حفظ نسخة احتياطية في سلة المحذوفات.`)) return;
     
     try {
-      await deleteDoc(doc(db, 'users', member.uid));
-      toast.success('تم حذف العضو بنجاح');
+      await logAdminActivity({
+        action: 'delete',
+        collectionName: 'users',
+        itemId: member.uid || member.id,
+        itemTitle: member.name || member.email || 'عضو تطبيق',
+        itemThumbnail: member.avatar || '',
+        itemData: { ...member },
+        details: `تم حذف العضو "${member.name}" بواسطة ${profile.name || auth.currentUser?.email || 'مشرف'}`
+      });
+
+      await deleteDoc(doc(db, 'users', member.uid || member.id));
+      toast.success('تم حذف العضو وحفظ نسخة بسلة المحذوفات بنجاح 🗑️');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `users/${member.uid}`);
     }
@@ -2058,6 +2173,7 @@ export default function Admin() {
              activeTab === 'posts' ? 'منشورات الجماهير' :
              activeTab === 'predictions' ? 'إدارة توقعات المباريات' :
              activeTab === 'notifications' ? 'إرسال الإشعارات' :
+             activeTab === 'audit-logs' ? 'سجل نشاط المشرفين وسلة المحذوفات' :
              activeTab === 'users' ? 'إدارة الأعضاء' : 
              activeTab === 'settings' ? 'إعدادات التطبيق' : 
              activeTab === 'clubs' ? 'إدارة الأندية' : 
@@ -3481,24 +3597,56 @@ export default function Admin() {
           {activeTab === 'media' && (
             <div className="flex flex-col gap-6">
               {/* Sub Tabs */}
-              <div className="flex items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-2xl w-fit">
-                <button 
-                  onClick={() => setMediaSubTab('items')} 
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${mediaSubTab === 'items' ? 'bg-white dark:bg-card-dark text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 p-1.5 bg-slate-100/50 dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-2xl w-fit">
+                  <button 
+                    onClick={() => setMediaSubTab('items')} 
+                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${mediaSubTab === 'items' ? 'bg-white dark:bg-card-dark text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    الميديا ({media.length})
+                  </button>
+                  <button 
+                    onClick={() => setMediaSubTab('playlists')} 
+                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${mediaSubTab === 'playlists' ? 'bg-white dark:bg-card-dark text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    قوائم التشغيل ({mediaPlaylists.length})
+                  </button>
+                  <button 
+                    onClick={() => setMediaSubTab('banner')} 
+                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${mediaSubTab === 'banner' ? 'bg-white dark:bg-card-dark text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    خلفية البانر
+                  </button>
+                </div>
+
+                <button
+                  onClick={async () => {
+                    if (!window.confirm('هل تريد استرجاع كافة صور المالتيميديا الرسمية (12+ صورة وفيديو للألبومات والمباريات) فوراً؟')) return;
+                    const toastId = toast.loading('جاري استرجاع صور المالتيميديا...');
+                    try {
+                      for (const pl of DEFAULT_MEDIA_PLAYLISTS) {
+                        await setDoc(doc(db, 'media_playlists', pl.id), pl, { merge: true });
+                      }
+                      for (const item of DEFAULT_MEDIA_ITEMS) {
+                        await setDoc(doc(db, 'media', item.id), item, { merge: true });
+                      }
+                      await logAdminActivity({
+                        action: 'restore',
+                        collectionName: 'media',
+                        collectionLabel: 'المالتيميديا والوسائط',
+                        itemId: 'bulk_media_restore',
+                        itemTitle: 'استرجاع صور وألبومات المالتيميديا الرسمية بالكامل',
+                        details: 'تم استرجاع كافة الصور والألبومات الافتراضية بنجاح'
+                      });
+                      toast.success('تم استرجاع كافة صور الميديا بنجاح 🟢', { id: toastId });
+                    } catch (err: any) {
+                      toast.error(`حدث خطأ: ${err.message}`, { id: toastId });
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-xl text-xs font-black transition-all shadow-md shadow-emerald-600/20"
                 >
-                  الميديا
-                </button>
-                <button 
-                  onClick={() => setMediaSubTab('playlists')} 
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${mediaSubTab === 'playlists' ? 'bg-white dark:bg-card-dark text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                  قوائم التشغيل
-                </button>
-                <button 
-                  onClick={() => setMediaSubTab('banner')} 
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${mediaSubTab === 'banner' ? 'bg-white dark:bg-card-dark text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                  خلفية البانر
+                  <RotateCcw size={14} />
+                  <span>استرجاع صور الميديا المحذوفة 🔄</span>
                 </button>
               </div>
 
@@ -5698,6 +5846,7 @@ export default function Admin() {
 
            {activeTab === 'business' && <AdminBusiness />}
            {(activeTab === 'world-fans' || activeTab === 'world_fans') && <AdminWorldFans />}
+           {(activeTab === 'audit-logs' || activeTab === 'audit_logs') && <AdminAuditLogs />}
 
            {activeTab === 'backup' && (
              <div className="flex flex-col gap-6 max-w-4xl mx-auto">

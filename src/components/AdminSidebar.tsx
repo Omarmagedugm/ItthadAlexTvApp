@@ -29,7 +29,8 @@ import {
   ShieldCheck,
   Building2,
   Globe,
-  Menu
+  Menu,
+  RotateCcw
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -95,10 +96,10 @@ export default function AdminSidebar({ activeTab, setActiveTab, onClose }: Admin
       { id: 'city', icon: <CloudSun size={18} />, label: 'طقس الإسكندرية', show: hasRole('layout_editor') },
     ]},
     { title: 'التفاعل والجماهير', items: [
-      { id: 'world-fans', icon: <Globe size={18} />, label: 'رابطة اتحاداوية العالم', show: hasRole(['user_manager', 'layout_editor']), badge: pendingWorldApplicationsCount },
-      { id: 'fanzone', icon: <UsersIcon size={18} />, label: 'منطقة الجماهير', show: hasRole('user_manager') },
-      { id: 'posts', icon: <MessageSquare size={18} />, label: 'المنشورات', show: hasRole('user_manager') },
-      { id: 'fan-comments', icon: <MessageCircle size={18} />, label: 'التعليقات والمناقشات', show: hasRole('user_manager') },
+      { id: 'world-fans', icon: <Globe size={18} />, label: 'رابطة اتحاداوية العالم', show: isSuperAdmin || hasRole('user_manager'), badge: pendingWorldApplicationsCount },
+      { id: 'fanzone', icon: <UsersIcon size={18} />, label: 'منطقة الجماهير', show: isSuperAdmin || hasRole('user_manager') },
+      { id: 'posts', icon: <MessageSquare size={18} />, label: 'المنشورات', show: isSuperAdmin || hasRole('user_manager') },
+      { id: 'fan-comments', icon: <MessageCircle size={18} />, label: 'التعليقات والمناقشات', show: isSuperAdmin || hasRole('user_manager') },
       { id: 'polls', icon: <BarChart3 size={18} />, label: 'الاستطلاعات', show: hasRole(['layout_editor', 'user_manager']) },
       { id: 'predictions', icon: <Trophy size={18} />, label: 'توقعات المباريات', show: hasRole(['matches_editor', 'user_manager']) },
       { id: 'ai-studio', icon: <Sparkles size={18} />, label: 'استوديو الصور (AI)', show: hasRole('layout_editor') },
@@ -110,6 +111,7 @@ export default function AdminSidebar({ activeTab, setActiveTab, onClose }: Admin
       { id: 'business', icon: <Building2 size={18} />, label: 'اتحاداوي بيزنس', show: hasRole(['store_editor', 'layout_editor', 'user_manager']), badge: pendingBusinessesCount },
     ]},
     { title: 'النظام والإدارة', items: [
+      { id: 'audit-logs', icon: <RotateCcw size={18} className="text-emerald-500" />, label: 'سجل العمليات وسلة المحذوفات', show: isSuperAdmin || hasRole('user_manager') },
       { id: 'users', icon: <UsersIcon size={18} />, label: 'إدارة الأعضاء والصلاحيات', show: isSuperAdmin || hasRole('user_manager') },
       { id: 'notifications', icon: <Bell size={18} />, label: 'إرسال إشعارات', show: isSuperAdmin || hasRole('user_manager') },
       { id: 'settings', icon: <SettingsIcon size={18} />, label: 'إعدادات النظام', show: isSuperAdmin },

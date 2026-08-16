@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react';
 import { collection, onSnapshot, query, orderBy, doc, limit, updateDoc, where, getDocs, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAppStore } from '../store';
-import { defaultWorldCountries, defaultWorldGroups, defaultWorldPosts, defaultWorldEvents, defaultWorldHelpRequests } from '../data/defaultWorldFansData';
+import { defaultWorldCountries } from '../data/defaultWorldFansData';
+import { DEFAULT_MEDIA_ITEMS, DEFAULT_MEDIA_PLAYLISTS } from '../data/defaultMediaData';
 
 export function useFirestoreSync() {
   const { 
@@ -83,10 +84,26 @@ export function useFirestoreSync() {
         if (data.length > 0 || !isFetchedRef.current) setNews(data as any);
       }, 'news');
 
-      const unsubMedia = subscribeSnapshot(query(collection(db, 'media'), orderBy('date', 'desc'), limit(25)), (snap) => {
+      const unsubMedia = subscribeSnapshot(query(collection(db, 'media'), orderBy('date', 'desc'), limit(150)), (snap) => {
         const data = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0 || !isFetchedRef.current) setMedia(data as any);
+        if (data.length > 0) {
+          setMedia(data as any);
+        } else {
+          // If media collection is empty or deleted, restore default media photos and videos
+          setMedia(DEFAULT_MEDIA_ITEMS);
+          import('firebase/firestore').then(({ setDoc, doc }) => {
+            DEFAULT_MEDIA_ITEMS.forEach(item => {
+              setDoc(doc(db, 'media', item.id), item, { merge: true }).catch(() => {});
+            });
+          });
+        }
       }, 'media');
+
+      // Audit Logs & Recycle Bin (سجل نشاط المشرفين وسلة المحذوفات)
+      const unsubAuditLogs = subscribeSnapshot(query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'), limit(150)), (snap) => {
+        const data = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        setAuditLogs(data as any);
+      }, 'audit_logs');
 
       const unsubLayout = subscribeSnapshot(doc(db, 'settings', 'homeLayout'), (snap) => {
         if (snap.exists()) {
@@ -116,7 +133,7 @@ export function useFirestoreSync() {
       unsubs.push(subscribeSnapshot(query(collection(db, 'predictions'), orderBy('createdAt', 'desc'), limit(100)), s => setPredictions(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'predictions'));
       unsubs.push(subscribeSnapshot(collection(db, 'users'), s => setUsers(s.docs.map(d => ({id: d.id, uid: d.id, ...(d.data() as any)})) as any), 'users'));
       
-      unsubs.push(unsubLiveFootball, unsubLiveBasketball, unsubMatches, unsubNews, unsubMedia, unsubLayout);
+      unsubs.push(unsubLiveFootball, unsubLiveBasketball, unsubMatches, unsubNews, unsubMedia, unsubAuditLogs, unsubLayout);
 
       const unsubNewsCategories = subscribeSnapshot(doc(db, 'settings', 'newsCategories'), (snap) => {
         if (snap.exists()) {
@@ -171,55 +188,44 @@ export function useFirestoreSync() {
       unsubs.push(subscribeSnapshot(collection(db, 'world_countries'), s => {
         const rawData = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
         
-        if (rawData.length === 0) {
-          // If Firestore collection is completely empty, provide fallback
-          setWorldCountries(defaultWorldCountries);
-        } else {
-          // Clean up old Germany documents if they still exist in Firestore
-          const deDoc = rawData.find(c => c.id === 'de' || c.id === 'germany' || c.code === 'DE' || c.name === 'ألمانيا' || c.nameAr === 'ألمانيا');
-          if (deDoc) {
-            import('firebase/firestore').then(({ deleteDoc }) => {
-              deleteDoc(doc(db, 'world_countries', deDoc.id)).catch(() => {});
-            });
-          }
-
-          // Use real Firestore data, sorted by order
-          const validCountries = rawData
-            .filter(c => c.id !== 'de' && c.id !== 'germany' && c.code !== 'DE' && c.name !== 'ألمانيا' && c.nameAr !== 'ألمانيا')
-            .sort((a, b) => (a.order || 99) - (b.order || 99));
-
-          setWorldCountries(validCountries);
+        // Clean up old Germany documents if they still exist in Firestore
+        const deDoc = rawData.find(c => c.id === 'de' || c.id === 'germany' || c.code === 'DE' || c.name === 'ألمانيا' || c.nameAr === 'ألمانيا');
+        if (deDoc) {
+          import('firebase/firestore').then(({ deleteDoc }) => {
+            deleteDoc(doc(db, 'world_countries', deDoc.id)).catch(() => {});
+          });
         }
+
+        // Use real Firestore data only, sorted by order
+        const validCountries = rawData
+          .filter(c => c.id !== 'de' && c.id !== 'germany' && c.code !== 'DE' && c.name !== 'ألمانيا' && c.nameAr !== 'ألمانيا')
+          .sort((a, b) => (a.order || 99) - (b.order || 99));
+
+        setWorldCountries(validCountries);
       }, 'world_countries'));
 
       unsubs.push(subscribeSnapshot(collection(db, 'world_groups'), s => {
         const rawData = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
 
-        if (rawData.length === 0) {
-          setWorldGroups(defaultWorldGroups);
-        } else {
-          // Clean up old Germany groups if any
-          const oldDeGroup = rawData.find(g => g.countryId === 'de' || g.countryName === 'ألمانيا' || g.id === 'group_de_berlin' || g.id === 'group_germany');
-          if (oldDeGroup) {
-            import('firebase/firestore').then(({ deleteDoc }) => {
-              deleteDoc(doc(db, 'world_groups', oldDeGroup.id)).catch(() => {});
+        // Clean up dummy/sample groups if any exist from earlier test seeds
+        const dummyGroupIds = ['group_uae_dubai', 'group_sa_riyadh', 'group_kw_kuwait', 'group_uk_london', 'group_eu_frankfurt', 'group_east_asia_tokyo', 'group_de_berlin', 'group_germany'];
+        const dummyFound = rawData.filter(g => dummyGroupIds.includes(g.id) || g.countryId === 'de' || g.countryName === 'ألمانيا');
+        if (dummyFound.length > 0) {
+          import('firebase/firestore').then(({ deleteDoc }) => {
+            dummyFound.forEach(dg => {
+              deleteDoc(doc(db, 'world_groups', dg.id)).catch(() => {});
             });
-          }
-
-          const validGroups = rawData.filter(g => 
-            g.countryId !== 'de' && 
-            g.countryId !== 'germany' && 
-            g.countryName !== 'ألمانيا' && 
-            g.id !== 'group_de_berlin' && 
-            g.id !== 'group_germany'
-          );
-
-          if (validGroups.length === 0) {
-            setWorldGroups(defaultWorldGroups);
-          } else {
-            setWorldGroups(validGroups);
-          }
+          });
         }
+
+        const validGroups = rawData.filter(g => 
+          !dummyGroupIds.includes(g.id) &&
+          g.countryId !== 'de' && 
+          g.countryId !== 'germany' && 
+          g.countryName !== 'ألمانيا'
+        );
+
+        setWorldGroups(validGroups);
       }, 'world_groups'));
 
       unsubs.push(subscribeSnapshot(query(collection(db, 'world_posts'), orderBy('createdAt', 'desc'), limit(100)), s => {

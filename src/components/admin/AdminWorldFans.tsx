@@ -28,7 +28,7 @@ import { useAppStore } from '../../store';
 import { WorldGroup, WorldCountry, WorldApplication, WorldEvent, WorldHelpRequest, WorldGroupMember } from '../../types/worldFans';
 import { doc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { db, cleanFirestoreData } from '../../lib/firebase';
-import { defaultWorldGroups, defaultWorldCountries } from '../../data/defaultWorldFansData';
+import { defaultWorldCountries } from '../../data/defaultWorldFansData';
 import { CountryFlag } from '../worldFans/CountryFlag';
 import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
@@ -488,33 +488,6 @@ export const AdminWorldFans: React.FC = () => {
     }
   };
 
-  // Sync / Seed Default Groups to Firestore
-  const handleSyncDefaultGroups = async () => {
-    if (!window.confirm('هل تريد مزامنة ورفع كافة الروابط الافتراضية لقاعدة البيانات للتأكد من حفظها وتعديلها بسهولة؟')) return;
-    try {
-      let count = 0;
-      for (const g of defaultWorldGroups) {
-        const cleaned = cleanFirestoreData({
-          ...g,
-          whatsappGroupUrl: g.whatsappGroupUrl || g.socialLinks?.whatsapp || '',
-          facebookPageUrl: g.facebookPageUrl || g.socialLinks?.facebook || '',
-          adminPhone: g.adminPhone || '',
-          adminWhatsapp: g.adminWhatsapp || '',
-          adminEmail: g.adminEmail || '',
-          active: true,
-          status: g.status || 'official',
-          updatedAt: new Date().toISOString(),
-        });
-        await setDoc(doc(db, 'world_groups', g.id), cleaned, { merge: true });
-        count++;
-      }
-      toast.success(`تمت مزامنة ${count} رابطة بنجاح مع قاعدة البيانات 🚀`);
-    } catch (err: any) {
-      console.error('Error syncing groups:', err);
-      toast.error('حدث خطأ أثناء المزامنة: ' + (err.message || ''));
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Top Title & Sub-tabs */}
@@ -596,16 +569,6 @@ export const AdminWorldFans: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleSyncDefaultGroups}
-                className="px-3 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold shadow-sm flex items-center gap-1.5 active:scale-95 transition-all border border-slate-200 dark:border-slate-700"
-                title="مزامنة وتثبيت كافة الروابط الافتراضية في قاعدة البيانات السحابية"
-              >
-                <RefreshCw size={14} className="text-emerald-500" />
-                <span>مزامنة الروابط السحابية</span>
-              </button>
-
               <button
                 onClick={() => {
                   setEditingGroup(null);
