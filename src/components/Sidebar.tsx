@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db } from '../lib/firebase';
 import { useNavigate } from 'react-router-dom';
-import { X, LayoutDashboard, Flag, MessageSquare, Info, Mail, Home, LogOut, ShieldCheck, FileText, Building2, Globe } from 'lucide-react';
+import { X, LayoutDashboard, Flag, MessageSquare, Info, Mail, Home, LogOut, ShieldCheck, FileText, Building2, Globe, Radio } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppStore, UserProfile, SidebarMenuItem, DEFAULT_SIDEBAR_ITEMS } from '../store';
 import { getOptimizedImage } from '../lib/cloudinary';
@@ -85,6 +85,9 @@ export default function Sidebar({ isOpen, onClose, profile }: SidebarProps) {
     }
     if (item.icon === 'live_tv' || item.id === 'live') {
       return <span className="material-symbols-outlined !text-[20px] text-red-500 animate-pulse shrink-0">live_tv</span>;
+    }
+    if (item.icon === 'radio' || item.id === 'radio' || item.path === '/radio') {
+      return <Radio size={20} className="text-emerald-500 shrink-0" />;
     }
     if (item.icon === 'stadium' || item.id === 'fan-zone') {
       return <span className="material-symbols-outlined !text-[20px] text-accent shrink-0">stadium</span>;

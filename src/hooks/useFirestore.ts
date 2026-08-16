@@ -4,12 +4,13 @@ import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAppStore } from '../store';
 import { defaultWorldCountries } from '../data/defaultWorldFansData';
 import { DEFAULT_MEDIA_ITEMS, DEFAULT_MEDIA_PLAYLISTS } from '../data/defaultMediaData';
+import { DEFAULT_RADIO_STATIONS } from '../data/defaultRadioData';
 
 export function useFirestoreSync() {
   const { 
     setNews, setMedia, setMatches, setClubs, setPolls, setPredictions, setFanPosts,
     setUsers, setSettings, setAiConfig, updateLiveStream, updateLiveStreams, updateProfile, setCityInfo, setAds, setCustomPages,
-    setNewsCategories, setNewsTags, setHomeSections, setSidebarMenuItems, setProducts, setSongs, setAlbums, setPlaylists, setMediaPlaylists, setBooks,
+    setNewsCategories, setNewsTags, setHomeSections, setSidebarMenuItems, setRadioStations, setProducts, setSongs, setAlbums, setPlaylists, setMediaPlaylists, setBooks,
     setClubStats, setClubTitles, setHistoryEvents, setStadiums, setDataLoaded, setOrders,
     setClubCommittees, setClubAnnouncements, setClubServices, setClubTrips, setClubMembersSettings, setMemberDiscounts,
     setBusinesses, setBusinessUpdates, setBusinessReports,
@@ -284,6 +285,16 @@ export function useFirestoreSync() {
       unsubs.push(subscribeSnapshot(collection(db, 'member_discounts'), s => {
         setMemberDiscounts(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
       }, 'member_discounts'));
+
+      unsubs.push(subscribeSnapshot(collection(db, 'radio_stations'), s => {
+        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        if (data.length > 0) {
+          data.sort((a: any, b: any) => (a.order ?? 99) - (b.order ?? 99));
+          setRadioStations(data as any);
+        } else {
+          setRadioStations(DEFAULT_RADIO_STATIONS);
+        }
+      }, 'radio_stations'));
 
       unsubs.push(subscribeSnapshot(query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'), limit(150)), s => {
         setAuditLogs(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);

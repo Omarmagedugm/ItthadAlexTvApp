@@ -97,6 +97,7 @@ import AdminSidebar from '../components/AdminSidebar';
 import AdminSidebarManager from '../components/AdminSidebarManager';
 import AdminBusiness from '../components/AdminBusiness';
 import AdminWorldFans from '../components/admin/AdminWorldFans';
+import AdminRadio from '../components/admin/AdminRadio';
 import AdminAuditLogs from '../components/admin/AdminAuditLogs';
 import ScoreSelector from '../components/ScoreSelector';
 import ImageUploader from '../components/ImageUploader';
@@ -447,8 +448,8 @@ export default function Admin() {
     clubTitles, clubStats, historyEvents, stadiums, newsCategories,
     products, orders, ads, homeSections, undoStack,
     songs, albums, playlists, mediaPlaylists, books, cityInfo,
-    clubCommittees, clubAnnouncements, clubServices, clubTrips, clubMembersSettings,
-    businesses, businessUpdates,
+    clubCommittees, clubAnnouncements, clubServices, clubTrips, clubMembersSettings, memberDiscounts,
+    businesses, businessUpdates, worldGroups, worldEvents, worldPosts, worldHelpRequests,
     setClubTitles, setClubStats, setHistoryEvents, setStadiums, setNewsCategories,
     setProducts, setOrders, setAds, setHomeSections, pushToUndoStack, popFromUndoStack,
     setSongs, setAlbums, setPlaylists, setMediaPlaylists, setBooks, setCityInfo,
@@ -860,6 +861,7 @@ export default function Admin() {
       'news-categories': ['news_editor'],
       'news-tags': ['news_editor'],
       'fanzone': ['user_manager'],
+      'radio': ['media_editor', 'matches_editor', 'layout_editor'],
       'media': ['media_editor'],
       'music': ['media_editor'],
       'books': ['media_editor'],
@@ -1775,14 +1777,11 @@ export default function Admin() {
         } else if (coll === 'club_stadiums') {
           item = stadiums.find(i => i.id === id);
           itemTitle = item?.name || 'ملعب';
-        } else if (coll === 'jerseys') {
-          item = jerseys.find(i => i.id === id);
-          itemTitle = item?.name || 'قميص نادي';
         } else if (coll === 'custom_pages') {
           item = customPages.find(i => i.id === id);
           itemTitle = item?.title || 'صفحة مخصصة';
         } else if (coll === 'users') {
-          item = users.find(i => i.uid === id || i.id === id);
+          item = users.find(i => (i.uid === id || (i as any).id === id));
           itemTitle = item?.name || 'عضو';
         }
 
@@ -2163,6 +2162,7 @@ export default function Admin() {
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">
             {activeTab === 'overview' ? 'لوحة التحكم' :
+             activeTab === 'radio' ? 'إدارة راديو وبث زعيم الثغر' :
              activeTab === 'world-fans' ? 'رابطة اتحاداوية العالم (مغتربين)' :
              activeTab === 'news' ? 'إدارة الأخبار' : 
              activeTab === 'news-categories' ? 'إدارة أقسام الأخبار' :
@@ -5845,6 +5845,7 @@ export default function Admin() {
            )}
 
            {activeTab === 'business' && <AdminBusiness />}
+           {activeTab === 'radio' && <AdminRadio />}
            {(activeTab === 'world-fans' || activeTab === 'world_fans') && <AdminWorldFans />}
            {(activeTab === 'audit-logs' || activeTab === 'audit_logs') && <AdminAuditLogs />}
 

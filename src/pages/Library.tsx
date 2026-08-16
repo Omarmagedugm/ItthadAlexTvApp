@@ -486,6 +486,33 @@ export default function Library() {
               );
             })}
           </div>
+
+          {/* Radio Live Stream Highlight Banner */}
+          <div 
+            onClick={() => navigate('/radio')}
+            className="mt-4 p-4 rounded-3xl bg-gradient-to-r from-emerald-900 via-primary-950 to-slate-900 text-white flex items-center justify-between gap-4 cursor-pointer hover:shadow-xl transition-all border border-emerald-500/20 group"
+          >
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 group-hover:scale-110 transition-transform">
+                <Radio size={24} className="animate-pulse" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black animate-pulse">
+                    🔴 مباشر
+                  </span>
+                  <span className="text-xs font-bold text-emerald-300">90.5 FM DIGITAL</span>
+                </div>
+                <h4 className="font-black text-sm text-white truncate">راديو وبث زعيم الثغر المباشر 🎙️</h4>
+                <p className="text-[11px] text-slate-300 line-clamp-1">استمع الآن للبث الإذاعي الحي والاستوديوهات التحليلية والبودكاست</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 group-hover:bg-white/20 text-white text-xs font-black shrink-0 transition-all">
+              <span>استمع الآن</span>
+              <ChevronLeft size={16} />
+            </div>
+          </div>
         </div>
 
         {/* Tab Contents */}
