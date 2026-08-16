@@ -5,7 +5,7 @@ import {
   Sparkles, Building2, Calendar, ShieldCheck 
 } from 'lucide-react';
 
-export default function ClubMembersWidget() {
+export default function ClubMembersWidget({ title }: { title?: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
@@ -22,7 +22,7 @@ export default function ClubMembersWidget() {
       <div className="relative z-10 flex items-center justify-between gap-2 mb-3">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[10px] font-black text-amber-300 shadow-sm">
           <ShieldCheck size={14} className="text-amber-400" />
-          <span>بوابة أعضاء نادي الاتحاد السكندري</span>
+          <span>{title || 'بوابة أعضاء نادي الاتحاد السكندري'}</span>
         </div>
         <span className="text-[9px] font-bold text-emerald-300/80 bg-emerald-500/20 px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
           <Sparkles size={10} className="text-amber-300 animate-pulse" />

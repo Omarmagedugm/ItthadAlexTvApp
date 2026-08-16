@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
 import { Building2, Store, MapPin, ArrowLeft, Plus, Star } from 'lucide-react';
 
-export default function BusinessWidget() {
+export default function BusinessWidget({ title }: { title?: string }) {
   const navigate = useNavigate();
   const { businesses } = useAppStore();
 
@@ -21,7 +21,7 @@ export default function BusinessWidget() {
           </div>
           <div>
             <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-              <span>اتحاداوي بيزنس</span>
+              <span>{title || 'اتحاداوي بيزنس'}</span>
               <span className="text-xs text-emerald-600 font-bold">💚</span>
             </h2>
             <p className="text-[11px] font-bold text-slate-400">

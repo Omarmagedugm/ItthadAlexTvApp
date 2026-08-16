@@ -109,21 +109,13 @@ export function useFirestoreSync() {
       const unsubLayout = subscribeSnapshot(doc(db, 'settings', 'homeLayout'), (snap) => {
         if (snap.exists()) {
           const data = snap.data();
-          if (data && data.sections) {
-            const uniqueSectionsMap = new Map();
-            data.sections.forEach((s: any) => { if (s && s.id) uniqueSectionsMap.set(s.id, s); });
-            const mergedSections = Array.from(uniqueSectionsMap.values());
-            const initialSections = [
-              { id: 'hero', type: 'hero', active: true, order: 0 },
-              { id: 'ads', type: 'ads', active: true, order: 0.5 },
-              { id: 'matches', type: 'matches', active: true, order: 1 },
-              { id: 'ai_banner', type: 'ai_banner', active: true, order: 1.2 },
-              { id: 'city', type: 'city', active: true, order: 1.5, title: 'عروس البحر المتوسط' },
-              { id: 'news', type: 'news', active: true, order: 2 },
-              { id: 'media', type: 'media', active: true, order: 3 },
-            ];
-            initialSections.forEach(ds => { if (!uniqueSectionsMap.has(ds.id)) mergedSections.push(ds); });
-            setHomeSections(mergedSections);
+          if (data && Array.isArray(data.sections)) {
+            const sortedSections = [...data.sections].sort((a: any, b: any) => {
+              if (a.pinned && !b.pinned) return -1;
+              if (!a.pinned && b.pinned) return 1;
+              return (a.order ?? 0) - (b.order ?? 0);
+            });
+            setHomeSections(sortedSections);
           }
         }
       }, 'settings/homeLayout', OperationType.GET);

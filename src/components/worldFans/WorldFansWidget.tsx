@@ -46,7 +46,7 @@ export const getCountryFlag = (countryIdOrName?: string, fallbackFlag?: string):
   return '🌍';
 };
 
-export default function WorldFansWidget() {
+export default function WorldFansWidget({ title }: { title?: string }) {
   const navigate = useNavigate();
   const { worldCountries, worldGroups, worldEvents } = useAppStore();
 
@@ -139,7 +139,7 @@ export default function WorldFansWidget() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
               </span>
             </div>
-            <h3 className="text-base font-black text-white mt-1">رابطة اتحاداوية العالم</h3>
+            <h3 className="text-base font-black text-white mt-1">{title || 'رابطة اتحاداوية العالم'}</h3>
             <p className="text-[11px] text-emerald-100/75 font-medium">ملتقى عشاق سيد البلد في كافة الدول والعواصم</p>
           </div>
         </div>

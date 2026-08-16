@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { updateDoc, serverTimestamp } from "firebase/firestore";
-import { useAppStore } from "../store";
+import { useAppStore, HomeSection } from "../store";
 import { auth, db, handleFirestoreError, OperationType } from "../lib/firebase";
 import toast from "react-hot-toast";
 import { formatDistanceToNow, format } from "date-fns";
@@ -1227,7 +1227,7 @@ export default function Home() {
       case "club_members_banner":
         return (
           <motion.section key={section.id} variants={itemVariants}>
-            <ClubMembersWidget />
+            <ClubMembersWidget title={section.title} />
           </motion.section>
         );
 
@@ -1235,7 +1235,7 @@ export default function Home() {
       case "world_association":
         return (
           <motion.section key={section.id} variants={itemVariants}>
-            <WorldFansWidget />
+            <WorldFansWidget title={section.title} />
           </motion.section>
         );
 
@@ -1244,7 +1244,7 @@ export default function Home() {
       case "ittihad_business":
         return (
           <motion.section key={section.id} variants={itemVariants}>
-            <BusinessWidget />
+            <BusinessWidget title={section.title} />
           </motion.section>
         );
 
@@ -1857,25 +1857,29 @@ export default function Home() {
     }
   };
 
-  const hasClubMembersSection = homeSections.some(s => s.type === 'club_members' || s.type === 'club_members_ad' || s.type === 'club_members_banner');
-  const hasWorldFansSection = homeSections.some(s => s.type === 'world_fans' || s.type === 'world_association');
-  const hasBusinessSection = homeSections.some(s => s.type === 'business' || s.type === 'business_directory' || s.type === 'ittihad_business');
-  
-  let baseSections = [...homeSections];
-  if (!hasClubMembersSection) {
-    baseSections.push({ id: 'club_members_auto', type: 'club_members', active: true, order: 1.2, title: 'بوابة الأعضاء والأنشطة', pinned: false, spacing: 16 });
-  }
-  if (!hasWorldFansSection) {
-    baseSections.push({ id: 'world_fans_auto', type: 'world_fans', active: true, order: 1.25, title: 'رابطة اتحاداوية العالم', pinned: false, spacing: 16 });
-  }
-  if (!hasBusinessSection) {
-    baseSections.push({ id: 'business_auto', type: 'business', active: true, order: 1.3, title: 'اتحاداوي بيزنس', pinned: false, spacing: 16 });
-  }
+  const sectionsToRender: HomeSection[] = homeSections && homeSections.length > 0 
+    ? [...homeSections]
+    : [
+        { id: 'hero', type: 'hero', active: true, order: 0, spacing: 20 },
+        { id: 'ads', type: 'ads', active: true, order: 1, spacing: 20 },
+        { id: 'live', type: 'live', active: true, order: 2, spacing: 16 },
+        { id: 'matches', type: 'matches', active: true, order: 3, spacing: 24 },
+        { id: 'ai_banner', type: 'ai_banner', active: true, order: 4, spacing: 20 },
+        { id: 'city', type: 'city', active: true, order: 5, spacing: 24 },
+        { id: 'news', type: 'news', active: true, order: 6, spacing: 24 },
+        { id: 'media', type: 'media', active: true, order: 7, spacing: 24 },
+        { id: 'club_members', type: 'club_members', active: true, order: 8, spacing: 24 },
+        { id: 'world_fans', type: 'world_fans', active: true, order: 9, spacing: 24 },
+        { id: 'business', type: 'business', active: true, order: 10, spacing: 24 },
+        { id: 'tickets', type: 'tickets', active: true, order: 11, spacing: 20 },
+        { id: 'polls', type: 'polls', active: true, order: 12, spacing: 24 },
+        { id: 'history', type: 'history', active: true, order: 13, spacing: 24 },
+      ];
 
-  const sortedSections = [...baseSections].sort((a, b) => {
+  const sortedSections = [...sectionsToRender].sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
-    return a.order - b.order;
+    return (a.order ?? 0) - (b.order ?? 0);
   });
 
   const containerVariants = {
@@ -1963,7 +1967,7 @@ export default function Home() {
 
         {/* Goal Celebration Trigger is in App.tsx */}
       
-      {sortedSections.map((section, index) => {
+      {sortedSections.filter(section => section.active !== false).map((section, index) => {
           const content = renderSection(section);
           if (!content) return null;
           return (
