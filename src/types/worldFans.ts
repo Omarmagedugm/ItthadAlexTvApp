@@ -81,6 +81,10 @@ export interface WorldPostComment {
   userId: string;
   userName: string;
   userAvatar?: string;
+  countryCode?: string;
+  countryFlag?: string;
+  countryName?: string;
+  groupName?: string;
   content: string;
   text?: string;
   createdAt: string;

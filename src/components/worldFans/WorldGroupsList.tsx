@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { WorldGroup } from '../../types/worldFans';
 import { CountryFlag } from './CountryFlag';
+import { useAppStore } from '../../store';
 
 interface WorldGroupsListProps {
   groups: WorldGroup[];
@@ -28,13 +29,27 @@ export const WorldGroupsList: React.FC<WorldGroupsListProps> = ({
   onOpenFoundLeague,
 }) => {
   const navigate = useNavigate();
+  const { worldCountries, worldEvents, worldPosts } = useAppStore();
   const [filterType, setFilterType] = useState<'all' | 'verified' | 'featured'>('all');
   const [selectedCountryFilter, setSelectedCountryFilter] = useState<string>('all');
   const [localSearch, setLocalSearch] = useState<string>('');
 
-  // Extract unique countries from the registered groups
+  // Extract unique countries from the registered countries store and groups
   const availableCountries = useMemo(() => {
     const map = new Map<string, { id: string; name: string; flag: string }>();
+
+    // Add all active countries from store (e.g. Bahrain, Saudi, UAE, Kuwait, Qatar, Oman...)
+    (worldCountries || []).forEach(c => {
+      if (c.active !== false) {
+        map.set(c.id, {
+          id: c.id,
+          name: c.name || c.nameAr,
+          flag: c.flag || '🌍',
+        });
+      }
+    });
+
+    // Also include any other country present in registered groups
     groups.forEach(g => {
       if (g.countryId && !map.has(g.countryId)) {
         map.set(g.countryId, {
@@ -45,7 +60,7 @@ export const WorldGroupsList: React.FC<WorldGroupsListProps> = ({
       }
     });
     return Array.from(map.values());
-  }, [groups]);
+  }, [worldCountries, groups]);
 
   // Apply filters
   const filteredGroups = useMemo(() => {
@@ -188,6 +203,18 @@ export const WorldGroupsList: React.FC<WorldGroupsListProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredGroups.map((group) => {
             const isOfficial = group.verified || group.status === 'approved' || group.status === 'official';
+            const groupEventsList = (worldEvents || []).filter(e => e.groupId === group.id);
+            const groupPostsList = (worldPosts || []).filter(p => p.groupId === group.id);
+            const groupPhotosCount = groupPostsList.reduce((acc, p) => {
+              const imgCount = p.images?.length || 0;
+              return acc + (imgCount > 0 ? imgCount : (p.category === 'photos' || p.type === 'photos' ? 1 : 0));
+            }, 0);
+
+            const displayMembers = Math.max(Number(group.memberCount) || 0, 1);
+            const displayEvents = groupEventsList.length > 0 ? groupEventsList.length : (Number(group.eventsCount) || 0);
+            const displayPhotos = groupPhotosCount > 0 
+              ? groupPhotosCount 
+              : (Number(group.galleryCount) || Number(group.postsCount) || (groupPostsList.length > 0 ? groupPostsList.length : 0));
 
             return (
               <motion.div
@@ -277,21 +304,21 @@ export const WorldGroupsList: React.FC<WorldGroupsListProps> = ({
                   <div className="grid grid-cols-3 gap-1 mb-3 text-center">
                     <div className="p-1.5 rounded-xl bg-slate-50 dark:bg-slate-700/40">
                       <div className="text-xs font-black text-slate-800 dark:text-white">
-                        {group.memberCount || 0}
+                        {displayMembers}
                       </div>
                       <div className="text-[9px] text-slate-400 font-bold">عضو</div>
                     </div>
                     <div className="p-1.5 rounded-xl bg-slate-50 dark:bg-slate-700/40">
                       <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">
-                        {group.eventsCount || 0}
+                        {displayEvents}
                       </div>
                       <div className="text-[9px] text-slate-400 font-bold">فعالية</div>
                     </div>
                     <div className="p-1.5 rounded-xl bg-slate-50 dark:bg-slate-700/40">
                       <div className="text-xs font-black text-amber-500">
-                        {group.galleryCount || 0}
+                        {displayPhotos}
                       </div>
-                      <div className="text-[9px] text-slate-400 font-bold">صورة</div>
+                      <div className="text-[9px] text-slate-400 font-bold">صورة ومشاركة</div>
                     </div>
                   </div>
 

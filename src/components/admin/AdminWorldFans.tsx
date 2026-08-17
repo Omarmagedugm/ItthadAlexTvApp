@@ -34,6 +34,153 @@ import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
 import ImageUploader from '../ImageUploader';
 
+// Quick Presets for Gulf and World Countries
+const COUNTRY_PRESETS: Partial<WorldCountry>[] = [
+  {
+    id: 'bh',
+    code: 'BH',
+    name: 'مملكة البحرين',
+    nameAr: 'مملكة البحرين',
+    nameEn: 'Kingdom of Bahrain',
+    flag: '🇧🇭',
+    region: 'gulf',
+    fanCount: 210,
+    cities: ['المنامة', 'المحرق', 'الرفاع', 'مدينة عيسى', 'سند'],
+    description: 'رابطة مشجعي سيد البلد في مملكة البحرين، لقاءات وتجمعات دائمة لمؤازرة زعيم الثغر.',
+    active: true,
+  },
+  {
+    id: 'sa',
+    code: 'SA',
+    name: 'المملكة العربية السعودية',
+    nameAr: 'المملكة العربية السعودية',
+    nameEn: 'Saudi Arabia',
+    flag: '🇸🇦',
+    region: 'gulf',
+    fanCount: 980,
+    cities: ['الرياض', 'جدة', 'الدمام', 'الخبر', 'مكة المكرمة', 'المدينة المنورة'],
+    description: 'رابطة مشجعي الاتحاد السكندري بالمملكة العربية السعودية في الرياض والمنطقة الشرقية والغربية.',
+    active: true,
+  },
+  {
+    id: 'ae',
+    code: 'AE',
+    name: 'الإمارات العربية المتحدة',
+    nameAr: 'الإمارات العربية المتحدة',
+    nameEn: 'United Arab Emirates',
+    flag: '🇦🇪',
+    region: 'gulf',
+    fanCount: 1240,
+    cities: ['دبي', 'أبوظبي', 'الشارقة', 'عجمان', 'رأس الخيمة', 'الفجيرة'],
+    description: 'تجمع جماهير زعيم الثغر في كافة إمارات الدولة، وحضور المباريات والمناسبات الرياضية.',
+    active: true,
+  },
+  {
+    id: 'kw',
+    code: 'KW',
+    name: 'الكويت',
+    nameAr: 'الكويت',
+    nameEn: 'Kuwait',
+    flag: '🇰🇼',
+    region: 'gulf',
+    fanCount: 620,
+    cities: ['الكويت العاصمة', 'حولي', 'السالمية', 'الفروانية', 'الأحمدي'],
+    description: 'من أقدم روابط الاتحاداوية بالخليج العربي وأكثرها نشاطاً وتفاعلاً في التجمعات والبطولات.',
+    active: true,
+  },
+  {
+    id: 'qa',
+    code: 'QA',
+    name: 'قطر',
+    nameAr: 'قطر',
+    nameEn: 'Qatar',
+    flag: '🇶🇦',
+    region: 'gulf',
+    fanCount: 295,
+    cities: ['الدوحة', 'الريان', 'الوكرة', 'الخور'],
+    description: 'رابطة مشجعي الاتحاد السكندري في الدوحة والملاعب القطرية.',
+    active: true,
+  },
+  {
+    id: 'om',
+    code: 'OM',
+    name: 'سلطنة عُمان',
+    nameAr: 'سلطنة عُمان',
+    nameEn: 'Oman',
+    flag: '🇴🇲',
+    region: 'gulf',
+    fanCount: 190,
+    cities: ['مسقط', 'صلالة', 'صحار', 'نزوى'],
+    description: 'أبناء زعيم الثغر في مسقط وعمان المحبة والوفاء.',
+    active: true,
+  },
+  {
+    id: 'eg',
+    code: 'EG',
+    name: 'مصر',
+    nameAr: 'جمهورية مصر العربية',
+    nameEn: 'Egypt',
+    flag: '🇪🇬',
+    region: 'other',
+    fanCount: 5000,
+    cities: ['الإسكندرية', 'القاهرة', 'الجيزة'],
+    description: 'المقر الرئيسي وقلب نادي الاتحاد السكندري النابض.',
+    active: true,
+  },
+  {
+    id: 'gb',
+    code: 'GB',
+    name: 'المملكة المتحدة',
+    nameAr: 'المملكة المتحدة',
+    nameEn: 'United Kingdom',
+    flag: '🇬🇧',
+    region: 'europe',
+    fanCount: 410,
+    cities: ['لندن', 'مانشستر', 'برمنجهام', 'ليفربول'],
+    description: 'رابطة مشجعي سيد البلد في بريطانيا وعاصمة الضباب لندن.',
+    active: true,
+  },
+  {
+    id: 'us',
+    code: 'US',
+    name: 'الولايات المتحدة الأمريكية',
+    nameAr: 'الولايات المتحدة الأمريكية',
+    nameEn: 'United States',
+    flag: '🇺🇸',
+    region: 'north_america',
+    fanCount: 350,
+    cities: ['نيويورك', 'نيوجيرسي', 'كاليفورنيا', 'فلوريدا'],
+    description: 'اتحاداوية أمريكا الشمالية تجمعهم المحبة الخضراء والشغف بالثغر السكندري.',
+    active: true,
+  },
+  {
+    id: 'eu',
+    code: 'EU',
+    name: 'الاتحاد الأوروبي',
+    nameAr: 'الاتحاد الأوروبي',
+    nameEn: 'European Union',
+    flag: '🇪🇺',
+    region: 'europe',
+    fanCount: 480,
+    cities: ['فرانكفورت', 'باريس', 'برلين', 'روما'],
+    description: 'ملتقى جماهير الاتحاد السكندري وعشاق الأخضر في دول ومدن الاتحاد الأوروبي.',
+    active: true,
+  },
+  {
+    id: 'east_asia',
+    code: 'EA',
+    name: 'شرق آسيا',
+    nameAr: 'شرق آسيا',
+    nameEn: 'East Asia',
+    flag: '🌏',
+    region: 'asia',
+    fanCount: 220,
+    cities: ['طوكيو', 'بكين', 'سيول', 'كوالالمبور'],
+    description: 'تجمع ورابطة محبي زعيم الثغر في دول وعواصم شرق وجنوب شرق آسيا.',
+    active: true,
+  },
+];
+
 export const AdminWorldFans: React.FC = () => {
   const { 
     worldGroups, 
@@ -473,6 +620,32 @@ export const AdminWorldFans: React.FC = () => {
     }
   };
 
+  // Sync / Seed All GCC and Default World Countries
+  const handleSyncAllDefaultCountries = async () => {
+    try {
+      for (const country of defaultWorldCountries) {
+        const cleaned = cleanFirestoreData(country);
+        await setDoc(doc(db, 'world_countries', country.id), cleaned, { merge: true });
+      }
+
+      const merged = [...worldCountries];
+      defaultWorldCountries.forEach(dc => {
+        const idx = merged.findIndex(m => m.id === dc.id);
+        if (idx >= 0) {
+          merged[idx] = { ...merged[idx], ...dc };
+        } else {
+          merged.push(dc);
+        }
+      });
+      merged.sort((a, b) => (a.order || 99) - (b.order || 99));
+      setWorldCountries(merged);
+      toast.success('تمت إضافة ومزامنة جميع دول الخليج (البحرين، السعودية، الإمارات، الكويت، قطر، عمان) وباقي الدول بنجاح! 🇧🇭 🇸🇦 🇦🇪 🇰🇼 🇶🇦 🇴🇲');
+    } catch (e: any) {
+      console.warn('Sync error:', e);
+      toast.error('حدث خطأ أثناء مزامنة الدول');
+    }
+  };
+
   // Delete Country
   const handleDeleteCountry = async (countryId: string) => {
     if (!window.confirm('هل أنت متأكد من حذف هذه الدولة؟')) return;
@@ -762,19 +935,37 @@ export const AdminWorldFans: React.FC = () => {
       {/* 3. COUNTRIES TAB */}
       {activeSubTab === 'countries' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-black text-slate-800 dark:text-white">قائمة الدول والمناطق المسجلة</h3>
-            <button
-              onClick={() => {
-                setEditingCountry(null);
-                setCountryForm({ region: 'gulf', fanCount: 100, active: true });
-                setIsCountryModalOpen(true);
-              }}
-              className="px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md flex items-center gap-1.5 active:scale-95"
-            >
-              <Plus size={15} />
-              <span>إضافة دولة</span>
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-black text-slate-800 dark:text-white">قائمة الدول والمناطق المسجلة</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                دول الخليج العربي (البحرين، السعودية، الإمارات، الكويت، قطر، عمان) والروابط الدولية
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSyncAllDefaultCountries}
+                className="px-3 py-2 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs font-black flex items-center gap-1.5 active:scale-95 transition-all shadow-sm"
+                title="إضافة وتحديث جميع دول الخليج (البحرين، السعودية، الإمارات، الكويت، قطر، عمان) وباقي الدول"
+              >
+                <RefreshCw size={13} />
+                <span>مزامنة دول الخليج 🇧🇭 🇸🇦 🇦🇪</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setEditingCountry(null);
+                  setCountryForm({ region: 'gulf', fanCount: 100, active: true });
+                  setIsCountryModalOpen(true);
+                }}
+                className="px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md flex items-center gap-1.5 active:scale-95"
+              >
+                <Plus size={15} />
+                <span>إضافة دولة</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -1437,6 +1628,38 @@ export const AdminWorldFans: React.FC = () => {
             {/* Form */}
             <form onSubmit={handleSaveCountry} className="flex-1 flex flex-col overflow-hidden">
               <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
+                {/* Quick Presets for Gulf and World Countries */}
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                  <label className="block font-black text-slate-700 dark:text-slate-300 text-xs">
+                    💡 اختيار سريع من دول الخليج والنماذج الجاهزة:
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                    {COUNTRY_PRESETS.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => {
+                          setCountryForm({
+                            ...countryForm,
+                            code: preset.code,
+                            name: preset.name,
+                            nameAr: preset.nameAr,
+                            nameEn: preset.nameEn,
+                            flag: preset.flag,
+                            region: preset.region,
+                            fanCount: preset.fanCount,
+                            description: preset.description,
+                          });
+                        }}
+                        className="px-2.5 py-1 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-1.5 transition-all shadow-2xs"
+                      >
+                        <span>{preset.flag}</span>
+                        <span>{preset.nameAr}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 text-xs">اسم الدولة (بالعربية) *</label>

@@ -83,7 +83,7 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
         groupCity: selectedGroup ? selectedGroup.city : 'العالم',
         groupVerified: selectedGroup ? selectedGroup.verified : false,
         countryName: selectedGroup ? selectedGroup.countryName : (profile.location || 'مغترب'),
-        countryCode: selectedGroup ? selectedGroup.countryFlag : '🌍',
+        countryCode: selectedGroup ? (selectedGroup.countryId || selectedGroup.countryFlag) : (profile.location || 'eg'),
         authorId: currentUser?.uid || 'guest',
         authorName: profile.name || currentUser?.displayName || 'عاشق الاتحاد السكندري',
         authorAvatar: profile.avatar || currentUser?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80',
@@ -187,11 +187,22 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
   const handleAddComment = async (postId: string) => {
     if (!commentText.trim()) return;
 
+    const targetPost = worldPosts.find(p => p.id === postId) || posts.find(p => p.id === postId);
+    const postGroup = groups.find(g => g.id === (targetPost?.groupId || selectedGroupId));
+
+    const userCountryCode = postGroup?.countryId || targetPost?.countryCode || (profile as any)?.countryCode || profile.location || 'eg';
+    const userCountryFlag = postGroup?.countryFlag || targetPost?.groupFlag || '🌍';
+    const userCountryName = postGroup?.countryName || targetPost?.countryName || profile.location || '';
+
     const newComment = {
       id: uuidv4(),
       userId: currentUser?.uid || 'guest',
       userName: profile.name || currentUser?.displayName || 'اتحداوي',
       userAvatar: profile.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80',
+      countryCode: userCountryCode,
+      countryFlag: userCountryFlag,
+      countryName: userCountryName,
+      groupName: postGroup?.name || targetPost?.groupName || '',
       content: commentText.trim(),
       text: commentText.trim(),
       createdAt: new Date().toISOString(),
@@ -390,6 +401,10 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
             const isLiked = post.likedBy?.includes(currentUser?.uid || 'guest_user');
             const showComments = activeCommentPostId === post.id;
             const canManage = isAdmin || (currentUser?.uid && post.authorId === currentUser.uid);
+            const postGroup = groups.find(g => g.id === post.groupId);
+            const postCountryCode = postGroup?.countryId || post.countryCode || post.groupFlag;
+            const postCountryFlag = postGroup?.countryFlag || post.groupFlag;
+            const postCountryName = postGroup?.countryName || post.countryName || postGroup?.name || post.groupName;
 
             return (
               <motion.div
@@ -421,14 +436,14 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
                           {post.authorName}
                         </h4>
                         <CountryFlag
-                          countryCode={post.groupId || post.countryCode}
-                          flag={post.groupFlag || post.countryCode}
-                          countryName={post.countryName || post.groupName}
+                          countryCode={postCountryCode}
+                          flag={postCountryFlag}
+                          countryName={postCountryName}
                           size="xs"
                         />
                       </div>
                       <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
-                        <span>{post.groupName || post.countryName}</span>
+                        <span>{post.groupName || postGroup?.name || post.countryName}</span>
                         <span>•</span>
                         <span>{new Date(post.createdAt).toLocaleDateString('ar-EG')}</span>
                       </div>
@@ -542,12 +557,24 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
                       <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                         {post.comments.map((comment) => {
                           const canDeleteComment = isAdmin || (currentUser?.uid && comment.userId === currentUser.uid);
+                          const commentCountryCode = comment.countryCode || postCountryCode;
+                          const commentCountryFlag = comment.countryFlag || postCountryFlag;
+                          const commentCountryName = comment.countryName || comment.groupName || postCountryName;
 
                           return (
                             <div key={comment.id} className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 text-xs flex items-start justify-between gap-2">
                               <div className="flex-1">
                                 <div className="flex items-center justify-between mb-1">
-                                  <span className="font-bold text-slate-800 dark:text-white">{comment.userName}</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-slate-800 dark:text-white">{comment.userName}</span>
+                                    <CountryFlag
+                                      countryCode={commentCountryCode}
+                                      flag={commentCountryFlag}
+                                      countryName={commentCountryName}
+                                      size="xs"
+                                      shape="circle"
+                                    />
+                                  </div>
                                   <span className="text-[9px] text-slate-400">{new Date(comment.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
                                 </div>
                                 <p className="text-slate-600 dark:text-slate-300 font-medium leading-relaxed">{comment.content || comment.text}</p>

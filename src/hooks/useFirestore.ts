@@ -189,12 +189,25 @@ export function useFirestoreSync() {
           });
         }
 
-        // Use real Firestore data only, sorted by order
+        // Use Firestore data merged with defaultWorldCountries to ensure Bahrain and all GCC countries are always present
         const validCountries = rawData
-          .filter(c => c.id !== 'de' && c.id !== 'germany' && c.code !== 'DE' && c.name !== 'ألمانيا' && c.nameAr !== 'ألمانيا')
-          .sort((a, b) => (a.order || 99) - (b.order || 99));
+          .filter(c => c.id !== 'de' && c.id !== 'germany' && c.code !== 'DE' && c.name !== 'ألمانيا' && c.nameAr !== 'ألمانيا');
 
-        setWorldCountries(validCountries);
+        if (validCountries.length === 0) {
+          setWorldCountries(defaultWorldCountries);
+        } else {
+          const merged = [...defaultWorldCountries];
+          validCountries.forEach(vc => {
+            const idx = merged.findIndex(m => m.id === vc.id);
+            if (idx >= 0) {
+              merged[idx] = { ...merged[idx], ...vc };
+            } else {
+              merged.push(vc);
+            }
+          });
+          merged.sort((a, b) => (a.order || 99) - (b.order || 99));
+          setWorldCountries(merged);
+        }
       }, 'world_countries'));
 
       unsubs.push(subscribeSnapshot(collection(db, 'world_groups'), s => {

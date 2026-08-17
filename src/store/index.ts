@@ -864,7 +864,7 @@ export const useAppStore = create<AppState>()(
       businesses: [],
       businessUpdates: [],
       businessReports: [],
-      worldCountries: [],
+      worldCountries: defaultWorldCountries,
       worldGroups: [],
       worldPosts: [],
       worldEvents: [],

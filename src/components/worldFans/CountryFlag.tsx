@@ -29,63 +29,81 @@ export function emojiToCountryCode(emoji: string): string | null {
  */
 export function resolveCountryCode(countryIdOrFlagOrName?: string): string {
   if (!countryIdOrFlagOrName) return 'eg';
-  const str = countryIdOrFlagOrName.trim().toLowerCase();
+  const raw = countryIdOrFlagOrName.trim();
+  const str = raw.toLowerCase();
 
   // Try extracting from emoji flag directly
-  const extracted = emojiToCountryCode(countryIdOrFlagOrName);
+  const extracted = emojiToCountryCode(raw);
   if (extracted) return extracted;
 
-  // Direct 2-letter code
+  // Direct 2-letter code if matching standard ISO
   if (str.length === 2 && /^[a-z]{2}$/.test(str)) {
     return str;
   }
 
-  // Common country IDs and name aliases
-  const aliases: Record<string, string> = {
+  // Exact aliases dictionary
+  const exactAliases: Record<string, string> = {
     ae: 'ae',
     uae: 'ae',
     'الإمارات': 'ae',
     'الإمارات العربية المتحدة': 'ae',
     'دولة الإمارات': 'ae',
+    'دولة الامارات': 'ae',
+    'الامارات': 'ae',
+    'دبي': 'ae',
+    'أبوظبي': 'ae',
+    'ابوظبي': 'ae',
+    'الشارقة': 'ae',
     sa: 'sa',
     ksa: 'sa',
     'السعودية': 'sa',
     'المملكة العربية السعودية': 'sa',
     'السعوديه': 'sa',
+    'الرياض': 'sa',
+    'جدة': 'sa',
+    'الدمام': 'sa',
     kw: 'kw',
     kuwait: 'kw',
     'الكويت': 'kw',
     'دولة الكويت': 'kw',
+    'مدينة الكويت': 'kw',
     qa: 'qa',
     qatar: 'qa',
     'قطر': 'qa',
     'دولة قطر': 'qa',
+    'الدوحة': 'qa',
     om: 'om',
     oman: 'om',
     'عمان': 'om',
     'عُمان': 'om',
     'سلطنة عمان': 'om',
     'سلطنة عُمان': 'om',
+    'مسقط': 'om',
     bh: 'bh',
     bahrain: 'bh',
     'البحرين': 'bh',
     'مملكة البحرين': 'bh',
+    'المنامة': 'bh',
     eg: 'eg',
     egypt: 'eg',
     'مصر': 'eg',
     'جمهورية مصر العربية': 'eg',
+    'الإسكندرية': 'eg',
+    'القاهرة': 'eg',
     gb: 'gb',
     uk: 'gb',
     'المملكة المتحدة': 'gb',
     'بريطانيا': 'gb',
     'إنجلترا': 'gb',
     'انجلترا': 'gb',
+    'لندن': 'gb',
     us: 'us',
     usa: 'us',
     'أمريكا': 'us',
     'امريكا': 'us',
     'الولايات المتحدة': 'us',
     'الولايات المتحدة الأمريكية': 'us',
+    'نيويورك': 'us',
     eu: 'eu',
     europe: 'eu',
     'الاتحاد الأوروبي': 'eu',
@@ -95,58 +113,77 @@ export function resolveCountryCode(countryIdOrFlagOrName?: string): string {
     germany: 'de',
     'ألمانيا': 'de',
     'المانيا': 'de',
+    'برلين': 'de',
+    'فرانكفورت': 'de',
     fr: 'fr',
     france: 'fr',
     'فرنسا': 'fr',
+    'باريس': 'fr',
     it: 'it',
     italy: 'it',
     'إيطاليا': 'it',
     'ايطاليا': 'it',
+    'روما': 'it',
     es: 'es',
     spain: 'es',
     'إسبانيا': 'es',
     'اسبانيا': 'es',
+    'مدريد': 'es',
+    'برشلونة': 'es',
     nl: 'nl',
     netherlands: 'nl',
     'هولندا': 'nl',
+    'أمستردام': 'nl',
     tr: 'tr',
     turkey: 'tr',
     'تركيا': 'tr',
+    'إسطنبول': 'tr',
     ca: 'ca',
     canada: 'ca',
     'كندا': 'ca',
+    'تورونتو': 'ca',
     au: 'au',
     australia: 'au',
     'أستراليا': 'au',
     'استراليا': 'au',
+    'سيدني': 'au',
     ea: 'un',
     east_asia: 'un',
+    'east asia': 'un',
     asia: 'un',
     'شرق آسيا': 'un',
+    'شرق اسيا': 'un',
     'آسيا': 'un',
     'اسيا': 'un',
     jo: 'jo',
     jordan: 'jo',
     'الأردن': 'jo',
     'الاردن': 'jo',
+    'عمان الأردن': 'jo',
     lb: 'lb',
     lebanon: 'lb',
     'لبنان': 'lb',
+    'بيروت': 'lb',
     sy: 'sy',
     syria: 'sy',
     'سوريا': 'sy',
+    'دمشق': 'sy',
     iq: 'iq',
     iraq: 'iq',
     'العراق': 'iq',
+    'بغداد': 'iq',
     ye: 'ye',
     yemen: 'ye',
     'اليمن': 'ye',
+    'صنعاء': 'ye',
     sd: 'sd',
     sudan: 'sd',
     'السودان': 'sd',
+    'الخرطوم': 'sd',
     ly: 'ly',
     libya: 'ly',
     'ليبيا': 'ly',
+    'طرابلس': 'ly',
     tn: 'tn',
     tunisia: 'tn',
     'تونس': 'tn',
@@ -156,15 +193,92 @@ export function resolveCountryCode(countryIdOrFlagOrName?: string): string {
     ma: 'ma',
     morocco: 'ma',
     'المغرب': 'ma',
+    'الرباط': 'ma',
+    'الدار البيضاء': 'ma',
+    se: 'se',
+    sweden: 'se',
+    'السويد': 'se',
     world: 'un',
     global: 'un',
   };
 
-  if (aliases[str]) return aliases[str];
+  // 1. Direct match
+  if (exactAliases[str]) return exactAliases[str];
 
-  // If starts with 'group_' or contains code
-  for (const [key, val] of Object.entries(aliases)) {
-    if (str.includes(key)) return val;
+  // 2. Check if string contains clean prefix/suffix tokens like 'group_sa', 'world_kw', 'ae-dubai'
+  const tokens = str.split(/[_/\\-\s,.:;]+/);
+  for (const token of tokens) {
+    if (exactAliases[token]) {
+      return exactAliases[token];
+    }
+  }
+
+  // 3. Check for specific Arabic or English multi-character country keywords
+  const multiCharKeywords: Array<[string, string]> = [
+    ['الإمارات', 'ae'],
+    ['الامارات', 'ae'],
+    ['السعودية', 'sa'],
+    ['السعوديه', 'sa'],
+    ['الكويت', 'kw'],
+    ['قطر', 'qa'],
+    ['سلطنة عمان', 'om'],
+    ['عُمان', 'om'],
+    ['عمان', 'om'],
+    ['البحرين', 'bh'],
+    ['مصر', 'eg'],
+    ['المملكة المتحدة', 'gb'],
+    ['بريطانيا', 'gb'],
+    ['إنجلترا', 'gb'],
+    ['انجلترا', 'gb'],
+    ['أمريكا', 'us'],
+    ['امريكا', 'us'],
+    ['الولايات المتحدة', 'us'],
+    ['ألمانيا', 'de'],
+    ['المانيا', 'de'],
+    ['فرنسا', 'fr'],
+    ['إيطاليا', 'it'],
+    ['ايطاليا', 'it'],
+    ['إسبانيا', 'es'],
+    ['اسبانيا', 'es'],
+    ['هولندا', 'nl'],
+    ['تركيا', 'tr'],
+    ['كندا', 'ca'],
+    ['أستراليا', 'au'],
+    ['استراليا', 'au'],
+    ['الأردن', 'jo'],
+    ['الاردن', 'jo'],
+    ['لبنان', 'lb'],
+    ['سوريا', 'sy'],
+    ['العراق', 'iq'],
+    ['السودان', 'sd'],
+    ['ليبيا', 'ly'],
+    ['تونس', 'tn'],
+    ['الجزائر', 'dz'],
+    ['المغرب', 'ma'],
+    ['السويد', 'se'],
+    ['qatar', 'qa'],
+    ['kuwait', 'kw'],
+    ['saudi', 'sa'],
+    ['emirates', 'ae'],
+    ['bahrain', 'bh'],
+    ['egypt', 'eg'],
+    ['england', 'gb'],
+    ['britain', 'gb'],
+    ['germany', 'de'],
+    ['france', 'fr'],
+    ['italy', 'it'],
+    ['spain', 'es'],
+    ['netherlands', 'nl'],
+    ['turkey', 'tr'],
+    ['canada', 'ca'],
+    ['australia', 'au'],
+    ['sweden', 'se'],
+  ];
+
+  for (const [kw, code] of multiCharKeywords) {
+    if (str.includes(kw)) {
+      return code;
+    }
   }
 
   return 'un';
