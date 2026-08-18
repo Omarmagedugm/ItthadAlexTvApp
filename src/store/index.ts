@@ -106,7 +106,7 @@ export interface MediaItem {
   videoUrl?: string;
   date: string;
   duration?: string;
-  views?: string;
+  views?: string | number;
   likes?: string[];
   playlistId?: string;
   isFeatured?: boolean;

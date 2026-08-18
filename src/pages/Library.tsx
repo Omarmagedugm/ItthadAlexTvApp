@@ -39,7 +39,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { useAppStore } from '../store';
-import { collection, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { getOptimizedImage } from '../lib/cloudinary';
 import { DEFAULT_MEDIA_ITEMS, DEFAULT_MEDIA_PLAYLISTS } from '../data/defaultMediaData';
@@ -75,6 +75,13 @@ const getLikesCount = (likes: any) => {
   if (Array.isArray(likes)) return likes.length;
   if (typeof likes === 'number') return likes;
   return 0;
+};
+
+const getViewsCount = (views: any): number => {
+  if (views === undefined || views === null) return 0;
+  if (typeof views === 'number') return views;
+  const num = parseInt(views, 10);
+  return isNaN(num) ? 0 : num;
 };
 
 export default function Library() {
@@ -186,6 +193,28 @@ export default function Library() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleOpenVideo = (videoItem: any) => {
+    setSelectedVideo(videoItem);
+    if (videoItem?.id && typeof videoItem.id === 'string' && !videoItem.id.startsWith('media_video_')) {
+      try {
+        updateDoc(doc(db, 'media', videoItem.id), {
+          views: increment(1)
+        }).catch(() => {});
+      } catch (e) {}
+    }
+  };
+
+  const handleOpenPhoto = (photoItem: any) => {
+    setSelectedPhoto(photoItem);
+    if (photoItem?.id && typeof photoItem.id === 'string' && !photoItem.id.startsWith('media_photo_')) {
+      try {
+        updateDoc(doc(db, 'media', photoItem.id), {
+          views: increment(1)
+        }).catch(() => {});
+      } catch (e) {}
+    }
   };
 
   const handleLikeMedia = async (e: React.MouseEvent, item: any) => {
@@ -638,7 +667,7 @@ export default function Library() {
                     <motion.div 
                       key={item.id}
                       whileHover={{ y: -4 }}
-                      onClick={() => setSelectedPhoto(item)}
+                      onClick={() => handleOpenPhoto(item)}
                       className="group relative h-64 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all cursor-pointer bg-slate-900 border border-border-light dark:border-border-dark"
                     >
                       <img 
@@ -723,7 +752,7 @@ export default function Library() {
                 {/* Featured Video Card */}
                 {featuredVideo && (
                   <div 
-                    onClick={() => setSelectedVideo(featuredVideo)}
+                    onClick={() => handleOpenVideo(featuredVideo)}
                     className="relative w-full aspect-[16/9] md:aspect-[21/9] max-h-[420px] rounded-3xl overflow-hidden group shadow-2xl border border-white/10 cursor-pointer bg-slate-900"
                   >
                     <img 
@@ -762,10 +791,10 @@ export default function Library() {
                             {safeFormatDate(featuredVideo.date)}
                           </div>
                         )}
-                        {featuredVideo.views && (
+                        {getViewsCount(featuredVideo.views) > 0 && (
                           <div className="flex items-center gap-1.5 px-2.5 py-0.5 bg-white/10 rounded-full">
                             <Eye size={12} />
-                            {featuredVideo.views} مشاهدة
+                            {getViewsCount(featuredVideo.views)} مشاهدة
                           </div>
                         )}
                       </div>
@@ -840,13 +869,13 @@ export default function Library() {
                     <motion.div 
                       key={item.id}
                       whileHover={{ y: -5 }}
-                      onClick={() => setSelectedVideo(item)}
+                      onClick={() => handleOpenVideo(item)}
                       className="group bg-white dark:bg-card-dark rounded-3xl overflow-hidden border border-border-light dark:border-border-dark shadow-sm hover:shadow-xl transition-all cursor-pointer flex flex-col"
                     >
                       <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
                         <img 
                           src={getOptimizedImage(item.thumbnailUrl, 600) || item.thumbnailUrl} 
-                          alt={item.title}
+                          alt={item.title} 
                           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
                           referrerPolicy="no-referrer" 
                         />
@@ -880,9 +909,9 @@ export default function Library() {
                         <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100 dark:border-border-dark text-[11px] font-bold text-slate-400">
                           <span>{safeFormatDate(item.date)}</span>
                           <div className="flex items-center gap-3">
-                            {item.views && (
+                            {getViewsCount(item.views) > 0 && (
                               <span className="flex items-center gap-1">
-                                <Eye size={12} /> {item.views}
+                                <Eye size={12} /> {getViewsCount(item.views)}
                               </span>
                             )}
                             <button 
@@ -1245,7 +1274,7 @@ export default function Library() {
                   <h2 className="text-lg md:text-xl font-black leading-tight">{selectedVideo.title}</h2>
                   <div className="flex items-center gap-3 text-xs text-slate-400 font-bold mt-1">
                     {selectedVideo.date && <span>{safeFormatDate(selectedVideo.date)}</span>}
-                    {selectedVideo.views && <span>{selectedVideo.views} مشاهدة</span>}
+                    {getViewsCount(selectedVideo.views) > 0 && <span>{getViewsCount(selectedVideo.views)} مشاهدة</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

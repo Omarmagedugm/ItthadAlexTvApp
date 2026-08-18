@@ -52,7 +52,7 @@ export const DEFAULT_MEDIA_ITEMS: MediaItem[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=800&auto=format&fit=crop',
     playlistId: 'pl_fans',
     date: new Date(Date.now() - 2 * 86400000).toISOString(),
-    views: '12.4K',
+    views: 0,
     likes: [],
     isFeatured: true
   },
@@ -64,7 +64,7 @@ export const DEFAULT_MEDIA_ITEMS: MediaItem[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=800&auto=format&fit=crop',
     playlistId: 'pl_basket',
     date: new Date(Date.now() - 4 * 86400000).toISOString(),
-    views: '18.9K',
+    views: 0,
     likes: [],
     isFeatured: true
   },
@@ -76,7 +76,7 @@ export const DEFAULT_MEDIA_ITEMS: MediaItem[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=800&auto=format&fit=crop',
     playlistId: 'pl_matches',
     date: new Date(Date.now() - 5 * 86400000).toISOString(),
-    views: '9.8K',
+    views: 0,
     likes: []
   },
   {
@@ -87,7 +87,7 @@ export const DEFAULT_MEDIA_ITEMS: MediaItem[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=800&auto=format&fit=crop',
     playlistId: 'pl_matches',
     date: new Date(Date.now() - 7 * 86400000).toISOString(),
-    views: '7.2K',
+    views: 0,
     likes: []
   },
   {
@@ -98,7 +98,7 @@ export const DEFAULT_MEDIA_ITEMS: MediaItem[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?q=80&w=800&auto=format&fit=crop',
     playlistId: 'pl_fans',
     date: new Date(Date.now() - 9 * 86400000).toISOString(),
-    views: '15.1K',
+    views: 0,
     likes: []
   },
   {
@@ -109,7 +109,7 @@ export const DEFAULT_MEDIA_ITEMS: MediaItem[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=800&auto=format&fit=crop',
     playlistId: 'pl_history',
     date: new Date(Date.now() - 12 * 86400000).toISOString(),
-    views: '22.3K',
+    views: 0,
     likes: []
   },
   {
@@ -120,7 +120,7 @@ export const DEFAULT_MEDIA_ITEMS: MediaItem[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?q=80&w=800&auto=format&fit=crop',
     playlistId: 'pl_matches',
     date: new Date(Date.now() - 15 * 86400000).toISOString(),
-    views: '6.4K',
+    views: 0,
     likes: []
   },
   {
@@ -131,7 +131,7 @@ export const DEFAULT_MEDIA_ITEMS: MediaItem[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?q=80&w=800&auto=format&fit=crop',
     playlistId: 'pl_history',
     date: new Date(Date.now() - 18 * 86400000).toISOString(),
-    views: '11.5K',
+    views: 0,
     likes: []
   },
   {
@@ -142,7 +142,7 @@ export const DEFAULT_MEDIA_ITEMS: MediaItem[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1517649763962-0c6232662000?q=80&w=800&auto=format&fit=crop',
     playlistId: 'pl_matches',
     date: new Date(Date.now() - 20 * 86400000).toISOString(),
-    views: '5.9K',
+    views: 0,
     likes: []
   },
   {
@@ -153,7 +153,7 @@ export const DEFAULT_MEDIA_ITEMS: MediaItem[] = [
     thumbnailUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=800&auto=format&fit=crop',
     playlistId: 'pl_fans',
     date: new Date(Date.now() - 22 * 86400000).toISOString(),
-    views: '19.4K',
+    views: 0,
     likes: []
   },
   // Videos
@@ -166,7 +166,7 @@ export const DEFAULT_MEDIA_ITEMS: MediaItem[] = [
     playlistId: 'pl_videos_highlights',
     date: new Date(Date.now() - 1 * 86400000).toISOString(),
     duration: '06:45',
-    views: '150K',
+    views: 0,
     isFeatured: true
   },
   {
@@ -178,6 +178,6 @@ export const DEFAULT_MEDIA_ITEMS: MediaItem[] = [
     playlistId: 'pl_videos_highlights',
     date: new Date(Date.now() - 6 * 86400000).toISOString(),
     duration: '12:30',
-    views: '84K'
+    views: 0
   }
 ];

@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Globe, MapPin, Users, ChevronLeft, Sparkles, Filter } from 'lucide-react';
 import { WorldCountry } from '../../types/worldFans';
 import { CountryFlag } from './CountryFlag';
+import { useAppStore } from '../../store';
 
 interface WorldCountryMapGridProps {
   countries: WorldCountry[];
@@ -28,6 +29,7 @@ export const WorldCountryMapGrid: React.FC<WorldCountryMapGridProps> = ({
   selectedRegion,
   onSelectRegion,
 }) => {
+  const { worldGroups } = useAppStore();
   const activeCountries = countries.filter(c => c.active !== false);
 
   const filteredCountries = activeCountries.filter(c => {
@@ -91,6 +93,13 @@ export const WorldCountryMapGrid: React.FC<WorldCountryMapGridProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
         {filteredCountries.map((country) => {
           const isSelected = selectedCountryId === country.id;
+          const countryGroups = (worldGroups || []).filter(
+            g => (g.countryId === country.id || g.countryName === country.name || g.countryName === country.nameAr) && g.active !== false
+          );
+          const actualGroupsCount = countryGroups.length;
+          const countryMembers = countryGroups.reduce((acc, g) => acc + (Number(g.memberCount) || 0), 0);
+          const displayFans = countryMembers > 0 ? countryMembers : (Number(country.fanCount) || 0);
+
           return (
             <motion.div
               key={country.id}
@@ -125,7 +134,7 @@ export const WorldCountryMapGrid: React.FC<WorldCountryMapGridProps> = ({
                       : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
                   }`}
                 >
-                  {country.activeGroupsCount || 1} رابطة
+                  {actualGroupsCount > 0 ? `${actualGroupsCount} رابطة` : 'تجمع جماهيري'}
                 </span>
               </div>
 
@@ -145,7 +154,7 @@ export const WorldCountryMapGrid: React.FC<WorldCountryMapGridProps> = ({
                   الجمهور التقديري
                 </span>
                 <span className={`font-black ${isSelected ? 'text-amber-300' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                  {country.fanCount || 100}+
+                  {displayFans > 0 ? displayFans.toLocaleString('ar-EG') : '0'}
                 </span>
               </div>
             </motion.div>

@@ -6,7 +6,7 @@ import {
   Search, ShieldCheck, Dumbbell, Building2, HelpCircle, Calendar, 
   CheckCircle2, AlertCircle, ArrowLeft, X, ExternalLink, Sparkles, Filter, Info,
   Compass, Ticket, DollarSign, Palmtree, User, Waves, Target, Trophy, Activity,
-  CalendarDays, Clock3, Medal, Percent
+  CalendarDays, Clock3, Medal, Percent, Sun, BookOpen, UserCheck, Landmark, BadgeCheck
 } from 'lucide-react';
 import { useAppStore, ClubCommittee, ClubAnnouncement, ClubService, ClubTrip } from '../store';
 import { 
@@ -33,44 +33,62 @@ export default function ClubMembers() {
 
   const getServiceSportIcon = (title: string, category: string) => {
     const t = title.toLowerCase();
+    const c = category.toLowerCase();
+    if (t.includes('أحوال مدنية') || t.includes('سجل مدني') || t.includes('رقم قومي') || t.includes('شهادات')) {
+      return <Landmark size={20} className="text-indigo-500 shrink-0" />;
+    }
+    if (t.includes('فصل العضوية') || t.includes('عضوية') || c.includes('عضوية') || c.includes('اشتراكات')) {
+      return <UserCheck size={20} className="text-emerald-500 shrink-0" />;
+    }
+    if (t.includes('صيفية') || t.includes('صيفي') || t.includes('أكاديميات')) {
+      return <Sun size={20} className="text-amber-500 shrink-0" />;
+    }
+    if (t.includes('قرآن') || t.includes('تحفيظ')) {
+      return <BookOpen size={20} className="text-emerald-600 shrink-0" />;
+    }
     if (t.includes('جيم') || t.includes('gym') || t.includes('لياقة') || t.includes('صالة')) {
       return <Dumbbell size={20} className="text-amber-500 shrink-0" />;
     }
     if (t.includes('بادل') || t.includes('padel') || t.includes('راكت') || t.includes('مضرب')) {
       return <Target size={20} className="text-emerald-500 shrink-0" />;
     }
-    if (t.includes('سباحة') || t.includes('مسبح') || t.includes('pool') || t.includes('غطس')) {
+    if (t.includes('سباحة') || t.includes('مسبح') || t.includes('pool') || t.includes('غطس') || t.includes('مياه')) {
       return <Waves size={20} className="text-cyan-500 shrink-0" />;
     }
     if (t.includes('تنس') || t.includes('طاولة') || t.includes('tennis')) {
       return <Trophy size={20} className="text-purple-500 shrink-0" />;
     }
-    if (t.includes('قدم') || t.includes('ملعب') || t.includes('نشاط')) {
+    if (t.includes('قدم') || t.includes('سلة') || t.includes('طائرة') || t.includes('كاراتيه') || t.includes('جودو') || t.includes('ملعب') || t.includes('نشاط')) {
       return <Activity size={20} className="text-green-500 shrink-0" />;
     }
-    if (category.includes('حكومية') || t.includes('فيش') || t.includes('توثيق') || t.includes('شهر عقاري')) {
+    if (c.includes('حكومية') || t.includes('فيش') || t.includes('توثيق') || t.includes('شهر عقاري')) {
       return <FileText size={20} className="text-blue-500 shrink-0" />;
     }
     return <Building2 size={20} className="text-primary shrink-0" />;
   };
 
   const committeesList = useMemo(() => {
-    const list = clubCommittees && clubCommittees.length > 0 
-      ? clubCommittees.filter(c => c.status !== 'inactive')
-      : defaultCommittees;
+    const firestoreList = (clubCommittees && clubCommittees.length > 0) ? clubCommittees : [];
+    const mergedMap = new Map<string, ClubCommittee>();
+    defaultCommittees.forEach(c => mergedMap.set(c.id, c));
+    firestoreList.forEach(c => mergedMap.set(c.id, c));
+    const list = Array.from(mergedMap.values()).filter(c => c.status !== 'inactive');
     return list.sort((a, b) => (a.order || 0) - (b.order || 0));
   }, [clubCommittees]);
 
   const servicesList = useMemo(() => {
-    const list = clubServices && clubServices.length > 0 
-      ? clubServices.filter(s => s.active !== false)
-      : defaultServices;
+    const firestoreList = (clubServices && clubServices.length > 0) ? clubServices : [];
+    const mergedMap = new Map<string, ClubService>();
+    defaultServices.forEach(s => mergedMap.set(s.id, s));
+    firestoreList.forEach(s => mergedMap.set(s.id, s));
+    const list = Array.from(mergedMap.values()).filter(s => s.active !== false);
     
     return list.filter(service => {
       const matchQuery = !searchQuery || 
         service.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         service.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        service.category.toLowerCase().includes(searchQuery.toLowerCase());
+        service.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (service.requirements && service.requirements.toLowerCase().includes(searchQuery.toLowerCase()));
       
       const matchCat = selectedCategory === 'all' || service.category === selectedCategory;
 
@@ -79,9 +97,11 @@ export default function ClubMembers() {
   }, [clubServices, searchQuery, selectedCategory]);
 
   const announcementsList = useMemo(() => {
-    const list = clubAnnouncements && clubAnnouncements.length > 0 
-      ? clubAnnouncements.filter(a => a.active !== false)
-      : defaultAnnouncements;
+    const firestoreList = (clubAnnouncements && clubAnnouncements.length > 0) ? clubAnnouncements : [];
+    const mergedMap = new Map<string, ClubAnnouncement>();
+    defaultAnnouncements.forEach(a => mergedMap.set(a.id, a));
+    firestoreList.forEach(a => mergedMap.set(a.id, a));
+    const list = Array.from(mergedMap.values()).filter(a => a.active !== false);
 
     return list.filter(ann => {
       // Exclude trip announcements from the main announcements tab as requested ("شيل اعلانات الرحلات من قسم الاعلانات")
@@ -93,7 +113,8 @@ export default function ClubMembers() {
 
       const matchQuery = !searchQuery || 
         ann.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ann.content.toLowerCase().includes(searchQuery.toLowerCase());
+        ann.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (ann.category && ann.category.toLowerCase().includes(searchQuery.toLowerCase()));
       
       const matchPriority = selectedPriority === 'all' || ann.priority === selectedPriority;
 
@@ -106,9 +127,11 @@ export default function ClubMembers() {
   }, [clubAnnouncements, searchQuery, selectedPriority]);
 
   const tripsList = useMemo(() => {
-    const list = clubTrips && clubTrips.length > 0
-      ? clubTrips.filter(t => t.active !== false)
-      : defaultTrips;
+    const firestoreList = (clubTrips && clubTrips.length > 0) ? clubTrips : [];
+    const mergedMap = new Map<string, ClubTrip>();
+    defaultTrips.forEach(t => mergedMap.set(t.id, t));
+    firestoreList.forEach(t => mergedMap.set(t.id, t));
+    const list = Array.from(mergedMap.values()).filter(t => t.active !== false);
 
     return list.filter(trip => {
       const matchQuery = !searchQuery || 
@@ -122,8 +145,10 @@ export default function ClubMembers() {
 
   const serviceCategories = useMemo(() => {
     const categories = new Set<string>();
-    const source = clubServices && clubServices.length > 0 ? clubServices : defaultServices;
-    source.forEach(s => { if (s.category) categories.add(s.category); });
+    defaultServices.forEach(s => { if (s.category) categories.add(s.category); });
+    if (clubServices && clubServices.length > 0) {
+      clubServices.forEach(s => { if (s.category && s.active !== false) categories.add(s.category); });
+    }
     return Array.from(categories);
   }, [clubServices]);
 

@@ -42,7 +42,7 @@ import {
 } from '../lib/videoUtils';
 import AudioVisualizer from '../components/AudioVisualizer';
 import { db, auth } from '../lib/firebase';
-import { collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, doc, updateDoc, increment, arrayUnion, arrayRemove } from 'firebase/firestore';
 
 export default function Radio() {
   const { radioStations, profile } = useAppStore();
@@ -57,7 +57,7 @@ export default function Radio() {
   const [isMuted, setIsMuted] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [likesCount, setLikesCount] = useState(128);
+  const [likesCount, setLikesCount] = useState(0);
   const [hasLiked, setHasLiked] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -68,6 +68,20 @@ export default function Radio() {
   const heroPlayerRef = useRef<HTMLDivElement | null>(null);
   const ytIframeRef = useRef<HTMLIFrameElement | null>(null);
   const bgIframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  // Sync likes with currentStation
+  useEffect(() => {
+    if (currentStation) {
+      const likesList = Array.isArray((currentStation as any).likes) ? (currentStation as any).likes : [];
+      const uid = auth.currentUser?.uid;
+      setHasLiked(uid ? likesList.includes(uid) : false);
+      const count = likesList.length > 0 ? likesList.length : (Number((currentStation as any).likesCount) || 0);
+      setLikesCount(count);
+    } else {
+      setLikesCount(0);
+      setHasLiked(false);
+    }
+  }, [currentStation, auth.currentUser?.uid]);
 
   // Keep selected station in sync if stations update
   useEffect(() => {
@@ -173,14 +187,33 @@ export default function Radio() {
     }
   };
 
-  const handleLike = () => {
-    if (!hasLiked) {
-      setLikesCount(prev => prev + 1);
-      setHasLiked(true);
+  const handleLike = async () => {
+    if (!currentStation) return;
+    const uid = auth.currentUser?.uid;
+    const isNowLiked = !hasLiked;
+    setHasLiked(isNowLiked);
+    setLikesCount(prev => isNowLiked ? prev + 1 : Math.max(0, prev - 1));
+    
+    if (isNowLiked) {
       toast.success('شكراً لتفاعلك وحبك لزعيم الثغر 💚');
-    } else {
-      setLikesCount(prev => prev - 1);
-      setHasLiked(false);
+    }
+
+    if (currentStation.id && !currentStation.id.startsWith('default_')) {
+      try {
+        const stationRef = doc(db, 'radio_stations', currentStation.id);
+        if (uid) {
+          await updateDoc(stationRef, {
+            likes: isNowLiked ? arrayUnion(uid) : arrayRemove(uid),
+            likesCount: increment(isNowLiked ? 1 : -1)
+          });
+        } else {
+          await updateDoc(stationRef, {
+            likesCount: increment(isNowLiked ? 1 : -1)
+          });
+        }
+      } catch (err) {
+        console.error('Failed to sync like in firestore:', err);
+      }
     }
   };
 
@@ -296,7 +329,7 @@ export default function Radio() {
                 <span className={`w-1.5 bg-emerald-300 rounded-full transition-all duration-300 ${isPlaying ? 'h-6 animate-pulse' : 'h-1.5'}`} />
               </div>
               <div className="text-right pr-2">
-                <div className="text-xs font-black text-white">{currentStation?.listenersCount || '3.5K مستمع'}</div>
+                <div className="text-xs font-black text-white">{currentStation?.listenersCount ? `${currentStation.listenersCount} مستمع` : 'إذاعة مباشرة'}</div>
                 <div className="text-[10px] text-emerald-300 font-bold">متصلون بالبث الآن 🟢</div>
               </div>
             </div>
