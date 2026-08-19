@@ -697,18 +697,18 @@ export default function Home() {
                       <div className="mt-8 grid grid-cols-2 gap-4 relative z-20">
                         <Link
                           to={
-                            heroMatch.status === "live" || liveStreams.football.isActive || liveStreams.basketball.isActive
+                            heroMatch.status === "live" || liveStreams.football?.isActive || liveStreams.basketball?.isActive || liveStreams.programs?.isActive
                               ? "/live"
                               : "/matches"
                           }
                           className="h-14 rounded-2xl bg-white text-primary-dark hover:bg-primary-light hover:text-white transition-all duration-300 font-black text-[12px] flex items-center justify-center gap-3 shadow-premium group/btn relative z-30 cursor-pointer"
                         >
                           <span className="material-symbols-outlined !text-[20px] group-hover/btn:translate-x-1 transition-transform">
-                            {heroMatch.status === "live" || liveStreams.football.isActive || liveStreams.basketball.isActive
+                            {heroMatch.status === "live" || liveStreams.football?.isActive || liveStreams.basketball?.isActive || liveStreams.programs?.isActive
                               ? "sensors"
                               : "event"}
                           </span>
-                          {heroMatch.status === "live" || liveStreams.football.isActive || liveStreams.basketball.isActive
+                          {heroMatch.status === "live" || liveStreams.football?.isActive || liveStreams.basketball?.isActive || liveStreams.programs?.isActive
                             ? "دخول البث"
                             : "التفاصيل"}
                         </Link>
@@ -746,7 +746,7 @@ export default function Home() {
       }
 
       case "live":
-        if (!liveStreams.football.isActive && !liveStreams.basketball.isActive && !liveStreams.programs?.isActive) return null;
+        if (!liveStreams.football?.isActive && !liveStreams.basketball?.isActive && !liveStreams.programs?.isActive) return null;
         return (
           <motion.section
             key={section.id}
@@ -768,13 +768,13 @@ export default function Home() {
                     بث مباشر متاح الآن
                   </span>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    {liveStreams.football.isActive && (
+                    {liveStreams.football?.isActive && (
                       <span className="text-[8px] font-black bg-primary text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
                         <span className="material-symbols-outlined !text-[10px]">sports_soccer</span>
                         كرة القدم
                       </span>
                     )}
-                    {liveStreams.basketball.isActive && (
+                    {liveStreams.basketball?.isActive && (
                       <span className="text-[8px] font-black bg-orange-600 text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
                         <span className="material-symbols-outlined !text-[10px]">sports_basketball</span>
                         كرة السلة

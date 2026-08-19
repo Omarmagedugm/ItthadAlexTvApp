@@ -538,7 +538,7 @@ export default function Admin() {
   const [historySubTab, setHistorySubTab] = useState<'stats' | 'titles' | 'timeline' | 'stadiums'>('stats');
   const [mediaSubTab, setMediaSubTab] = useState<'items' | 'playlists' | 'banner'>('items');
   const [musicSubTab, setMusicSubTab] = useState<'songs' | 'albums' | 'playlists'>('songs');
-  const [liveSportSubTab, setLiveSportSubTab] = useState<'football' | 'basketball' | 'radio' | 'programs'>('football');
+  const [liveSportSubTab, setLiveSportSubTab] = useState<'football' | 'basketball' | 'programs'>('football');
   const [clubSubTab, setClubSubTab] = useState<'committees' | 'announcements' | 'services' | 'trips' | 'discounts' | 'settings'>('committees');
   const [isExporting, setIsExporting] = useState(false);
   const [aiUsage, setAiUsage] = useState<any[]>([]);
@@ -5431,6 +5431,7 @@ export default function Admin() {
                      <option value="both">كرة قدم وسلة (معاً)</option>
                      <option value="football">كرة قدم فقط</option>
                      <option value="basketball">كرة سلة فقط</option>
+                      <option value="programs">برامج فقط</option>
                   </select>
                </div>
 

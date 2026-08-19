@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import { parseLiveStreamUrl } from '../../lib/videoUtils';
-import { Play, Pause, ExternalLink, RefreshCw, AlertTriangle, Youtube, Volume2, VolumeX, Radio as RadioIcon } from 'lucide-react';
+import { Play, Pause, ExternalLink, RefreshCw, AlertTriangle, Youtube, Volume2, VolumeX, Radio as AudioIcon } from 'lucide-react';
 
 interface LivePlayerProps {
   url?: string;
@@ -22,7 +22,7 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
   const hlsRef = useRef<Hls | null>(null);
 
   const parsed = parseLiveStreamUrl(url);
-  const isRadio = sportName.includes('راديو') || parsed.type === 'audio';
+  const isAudio = parsed.type === 'audio';
 
   // Reset states on URL change
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
 
   // Audio stream setup
   useEffect(() => {
-    if (!isRadio || !url || !isActive) return;
+    if (!isAudio || !url || !isActive) return;
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -52,11 +52,11 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
     return () => {
       audio.pause();
     };
-  }, [url, isRadio, isActive, reloadKey]);
+  }, [url, isAudio, isActive, reloadKey]);
 
   // HLS stream setup
   useEffect(() => {
-    if (!url || parsed.type !== 'hls' || !isActive || isRadio) return;
+    if (!url || parsed.type !== 'hls' || !isActive || isAudio) return;
 
     const video = videoRef.current;
     if (!video) return;
@@ -117,7 +117,7 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
         setIsLoading(false);
       });
     }
-  }, [url, parsed.type, parsed.embedUrl, isActive, reloadKey, isRadio]);
+  }, [url, parsed.type, parsed.embedUrl, isActive, reloadKey, isAudio]);
 
   const toggleAudioPlay = () => {
     const audio = audioRef.current;
@@ -142,7 +142,7 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
     return (
       <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center p-6 text-center z-10">
         <div className="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mb-4 text-slate-500 shadow-inner">
-          <span className="material-symbols-outlined text-3xl">{isRadio ? 'radio' : 'videocam_off'}</span>
+          <span className="material-symbols-outlined text-3xl">videocam_off</span>
         </div>
         <h3 className="text-white font-black text-base mb-1.5">لا يوجد بث مباشر لـ {sportName} حالياً</h3>
         <p className="text-slate-400 text-xs max-w-xs leading-relaxed">
@@ -164,10 +164,10 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
     );
   }
 
-  // Radio Audio Player View
-  if (isRadio) {
+  // Audio Player View (if audio stream)
+  if (isAudio) {
     return (
-      <div className="relative w-full h-full bg-gradient-to-br from-emerald-950 via-slate-950 to-slate-900 flex flex-col items-center justify-center p-6 text-center overflow-hidden">
+      <div className="relative w-full h-full bg-gradient-to-br from-indigo-950 via-slate-950 to-slate-900 flex flex-col items-center justify-center p-6 text-center overflow-hidden">
         <audio ref={audioRef} preload="auto" onError={() => setHasError(true)} />
         
         {/* Animated Sound Wave Background */}
@@ -175,7 +175,7 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
           {[40, 65, 85, 30, 95, 50, 75, 90, 60, 45, 80, 100, 35, 70, 55, 85].map((h, i) => (
             <div
               key={i}
-              className="flex-1 bg-emerald-400 rounded-full transition-all duration-300"
+              className="flex-1 bg-indigo-400 rounded-full transition-all duration-300"
               style={{
                 height: isAudioPlaying ? `${Math.max(15, (h * (i % 3 + 1)) % 100)}%` : '10%',
                 animation: isAudioPlaying ? `pulse 1.${(i % 5) + 2}s infinite ease-in-out` : 'none'
@@ -186,8 +186,8 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
 
         <div className="relative z-10 flex flex-col items-center gap-3 max-w-xs">
           <div className="relative">
-            <div className={`w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-2xl shadow-emerald-500/30 ${isAudioPlaying ? 'ring-4 ring-emerald-400/40 animate-pulse' : ''}`}>
-              <RadioIcon size={36} className="text-white" />
+            <div className={`w-20 h-20 rounded-3xl bg-gradient-to-tr from-indigo-600 to-primary flex items-center justify-center text-white shadow-2xl shadow-indigo-500/30 ${isAudioPlaying ? 'ring-4 ring-indigo-400/40 animate-pulse' : ''}`}>
+              <AudioIcon size={36} className="text-white" />
             </div>
             {isAudioPlaying && (
               <span className="absolute -top-1 -right-1 flex h-4 w-4">
@@ -198,15 +198,15 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
           </div>
 
           <div>
-            <h3 className="text-white font-black text-base">{title || 'راديو زعيم الثغر'}</h3>
-            <p className="text-emerald-400 text-xs font-bold mt-0.5">البث الصوتي المباشر 🎙️</p>
+            <h3 className="text-white font-black text-base">{title || 'البث الصوتي المباشر'}</h3>
+            <p className="text-indigo-400 text-xs font-bold mt-0.5">استوديو الصوت المباشر 🎙️</p>
           </div>
 
           {/* Controls */}
           <div className="flex items-center gap-3 mt-2">
             <button
               onClick={toggleAudioPlay}
-              className="w-12 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 transition-all cursor-pointer"
+              className="w-12 h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white flex items-center justify-center shadow-lg shadow-indigo-500/30 transition-all cursor-pointer"
             >
               {isAudioPlaying ? <Pause size={22} /> : <Play size={22} className="fill-white ml-0.5" />}
             </button>
@@ -238,8 +238,8 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
             referrerPolicy="origin-when-cross-origin"
             onLoad={() => setIsLoading(false)}
             onError={() => {
-              setIsLoading(false);
               setHasError(true);
+              setIsLoading(false);
             }}
           />
           {parsed.directWatchUrl && (
@@ -247,114 +247,87 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
               href={parsed.directWatchUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="absolute bottom-2 right-2 bg-black/80 hover:bg-red-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg backdrop-blur-md border border-white/10 flex items-center gap-1.5 transition-colors z-20 shadow-lg"
+              className="absolute bottom-2 right-2 bg-red-600/90 hover:bg-red-600 text-white text-[10px] font-black px-2.5 py-1 rounded-lg backdrop-blur-sm flex items-center gap-1.5 shadow-lg z-20 transition-all"
             >
-              <Youtube size={14} className="text-red-500 hover:text-white" />
-              <span>مشاهدة على YouTube</span>
-              <ExternalLink size={12} />
+              <Youtube size={12} />
+              <span>فتح على YouTube</span>
+              <ExternalLink size={10} />
             </a>
           )}
         </div>
       )}
 
-      {/* HLS Stream */}
-      {parsed.type === 'hls' && (
-        <div className="relative w-full h-full">
-          <video
-            ref={videoRef}
-            key={`hls-${reloadKey}`}
-            className="w-full h-full object-contain absolute inset-0 bg-black"
-            controls
-            playsInline
-            autoPlay
-          />
-        </div>
-      )}
-
-      {/* Direct Video Stream */}
-      {parsed.type === 'video' && (
+      {/* Direct Video / HLS Stream */}
+      {(parsed.type === 'hls' || parsed.type === 'video') && (
         <video
-          key={`vid-${reloadKey}`}
-          className="w-full h-full object-contain absolute inset-0 bg-black"
+          key={`video-${reloadKey}`}
+          ref={videoRef}
+          className="w-full h-full object-cover"
           controls
           playsInline
           autoPlay
-          src={parsed.embedUrl}
+          muted={false}
           onLoadedData={() => setIsLoading(false)}
           onError={() => {
-            setIsLoading(false);
             setHasError(true);
+            setIsLoading(false);
+          }}
+        >
+          {parsed.type === 'video' && <source src={parsed.embedUrl} />}
+          متصفحك لا يدعم تشغيل هذا البث المباشر.
+        </video>
+      )}
+
+      {/* Embed / IFrame Stream */}
+      {parsed.type === 'iframe' && (
+        <iframe
+          key={`iframe-${reloadKey}`}
+          src={parsed.embedUrl}
+          className="w-full h-full border-0"
+          allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+          allowFullScreen
+          onLoad={() => setIsLoading(false)}
+          onError={() => {
+            setHasError(true);
+            setIsLoading(false);
           }}
         />
       )}
 
-      {/* Generic Iframe */}
-      {parsed.type === 'iframe' && (
-        <div className="relative w-full h-full">
-          <iframe
-            key={`iframe-${reloadKey}`}
-            className="w-full h-full absolute inset-0 border-0"
-            src={parsed.embedUrl}
-            title={title || "Live Stream"}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            onLoad={() => setIsLoading(false)}
-            onError={() => {
-              setIsLoading(false);
-              setHasError(true);
-            }}
-          />
-          {parsed.directWatchUrl && (
-            <a
-              href={parsed.directWatchUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="absolute bottom-2 right-2 bg-black/80 hover:bg-primary text-white text-[11px] font-bold px-3 py-1.5 rounded-lg backdrop-blur-md border border-white/10 flex items-center gap-1.5 transition-colors z-20 shadow-lg"
-            >
-              <span>فتح البث في نافذة جديدة</span>
-              <ExternalLink size={12} />
-            </a>
-          )}
-        </div>
-      )}
-
-      {/* Custom Stream Fallback */}
+      {/* Fallback Custom URL */}
       {parsed.type === 'custom' && (
-        <div className="relative w-full h-full flex flex-col items-center justify-center p-6 text-center">
-          <iframe
-            className="w-full h-full absolute inset-0 border-0"
-            src={parsed.embedUrl}
-            title={title || "Live Stream"}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            onLoad={() => setIsLoading(false)}
-          />
-          <a
-            href={parsed.directWatchUrl || url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute bottom-3 bg-primary hover:bg-primary-dark text-white text-xs font-black px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 z-20"
-          >
-            <span>فتح رابط البث المباشر</span>
-            <ExternalLink size={14} />
-          </a>
-        </div>
+        <iframe
+          key={`custom-${reloadKey}`}
+          src={parsed.embedUrl}
+          className="w-full h-full border-0"
+          allow="autoplay; fullscreen; picture-in-picture"
+          allowFullScreen
+          onLoad={() => setIsLoading(false)}
+          onError={() => {
+            setHasError(true);
+            setIsLoading(false);
+          }}
+        />
       )}
 
-      {/* Error state */}
+      {/* Error Fallback */}
       {hasError && (
         <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-30">
-          <AlertTriangle size={32} className="text-amber-500 mb-3" />
-          <h4 className="text-white font-black text-sm mb-1">تعذر تشغيل البث المباشر داخل الصفحة</h4>
+          <AlertTriangle size={36} className="text-amber-400 mb-3" />
+          <h4 className="text-white font-black text-sm mb-1">تعذر تشغيل البث المباشر</h4>
           <p className="text-slate-400 text-xs max-w-xs mb-4">
-            قد يكون البث مقيداً من المصدر أو يتطلب فتحه مباشرة في تطبيق YouTube أو المتصفح.
+            قد يكون الرابط غير متاح حالياً أو يتطلب تشغيله في نافذة جديدة
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex gap-2">
             <button
-              onClick={() => setReloadKey(k => k + 1)}
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+              onClick={() => {
+                setHasError(false);
+                setIsLoading(true);
+                setReloadKey(k => k + 1);
+              }}
+              className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-md"
             >
-              <RefreshCw size={14} />
+              <RefreshCw size={13} />
               إعادة المحاولة
             </button>
             {parsed.directWatchUrl && (
@@ -362,12 +335,22 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
                 href={parsed.directWatchUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-lg shadow-red-600/30 transition-all"
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all"
               >
-                <Youtube size={16} />
-                فتح مباشرة على YouTube
+                <span>مشاهدة خارجية</span>
+                <ExternalLink size={13} />
               </a>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Loading Overlay */}
+      {isLoading && !hasError && (
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center pointer-events-none z-20">
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-white font-bold text-[11px]">جاري الاتصال بالبث...</span>
           </div>
         </div>
       )}

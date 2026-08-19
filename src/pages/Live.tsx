@@ -19,36 +19,60 @@ interface Comment {
   role: string;
 }
 
+type SportChannel = 'football' | 'basketball' | 'programs';
+
 export default function Live() {
   const { liveStream, liveStreams, profile, users, appSettings } = useAppStore();
   
-  // Choose sport/channel based on settings or active stream
-  const [selectedSport, setSelectedSport] = useState<'football' | 'basketball' | 'radio' | 'programs'>(() => {
-    if (appSettings.liveViewMode === 'radio') return 'radio';
-    if (appSettings.liveViewMode === 'basketball') return 'basketball';
-    if (appSettings.liveViewMode === 'football') return 'football';
+  // Track whether the user has manually picked a channel in this session
+  const userSelectedRef = useRef(false);
+
+  // Helper to find which stream is active
+  const getFirstActiveSport = (): SportChannel | null => {
     if (liveStreams.football?.isActive) return 'football';
     if (liveStreams.basketball?.isActive) return 'basketball';
-    if (liveStreams.radio?.isActive) return 'radio';
     if (liveStreams.programs?.isActive) return 'programs';
+    return null;
+  };
+
+  // Default initial sport: active stream first!
+  const [selectedSport, setSelectedSport] = useState<SportChannel>(() => {
+    const active = getFirstActiveSport();
+    if (active) return active;
+    if (appSettings.liveViewMode && ['football', 'basketball', 'programs'].includes(appSettings.liveViewMode)) {
+      return appSettings.liveViewMode as SportChannel;
+    }
     return 'football';
   });
 
+  // Auto-switch to active stream whenever liveStreams state loads or updates
+  useEffect(() => {
+    const active = getFirstActiveSport();
+    if (active && (!userSelectedRef.current || !liveStreams[selectedSport]?.isActive)) {
+      setSelectedSport(active);
+    }
+  }, [
+    liveStreams.football?.isActive,
+    liveStreams.basketball?.isActive,
+    liveStreams.programs?.isActive
+  ]);
+
+  // Handle liveViewMode changes from app settings
   useEffect(() => {
     if (appSettings.liveViewMode && appSettings.liveViewMode !== 'both') {
-      if (['football', 'basketball', 'radio', 'programs'].includes(appSettings.liveViewMode)) {
-        setSelectedSport(appSettings.liveViewMode as 'football' | 'basketball' | 'radio' | 'programs');
+      if (['football', 'basketball', 'programs'].includes(appSettings.liveViewMode)) {
+        if (!getFirstActiveSport()) {
+          setSelectedSport(appSettings.liveViewMode as SportChannel);
+        }
       }
     }
   }, [appSettings.liveViewMode]);
   
-  const currentStream = selectedSport === 'radio'
-    ? liveStreams.radio
-    : selectedSport === 'programs' 
-      ? liveStreams.programs 
-      : selectedSport === 'basketball' 
-        ? liveStreams.basketball 
-        : liveStreams.football;
+  const currentStream = selectedSport === 'programs' 
+    ? liveStreams.programs 
+    : selectedSport === 'basketball' 
+      ? liveStreams.basketball 
+      : liveStreams.football;
 
   const [chatMessage, setChatMessage] = useState('');
   const [comments, setComments] = useState<Comment[]>([]);
@@ -94,11 +118,11 @@ export default function Live() {
     try {
       await addDoc(collection(db, 'live_comments'), {
         userId: auth.currentUser.uid,
-        userName: profile.name || auth.currentUser.displayName || 'مشجع اتحادي',
-        userAvatar: profile.avatar || auth.currentUser.photoURL || '',
+        userName: profile?.displayName || profile?.name || auth.currentUser.displayName || 'مشجع اتحادي',
+        userAvatar: profile?.avatar || auth.currentUser.photoURL || '',
         text: messageText,
         createdAt: serverTimestamp(),
-        role: profile.role || 'user'
+        role: profile?.role || 'user'
       });
     } catch (error) {
       console.error("Error sending message:", error);
@@ -124,8 +148,8 @@ export default function Live() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: currentStream.title || 'بث مباشر - نادي الاتحاد السكندري',
-          text: `شاهد الآن البث المباشر: ${currentStream.title || 'نادي الاتحاد السكندري'}`,
+          title: `بث مباشر: ${currentStream?.title || 'قناة الاتحاد السكندري'}`,
+          text: `شاهد البث المباشر لأحداث ومباريات الاتحاد السكندري الآن! 🟢⚪`,
           url: window.location.href,
         });
       } catch (err) {
@@ -138,16 +162,49 @@ export default function Live() {
   };
 
   const getSportTitle = () => {
-    if (selectedSport === 'radio') return 'راديو زعيم الثغر';
     if (selectedSport === 'programs') return 'برامج واستوديو الاتحاد';
     if (selectedSport === 'basketball') return 'كرة السلة';
     return 'كرة القدم';
   };
 
+  // Define channels: Football, Basketball, Programs
+  const channelsConfig: Array<{
+    id: SportChannel;
+    label: string;
+    icon: string;
+    activeStyle: string;
+    isActive: boolean;
+  }> = [
+    {
+      id: 'football',
+      label: 'كرة القدم',
+      icon: 'sports_soccer',
+      activeStyle: 'bg-primary text-white shadow-md shadow-primary/20',
+      isActive: !!liveStreams.football?.isActive
+    },
+    {
+      id: 'basketball',
+      label: 'كرة السلة',
+      icon: 'sports_basketball',
+      activeStyle: 'bg-orange-600 text-white shadow-md shadow-orange-600/20',
+      isActive: !!liveStreams.basketball?.isActive
+    },
+    {
+      id: 'programs',
+      label: 'برامج',
+      icon: 'live_tv',
+      activeStyle: 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20',
+      isActive: !!liveStreams.programs?.isActive
+    }
+  ];
+
+  // Reorder channels to display LIVE broadcasting channels first
+  const sortedChannels = [...channelsConfig].sort((a, b) => (b.isActive ? 1 : 0) - (a.isActive ? 1 : 0));
+
   return (
     <div className="flex-1 w-full max-w-md mx-auto flex flex-col pb-32 bg-background-light dark:bg-background-dark min-h-screen">
       <main className="flex-1 flex flex-col">
-        {/* Video / Audio Player */}
+        {/* Video Player */}
         <section className="relative w-full aspect-video bg-black shadow-lg sticky top-[64px] z-40 lg:static">
           <LivePlayer
             url={currentStream?.url}
@@ -159,8 +216,8 @@ export default function Live() {
           {/* Floating live info pill */}
           {currentStream?.isActive && (
             <div className="absolute top-2 left-2 right-2 flex justify-between items-center pointer-events-none z-20">
-              <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 text-white text-[10px] font-black shadow-md">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+              <div className="flex items-center gap-1.5 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 text-white text-[10px] font-black shadow-md">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
                 <span>مباشر الآن</span>
                 <span className="text-white/40">|</span>
                 <Eye size={11} className="text-primary" />
@@ -178,40 +235,31 @@ export default function Live() {
           )}
         </section>
 
-        {/* Live Channel / Sport Tabs: Football, Basketball, Radio */}
+        {/* Live Channel Tabs: Football, Basketball, Programs (Active first) */}
         <div className="bg-white dark:bg-card-dark border-b border-border-light dark:border-border-dark p-2 flex justify-center gap-1.5">
-          <button 
-            onClick={() => setSelectedSport('football')}
-            className={`flex-1 h-10 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${selectedSport === 'football' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-slate-50 dark:bg-surface-dark text-slate-500 hover:bg-slate-100 dark:hover:bg-surface-dark/80'}`}
-          >
-            <span className="material-symbols-outlined !text-[18px]">sports_soccer</span>
-            <span>كرة القدم</span>
-            {liveStreams.football?.isActive && (
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
-            )}
-          </button>
-
-          <button 
-            onClick={() => setSelectedSport('basketball')}
-            className={`flex-1 h-10 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${selectedSport === 'basketball' ? 'bg-orange-600 text-white shadow-md shadow-orange-600/20' : 'bg-slate-50 dark:bg-surface-dark text-slate-500 hover:bg-slate-100 dark:hover:bg-surface-dark/80'}`}
-          >
-            <span className="material-symbols-outlined !text-[18px]">sports_basketball</span>
-            <span>كرة السلة</span>
-            {liveStreams.basketball?.isActive && (
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
-            )}
-          </button>
-
-          <button 
-            onClick={() => setSelectedSport('radio')}
-            className={`flex-1 h-10 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${selectedSport === 'radio' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' : 'bg-slate-50 dark:bg-surface-dark text-slate-500 hover:bg-slate-100 dark:hover:bg-surface-dark/80'}`}
-          >
-            <span className="material-symbols-outlined !text-[18px]">radio</span>
-            <span>راديو</span>
-            {liveStreams.radio?.isActive && (
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
-            )}
-          </button>
+          {sortedChannels.map((channel) => (
+            <button 
+              key={channel.id}
+              onClick={() => {
+                userSelectedRef.current = true;
+                setSelectedSport(channel.id);
+              }}
+              className={`flex-1 h-10 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer relative ${
+                selectedSport === channel.id 
+                  ? channel.activeStyle 
+                  : 'bg-slate-50 dark:bg-surface-dark text-slate-500 hover:bg-slate-100 dark:hover:bg-surface-dark/80'
+              }`}
+            >
+              <span className="material-symbols-outlined !text-[18px]">{channel.icon}</span>
+              <span>{channel.label}</span>
+              {channel.isActive && (
+                <span className="relative flex h-2 w-2 mr-0.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                </span>
+              )}
+            </button>
+          ))}
         </div>
 
         {/* Live Stream Title and Status Banner */}
@@ -224,119 +272,135 @@ export default function Live() {
               </p>
             </div>
             {currentStream.isActive ? (
-              <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md shrink-0">
-                بث نشط 🟢
+              <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md shrink-0 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                بث مباشر نشط
               </span>
             ) : (
-              <span className="text-[9px] font-black text-slate-400 bg-slate-200 dark:bg-surface-dark px-2 py-0.5 rounded-md shrink-0">
-                مغلق
+              <span className="text-[9px] font-bold text-slate-400 bg-slate-200/50 dark:bg-card-dark px-2 py-0.5 rounded-md shrink-0">
+                غير متصل
               </span>
             )}
           </div>
         )}
 
         {/* Live Chat Section */}
-        <section className="flex-1 flex flex-col p-4">
-          <div className="flex items-center justify-between border-b border-border-light dark:border-border-dark pb-3 mb-4">
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-xl">forum</span> 
-              الدردشة المباشرة
+        <section className="flex-1 flex flex-col p-4 bg-background-light dark:bg-background-dark min-h-[300px]">
+          <div className="flex items-center justify-between pb-3 border-b border-border-light dark:border-border-dark mb-3">
+            <h2 className="text-xs font-black text-slate-800 dark:text-white flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-primary !text-[18px]">forum</span>
+              <span>دردشة جماهير زعيم الثغر</span>
             </h2>
-            <span className="text-[10px] text-slate-500 font-bold bg-slate-100 dark:bg-surface-dark px-2.5 py-1 rounded-full">
-              {(currentStream?.isActive ? (currentStream?.viewers || 0) + 1 : 0).toLocaleString()} متصل
+            <span className="text-[10px] font-bold text-slate-400">
+              {comments.length} تعليق
             </span>
           </div>
-          
-          {/* Chat Messages */}
+
           <div 
             ref={scrollRef}
-            className="flex-1 overflow-y-auto no-scrollbar space-y-4 mb-4 min-h-[300px]"
+            className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[40vh] min-h-[220px] scroll-smooth"
           >
-            {comments.length > 0 ? comments.map((msg) => {
-              const chatUser = users.find(u => u.uid === msg.userId);
-              const chatAvatar = chatUser?.avatar || msg.userAvatar;
-              const chatName = chatUser?.name || msg.userName;
-              const isMsgAdmin = msg.role === 'admin' || chatUser?.role === 'admin';
-              return (
-                <div key={msg.id} className={`flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                  <div className="relative flex-shrink-0">
-                    {chatAvatar ? (
-                      <img src={chatAvatar} referrerPolicy="no-referrer" className="w-8 h-8 rounded-full border shadow-sm object-cover" alt="" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-surface-dark flex items-center justify-center text-slate-500 border border-border-light dark:border-border-dark">
-                        <User size={16} />
-                      </div>
-                    )}
-                    {isMsgAdmin && (
-                      <div className="absolute -bottom-1 -right-1 bg-primary text-white p-0.5 rounded-full border border-white">
-                        <ShieldCheck size={8} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className={`text-[11px] font-black ${isMsgAdmin ? 'text-primary' : 'text-slate-700 dark:text-slate-300'}`}>{chatName}</span>
-                        {isMsgAdmin && (
-                          <span className="bg-red-500/10 text-red-500 text-[8px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
-                            <ShieldCheck size={9} />
-                            مدير التطبيق
-                          </span>
-                        )}
-                        {chatUser?.tier === 'premium' && (
-                          <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[8px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
-                            عضو ملكي 👑
-                          </span>
-                        )}
-                        <span className="text-[9px] text-slate-400 font-bold">
-                          {msg.createdAt && formatDistanceToNow(msg.createdAt.toDate(), { locale: ar, addSuffix: true })}
-                        </span>
-                      </div>
-                      {(profile.role === 'admin' || auth.currentUser?.uid === msg.userId) && (
-                        <button onClick={() => handleDeleteComment(msg.id)} className="p-1 text-red-400 hover:text-red-500 transition-colors cursor-pointer">
-                          <Trash2 size={12} />
-                        </button>
+            {comments.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2 py-10">
+                <span className="material-symbols-outlined !text-4xl text-slate-300 dark:text-slate-600">chat_bubble_outline</span>
+                <p className="text-xs font-bold">لا توجد تعليقات بعد، كن أول من يشارك!</p>
+              </div>
+            ) : (
+              comments.map((comment) => {
+                const isAdmin = comment.role === 'admin' || comment.role === 'supervisor' || users[comment.userId]?.role === 'admin' || users[comment.userId]?.role === 'supervisor';
+                const isAuthor = auth.currentUser?.uid === comment.userId;
+                const canDelete = isAuthor || profile?.role === 'admin';
+
+                return (
+                  <div key={comment.id} className="flex items-start gap-2.5 group">
+                    <div className="w-7 h-7 rounded-full overflow-hidden bg-slate-200 dark:bg-surface-dark flex items-center justify-center shrink-0 border border-border-light dark:border-border-dark">
+                      {comment.userAvatar ? (
+                        <img src={comment.userAvatar} alt={comment.userName} className="w-full h-full object-cover" />
+                      ) : (
+                        <User size={14} className="text-slate-400" />
                       )}
                     </div>
-                    <div className={`text-xs p-3 rounded-2xl rounded-tr-sm leading-relaxed border whitespace-pre-wrap break-words ${msg.role === 'admin' ? 'bg-primary/5 border-primary/10 text-slate-800 dark:text-slate-200' : 'bg-white dark:bg-card-dark border-border-light dark:border-border-dark text-slate-600 dark:text-slate-400 shadow-sm'}`}>
-                      {msg.text}
+                    <div className="flex-1 bg-white dark:bg-card-dark p-2.5 rounded-2xl rounded-tr-none border border-border-light dark:border-border-dark shadow-sm">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-black text-slate-800 dark:text-white">
+                            {comment.userName}
+                          </span>
+                          {isAdmin && (
+                            <span className="bg-primary/10 text-primary text-[8px] font-black px-1.5 py-0.2 rounded-md flex items-center gap-0.5 border border-primary/20">
+                              <ShieldCheck size={9} />
+                              إدارة
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] font-bold text-slate-400">
+                            {comment.createdAt?.toDate ? formatDistanceToNow(comment.createdAt.toDate(), { addSuffix: true, locale: ar }) : 'الآن'}
+                          </span>
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDeleteComment(comment.id)}
+                              className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 p-0.5 transition-opacity"
+                              title="حذف التعليق"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 font-medium leading-relaxed break-words">
+                        {comment.text}
+                      </p>
                     </div>
                   </div>
-                </div>
-              );
-            }) : (
-              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 space-y-2 py-12">
-                 <span className="material-symbols-outlined text-4xl opacity-50">forum</span>
-                 <p className="text-xs font-bold">لا توجد تعليقات بعد.. كن أول من يعلق!</p>
-              </div>
+                );
+              })
             )}
           </div>
-          
-          {/* Chat Input */}
-          <div className="sticky bottom-0 pt-2 bg-background-light dark:bg-background-dark">
-            <form 
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage();
-              }}
-              className="flex gap-2 items-center bg-white dark:bg-card-dark p-1.5 rounded-full border border-border-light dark:border-border-dark shadow-sm"
-            >
-              <input 
-                className="flex-1 bg-transparent border-none focus:ring-0 text-xs py-2 px-3 outline-none text-slate-700 dark:text-white" 
-                placeholder={auth.currentUser ? "اكتب تعليقك هنا..." : "سجل دخول للتعليق"} 
-                type="text" 
-                value={chatMessage}
-                disabled={!auth.currentUser || isSending}
-                onChange={(e) => setChatMessage(e.target.value)}
-              />
-              <button 
-                type="submit"
-                disabled={!chatMessage.trim() || isSending || !auth.currentUser}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all pressable cursor-pointer ${chatMessage.trim() && !isSending && auth.currentUser ? 'bg-primary text-white shadow-md' : 'bg-slate-100 dark:bg-surface-dark text-slate-400'}`}
+
+          {/* Comment input area */}
+          <div className="mt-3 pt-3 border-t border-border-light dark:border-border-dark">
+            {auth.currentUser ? (
+              <form 
+                onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }}
+                className="flex items-center gap-2"
               >
-                {isSending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} className="ml-1" />}
-              </button>
-            </form>
+                <input
+                  type="text"
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  placeholder="اكتب تعليقك وتشجيعك لزعيم الثغر..."
+                  className="flex-1 h-10 px-3 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-card-dark text-xs font-bold outline-none focus:border-primary transition-colors"
+                  maxLength={200}
+                />
+                <button
+                  type="submit"
+                  disabled={!chatMessage.trim() || isSending}
+                  className="h-10 px-4 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-primary/20 cursor-pointer"
+                >
+                  {isSending ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <>
+                      <span>إرسال</span>
+                      <Send size={12} className="rotate-180" />
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <div className="bg-slate-100 dark:bg-surface-dark p-3 rounded-xl text-center">
+                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
+                  يجب تسجيل الدخول للمشاركة في الدردشة المباشرة
+                </p>
+                <Link
+                  to="/auth"
+                  className="inline-block px-4 py-1.5 bg-primary text-white rounded-lg text-xs font-black shadow-sm"
+                >
+                  تسجيل الدخول
+                </Link>
+              </div>
+            )}
           </div>
         </section>
       </main>
