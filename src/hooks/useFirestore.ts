@@ -74,6 +74,10 @@ export function useFirestoreSync() {
         if (snap.exists()) updateLiveStreams({ basketball: snap.data() as any });
       }, 'settings/liveStream_basketball', OperationType.GET);
 
+      const unsubLivePrograms = subscribeSnapshot(doc(db, 'settings', 'liveStream_programs'), (snap) => {
+        if (snap.exists()) updateLiveStreams({ programs: snap.data() as any });
+      }, 'settings/liveStream_programs', OperationType.GET);
+
       // Quota Optimization: Added strict limit(25) to prevent reading large collections on every sync
       const unsubMatches = subscribeSnapshot(query(collection(db, 'matches'), orderBy('date', 'desc'), limit(25)), (snap) => {
         const data = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));

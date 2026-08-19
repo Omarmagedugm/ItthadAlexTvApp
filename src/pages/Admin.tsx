@@ -90,8 +90,12 @@ import {
   ShoppingBag,
   FileSpreadsheet,
   RefreshCw,
-  Upload
+  Upload,
+  Youtube,
+  Tv,
+  Video
 } from 'lucide-react';
+import { parseLiveStreamUrl } from '../lib/videoUtils';
 import { motion } from 'motion/react';
 import AdminSidebar from '../components/AdminSidebar';
 import AdminSidebarManager from '../components/AdminSidebarManager';
@@ -534,7 +538,7 @@ export default function Admin() {
   const [historySubTab, setHistorySubTab] = useState<'stats' | 'titles' | 'timeline' | 'stadiums'>('stats');
   const [mediaSubTab, setMediaSubTab] = useState<'items' | 'playlists' | 'banner'>('items');
   const [musicSubTab, setMusicSubTab] = useState<'songs' | 'albums' | 'playlists'>('songs');
-  const [liveSportSubTab, setLiveSportSubTab] = useState<'football' | 'basketball'>('football');
+  const [liveSportSubTab, setLiveSportSubTab] = useState<'football' | 'basketball' | 'programs'>('football');
   const [clubSubTab, setClubSubTab] = useState<'committees' | 'announcements' | 'services' | 'trips' | 'discounts' | 'settings'>('committees');
   const [isExporting, setIsExporting] = useState(false);
   const [aiUsage, setAiUsage] = useState<any[]>([]);
@@ -1228,19 +1232,25 @@ export default function Admin() {
         }
       } else if (activeTab === 'live') {
         try {
-          const docName = liveSportSubTab === 'basketball' ? 'liveStream_basketball' : 'liveStream';
-          const currentStream = liveSportSubTab === 'basketball' ? liveStreams.basketball : liveStreams.football;
+          const docName = liveSportSubTab === 'programs' ? 'liveStream_programs' : liveSportSubTab === 'basketball' ? 'liveStream_basketball' : 'liveStream';
+          const currentStream = liveSportSubTab === 'programs' ? liveStreams.programs : liveSportSubTab === 'basketball' ? liveStreams.basketball : liveStreams.football;
+          const rawUrl = formData.url !== undefined ? formData.url : (currentStream.url || '');
+          const parsed = parseLiveStreamUrl(rawUrl);
           
           await setDoc(doc(db, 'settings', docName), {
-            isActive: formData.isActive ?? currentStream.isActive,
-            url: formData.url || currentStream.url,
-            title: formData.title || currentStream.title,
+            isActive: formData.isActive !== undefined ? formData.isActive : currentStream.isActive,
+            url: parsed.embedUrl || rawUrl,
+            rawUrl: rawUrl || '',
+            title: formData.title !== undefined ? formData.title : currentStream.title,
             viewers: Number(formData.viewers || currentStream.viewers || 0),
-            sport: liveSportSubTab
+            sport: liveSportSubTab,
+            streamType: parsed.type,
+            updatedAt: new Date().toISOString()
           });
-          toast.success('تم تحديث البث بنجاح');
+          const sportLabel = liveSportSubTab === 'programs' ? 'البرامج' : liveSportSubTab === 'basketball' ? 'كرة السلة' : 'كرة القدم';
+          toast.success(`تم تحديث بث ${sportLabel} بنجاح`);
         } catch (err) {
-          handleFirestoreError(err, OperationType.WRITE, `settings/liveStream${liveSportSubTab === 'basketball' ? '_basketball' : ''}`);
+          handleFirestoreError(err, OperationType.WRITE, `settings/liveStream_${liveSportSubTab}`);
         }
       } else if (activeTab === 'clubs') {
         const payload = {
@@ -5424,64 +5434,167 @@ export default function Admin() {
                   </select>
                </div>
 
-               <div className="flex bg-slate-100 dark:bg-surface-dark p-1 rounded-xl w-fit">
-                  <button 
-                    onClick={() => {
-                        setLiveSportSubTab('football');
-                        setFormData({});
-                    }} 
-                    className={`px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 ${liveSportSubTab === 'football' ? 'bg-white dark:bg-card-dark text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    <Trophy size={14} />
-                    كرة القدم
-                  </button>
-                  <button 
-                    onClick={() => {
-                        setLiveSportSubTab('basketball');
-                        setFormData({});
-                    }} 
-                    className={`px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 ${liveSportSubTab === 'basketball' ? 'bg-white dark:bg-card-dark text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    <Trophy size={14} />
-                    كرة السلة
-                  </button>
-               </div>
+               {(() => {
+                 const currentStream = liveSportSubTab === 'programs' 
+                   ? liveStreams.programs 
+                   : liveSportSubTab === 'basketball' 
+                     ? liveStreams.basketball 
+                     : liveStreams.football;
+                 const currentUrl = formData.url !== undefined ? formData.url : (currentStream?.url || '');
+                 const parsedStream = parseLiveStreamUrl(currentUrl);
 
-               <div>
-                  <label className="text-xs font-bold mb-1.5 block">حالة بث {liveSportSubTab === 'football' ? 'كرة القدم' : 'كرة السلة'}</label>
-                  <select 
-                    className="w-full p-2.5 rounded-lg border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm font-bold" 
-                    value={formData.isActive ?? (liveSportSubTab === 'basketball' ? (liveStreams.basketball.isActive ? '1' : '0') : (liveStreams.football.isActive ? '1' : '0'))} 
-                    onChange={(e) => setFormData({...formData, isActive: e.target.value === '1'})}
-                  >
-                     <option value="1">مباشر الآن (مفتوح)</option>
-                     <option value="0">مغلق (يظهر مؤشر الانتظار)</option>
-                  </select>
-               </div>
-               <div>
-                  <label className="text-xs font-bold mb-1.5 block">عنوان البث</label>
-                  <input 
-                    type="text" 
-                    className="w-full p-2.5 rounded-lg border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm" 
-                    value={formData.title ?? (liveSportSubTab === 'basketball' ? liveStreams.basketball.title : liveStreams.football.title)} 
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
-                  />
-               </div>
-               <div>
-                  <label className="text-xs font-bold mb-1.5 block flex items-center justify-between">
-                     رابط البث
-                  </label>
-                  <input 
-                    type="text" 
-                    className="w-full p-2.5 rounded-lg border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm text-left dir-ltr" 
-                    value={formData.url ?? (liveSportSubTab === 'basketball' ? liveStreams.basketball.url : liveStreams.football.url)} 
-                    placeholder="https://..."
-                    onChange={(e) => setFormData({...formData, url: e.target.value})}
-                  />
-               </div>
-               <button onClick={handleAdd} className="w-full mt-2 bg-primary text-white py-3 rounded-xl font-bold text-sm shadow-sm">
-                  تحديث البث
-               </button>
+                 return (
+                   <>
+                     <div className="flex bg-slate-100 dark:bg-surface-dark p-1 rounded-xl w-fit">
+                        <button 
+                          onClick={() => {
+                              setLiveSportSubTab('football');
+                              setFormData({});
+                          }} 
+                          className={`px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 ${liveSportSubTab === 'football' ? 'bg-white dark:bg-card-dark text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                          <Trophy size={14} />
+                          كرة القدم
+                        </button>
+                        <button 
+                          onClick={() => {
+                              setLiveSportSubTab('basketball');
+                              setFormData({});
+                          }} 
+                          className={`px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 ${liveSportSubTab === 'basketball' ? 'bg-white dark:bg-card-dark text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                          <Trophy size={14} />
+                          كرة السلة
+                        </button>
+                        <button 
+                          onClick={() => {
+                              setLiveSportSubTab('programs');
+                              setFormData({});
+                          }} 
+                          className={`px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 ${liveSportSubTab === 'programs' ? 'bg-white dark:bg-card-dark text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                          <Tv size={14} />
+                          برامج
+                        </button>
+                     </div>
+
+                     {/* YouTube Live info banner */}
+                     <div className="p-4 bg-gradient-to-r from-red-500/10 via-red-500/5 to-primary/10 border border-red-500/20 dark:border-red-500/30 rounded-2xl flex flex-col gap-2">
+                       <div className="flex items-center justify-between">
+                         <div className="flex items-center gap-2.5">
+                           <div className="w-8 h-8 rounded-xl bg-red-600 text-white flex items-center justify-center shadow-md shadow-red-600/30">
+                             <Youtube size={18} />
+                           </div>
+                           <div>
+                             <h4 className="text-xs font-black text-slate-800 dark:text-white">إضافة بث يوتيوب لايف (YouTube Live)</h4>
+                             <p className="text-[10px] text-slate-500 dark:text-slate-400">يدعم كافة صيغ يوتيوب: البث المباشر المباشر (Live)، الفيديوهات، أو كود التضمين</p>
+                           </div>
+                         </div>
+                         {parsedStream.type === 'youtube' && (
+                           <span className="px-2.5 py-1 bg-red-600 text-white text-[10px] font-black rounded-lg flex items-center gap-1.5 shadow-sm animate-pulse">
+                             <span className="w-2 h-2 rounded-full bg-white"></span>
+                             يوتيوب لايف مفعّل
+                           </span>
+                         )}
+                       </div>
+                     </div>
+
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div>
+                          <label className="text-xs font-bold mb-1.5 block">حالة بث {liveSportSubTab === 'programs' ? 'البرامج' : liveSportSubTab === 'basketball' ? 'كرة السلة' : 'كرة القدم'}</label>
+                          <select 
+                            className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm font-bold" 
+                            value={formData.isActive !== undefined ? (formData.isActive ? '1' : '0') : (currentStream?.isActive ? '1' : '0')} 
+                            onChange={(e) => setFormData({...formData, isActive: e.target.value === '1'})}
+                          >
+                             <option value="1">🟢 مباشر الآن (مفتوح للجماهير)</option>
+                             <option value="0">⚪ مغلق (يظهر مؤشر انتظار موعد المباراة أو البرنامج)</option>
+                          </select>
+                       </div>
+                       <div>
+                          <label className="text-xs font-bold mb-1.5 block">عنوان البث المباشر</label>
+                          <input 
+                            type="text" 
+                            className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm font-bold" 
+                            value={formData.title !== undefined ? formData.title : (currentStream?.title || '')} 
+                            placeholder={liveSportSubTab === 'programs' ? 'مثال: استوديو قلعة الشاطبي - تحليل ما بعد المباراة' : 'مثال: الاتحاد السكندري vs الأهلي - بث مباشر'}
+                            onChange={(e) => setFormData({...formData, title: e.target.value})}
+                          />
+                       </div>
+                     </div>
+
+                     <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-xs font-black text-slate-800 dark:text-white flex items-center gap-1.5">
+                             <Youtube size={16} className="text-red-600" />
+                             رابط البث أو لينك اليوتيوب لايف
+                          </label>
+                          {parsedStream.type && (
+                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-surface-dark px-2.5 py-1 rounded-lg border border-border-light dark:border-border-dark">
+                              النوع المكتشف: {parsedStream.type === 'youtube' ? '🔴 يوتيوب (YouTube)' : parsedStream.type === 'iframe' ? '🌐 كود تضمين (Iframe)' : parsedStream.type === 'video' ? '⚡ سيرفر مباشر (HLS/MP4)' : '🔗 رابط مخصص'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="relative">
+                          <input 
+                            type="text" 
+                            className="w-full p-3.5 pr-10 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-xs text-left dir-ltr font-mono" 
+                            value={currentUrl} 
+                            placeholder="https://www.youtube.com/live/... أو https://youtu.be/... أو https://.../stream.m3u8"
+                            onChange={(e) => setFormData({...formData, url: e.target.value})}
+                          />
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                            <Youtube size={18} />
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2 leading-relaxed">
+                          💡 يمكنك لصق رابط يوتيوب لايف المباشر مثل: <span className="font-mono text-primary font-bold">https://youtube.com/live/VIDEO_ID</span> أو رابط الفيديو العادي أو كود التضمين &lt;iframe&gt; وسيتم ضبطه وتشغيله تلقائياً.
+                        </p>
+                     </div>
+
+                     {/* Live Stream Preview */}
+                     {currentUrl && (
+                       <div className="bg-slate-100/70 dark:bg-surface-dark/70 rounded-2xl p-4 border border-border-light dark:border-border-dark">
+                         <div className="flex items-center justify-between mb-3">
+                           <span className="text-xs font-black flex items-center gap-2">
+                             <Tv size={16} className="text-primary" />
+                             معاينة البث المباشر (Live Preview)
+                           </span>
+                           <span className="text-[10px] text-slate-400">تأكد من تشغيل الفيديو قبل الحفظ</span>
+                         </div>
+
+                         <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black shadow-lg">
+                           {parsedStream.type === 'youtube' || parsedStream.type === 'iframe' ? (
+                             <iframe 
+                               className="w-full h-full absolute inset-0 border-0"
+                               src={parsedStream.embedUrl} 
+                               title="Admin Preview"
+                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                               allowFullScreen
+                             />
+                           ) : parsedStream.type === 'video' ? (
+                             <video 
+                               className="w-full h-full object-cover absolute inset-0"
+                               controls
+                               playsInline
+                               src={parsedStream.embedUrl}
+                             />
+                           ) : (
+                             <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">
+                               يرجى إدخال رابط بث صالح للمعاينة
+                             </div>
+                           )}
+                         </div>
+                       </div>
+                     )}
+
+                     <button onClick={handleAdd} className="w-full mt-2 bg-primary hover:bg-primary-dark text-white py-3.5 rounded-xl font-black text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+                        <CheckCircle2 size={18} />
+                        حفظ وتحديث البث المباشر
+                     </button>
+                   </>
+                 );
+               })()}
              </div>
           )}
 

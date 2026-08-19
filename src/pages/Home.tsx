@@ -359,13 +359,66 @@ export default function Home() {
     switch (
       section.type === "custom" && section.id === "city" ? "city" : section.type
     ) {
-      case "hero":
+      case "hero": {
+        const rawName = profile?.name || auth.currentUser?.displayName || (auth.currentUser ? 'عضو الاتحاد' : 'يا سيد البلد');
+        const userAvatar = profile?.avatar || auth.currentUser?.photoURL || '';
+        const userTier = profile?.tier;
+
         return (
           <motion.section
             key={section.id}
             variants={itemVariants}
-            className="relative space-y-4"
+            className="relative space-y-3.5 mb-1"
           >
+            {/* Elegant Welcome Greeting Header */}
+            <div className="flex items-center justify-between px-2 pt-1 pb-0.5">
+              <Link 
+                to={auth.currentUser ? "/profile" : "/profile"} 
+                className="flex items-center gap-3 group transition-transform active:scale-98"
+              >
+                <div className="relative shrink-0">
+                  {userAvatar ? (
+                    <img 
+                      src={userAvatar} 
+                      alt={rawName} 
+                      className="w-11 h-11 rounded-2xl object-cover border-2 border-emerald-500/40 group-hover:border-emerald-500 shadow-md shadow-emerald-500/10 transition-all ring-2 ring-emerald-500/20"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-600 via-primary to-teal-700 border-2 border-white/20 flex items-center justify-center text-white font-black shadow-md shadow-primary/20 group-hover:scale-105 transition-all">
+                      <span className="text-base font-black">
+                        {rawName.charAt(0)}
+                      </span>
+                    </div>
+                  )}
+                  <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-background-dark flex items-center justify-center shadow-sm">
+                    <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                  </span>
+                </div>
+
+                <div className="flex flex-col text-right">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight group-hover:text-primary transition-colors flex items-center gap-1.5">
+                      <span className="text-slate-500 dark:text-slate-400 font-bold text-sm">أهلاً،</span>
+                      <span className="text-primary dark:text-emerald-400 font-black">{rawName}</span>
+                      <span className="text-sm">👋</span>
+                    </h2>
+                    {userTier === 'premium' && (
+                      <span className="bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-500/30 flex items-center gap-0.5 shadow-xs">
+                        عضو ملكي 👑
+                      </span>
+                    )}
+                    {isAdmin && (
+                      <span className="bg-red-500/10 text-red-500 text-[9px] font-black px-2 py-0.5 rounded-full border border-red-500/20 flex items-center gap-0.5">
+                        <ShieldCheck size={10} />
+                        إدارة
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            </div>
+
             {!heroMatch ? (
               <div className="relative bg-slate-50 dark:bg-surface-dark p-12 rounded-[40px] flex flex-col items-center justify-center text-center gap-3 border border-dashed border-slate-300 dark:border-border-dark shadow-sm">
                 {effectiveSport === "football" ? (
@@ -690,9 +743,10 @@ export default function Home() {
             )}
           </motion.section>
         );
+      }
 
       case "live":
-        if (!liveStreams.football.isActive && !liveStreams.basketball.isActive) return null;
+        if (!liveStreams.football.isActive && !liveStreams.basketball.isActive && !liveStreams.programs?.isActive) return null;
         return (
           <motion.section
             key={section.id}
@@ -713,7 +767,7 @@ export default function Home() {
                   <span className="text-sm font-black text-slate-800 dark:text-white">
                     بث مباشر متاح الآن
                   </span>
-                  <div className="flex gap-2 mt-1">
+                  <div className="flex flex-wrap gap-2 mt-1">
                     {liveStreams.football.isActive && (
                       <span className="text-[8px] font-black bg-primary text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
                         <span className="material-symbols-outlined !text-[10px]">sports_soccer</span>
@@ -724,6 +778,12 @@ export default function Home() {
                       <span className="text-[8px] font-black bg-orange-600 text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
                         <span className="material-symbols-outlined !text-[10px]">sports_basketball</span>
                         كرة السلة
+                      </span>
+                    )}
+                    {liveStreams.programs?.isActive && (
+                      <span className="text-[8px] font-black bg-indigo-600 text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
+                        <span className="material-symbols-outlined !text-[10px]">live_tv</span>
+                        برامج
                       </span>
                     )}
                   </div>

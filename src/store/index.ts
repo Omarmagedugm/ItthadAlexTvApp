@@ -276,7 +276,7 @@ export interface LiveStream {
   url: string;
   title: string;
   viewers: number;
-  sport?: 'football' | 'basketball';
+  sport?: 'football' | 'basketball' | 'programs' | string;
 }
 
 export interface ClubTitle {
@@ -566,6 +566,7 @@ interface AppState {
   liveStreams: {
     football: LiveStream;
     basketball: LiveStream;
+    programs: LiveStream;
   };
   theme: 'dark' | 'light';
   profile: UserProfile;
@@ -632,7 +633,7 @@ interface AppState {
   deleteUser: (uid: string) => void;
   setSettings: (settings: any) => void;
   updateLiveStream: (stream: Partial<LiveStream>) => void;
-  updateLiveStreams: (streams: { football?: Partial<LiveStream>, basketball?: Partial<LiveStream> }) => void;
+  updateLiveStreams: (streams: { football?: Partial<LiveStream>; basketball?: Partial<LiveStream>; programs?: Partial<LiveStream> }) => void;
   toggleTheme: () => void;
   updateProfile: (profile: Partial<UserProfile>) => void;
   setClubTitles: (titles: ClubTitle[]) => void;
@@ -748,6 +749,7 @@ const defaultLiveStream: LiveStream = {
 const defaultLiveStreams = {
   football: { ...defaultLiveStream, sport: 'football' as const },
   basketball: { ...defaultLiveStream, sport: 'basketball' as const },
+  programs: { ...defaultLiveStream, title: 'برامج واستوديو الاتحاد', sport: 'programs' as const },
 };
 
 const defaultProfile: UserProfile = {
@@ -942,6 +944,7 @@ export const useAppStore = create<AppState>()(
         liveStreams: {
           football: { ...state.liveStreams.football, ...streams.football },
           basketball: { ...state.liveStreams.basketball, ...streams.basketball },
+          programs: { ...state.liveStreams.programs, ...streams.programs },
         },
         // Also update legacy liveStream if football is updated
         ...(streams.football ? { liveStream: { ...state.liveStream, ...streams.football } } : {})

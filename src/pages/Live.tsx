@@ -6,7 +6,8 @@ import { db, auth } from '../lib/firebase';
 import { collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
-import { Send, Trash2, ShieldCheck, User, Loader2 } from 'lucide-react';
+import { Send, Trash2, ShieldCheck, User, Loader2, Radio, Trophy, Eye, Share2, Tv } from 'lucide-react';
+import LivePlayer from '../components/live/LivePlayer';
 
 interface Comment {
   id: string;
@@ -20,18 +21,31 @@ interface Comment {
 
 export default function Live() {
   const { liveStream, liveStreams, profile, users, appSettings } = useAppStore();
-  const [selectedSport, setSelectedSport] = useState<'football' | 'basketball'>(() => {
+  
+  // Choose sport/channel based on settings or active stream
+  const [selectedSport, setSelectedSport] = useState<'football' | 'basketball' | 'programs'>(() => {
     if (appSettings.liveViewMode === 'basketball') return 'basketball';
+    if (appSettings.liveViewMode === 'football') return 'football';
+    if (liveStreams.football?.isActive) return 'football';
+    if (liveStreams.basketball?.isActive) return 'basketball';
+    if (liveStreams.programs?.isActive) return 'programs';
     return 'football';
   });
 
   useEffect(() => {
     if (appSettings.liveViewMode && appSettings.liveViewMode !== 'both') {
-      setSelectedSport(appSettings.liveViewMode as 'football' | 'basketball');
+      if (['football', 'basketball', 'programs'].includes(appSettings.liveViewMode)) {
+        setSelectedSport(appSettings.liveViewMode as 'football' | 'basketball' | 'programs');
+      }
     }
   }, [appSettings.liveViewMode]);
   
-  const currentStream = selectedSport === 'basketball' ? liveStreams.basketball : liveStreams.football;
+  const currentStream = selectedSport === 'programs' 
+    ? liveStreams.programs 
+    : selectedSport === 'basketball' 
+      ? liveStreams.basketball 
+      : liveStreams.football;
+
   const [chatMessage, setChatMessage] = useState('');
   const [comments, setComments] = useState<Comment[]>([]);
   const [isSending, setIsSending] = useState(false);
@@ -49,8 +63,6 @@ export default function Live() {
         id: doc.id,
         ...doc.data()
       })) as Comment[];
-      // Filter out comments without createdAt if the server hasn't set it yet
-      // This happens momentarily during local optimistic updates
       const validComments = newComments.filter(c => c.createdAt !== null);
       setComments(validComments.reverse());
     }, (error) => {
@@ -86,7 +98,6 @@ export default function Live() {
       });
     } catch (error) {
       console.error("Error sending message:", error);
-      // Restore message if failed
       setChatMessage(messageText);
       toast.error('فشل إرسال التعليق، يرجى المحاولة مرة أخرى');
     } finally {
@@ -105,55 +116,27 @@ export default function Live() {
     }
   };
 
-  // Auto-detect video type for rendering
-  const renderPlayer = () => {
-    if (!currentStream?.isActive) {
-      return (
-        <div className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
-          <span className="material-symbols-outlined text-[64px] text-slate-700 mb-4">videocam_off</span>
-          <p className="text-white font-bold text-lg mb-2">لا يوجد بث مباشر {selectedSport === 'football' ? 'لكرة القدم' : 'لكرة السلة'} حالياً</p>
-          <p className="text-slate-400 text-sm">البث المباشر سيبدأ قبل موعد المباراة</p>
-        </div>
-      );
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: currentStream.title || 'بث مباشر - نادي الاتحاد السكندري',
+          text: `شاهد الآن البث المباشر: ${currentStream.title || 'نادي الاتحاد السكندري'}`,
+          url: window.location.href,
+        });
+      } catch (err) {
+        // Ignored or cancelled
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success('تم نسخ رابط البث المباشر');
     }
+  };
 
-    const { url } = currentStream;
-    if (!url) return null;
-
-    if (url.includes('youtube.com/embed/') || url.includes('iframe')) {
-      const iframeUrl = url.includes('<iframe') ? url.match(/src="([^"]+)"/)?.[1] || url : url;
-      return (
-        <iframe 
-          className="w-full h-full absolute inset-0"
-          src={iframeUrl} 
-          title="Live Stream"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-          allowFullScreen
-        ></iframe>
-      );
-    } else if (url.endsWith('.mp4') || url.endsWith('.m3u8')) {
-      // Basic HTML5 video, for m3u8 in a real app we'd use hls.js
-      return (
-        <video 
-          className="w-full h-full object-cover absolute inset-0" 
-          controls 
-          autoPlay 
-          playsInline
-          src={url}
-        ></video>
-      );
-    }
-
-    // Fallback UI
-    return (
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDCz19y9c0fSAniiT2SuAvgWYT5nzGvPRX1RVIr6M1IG3tDbgqyVNZ5Q9wWfbkHymrFKo7P4QdOCLo5ZddDwauBLfygLJ9rPLtqYB1NaR8G6rdk4V6buPvIpUe_Xu4hsi_vyTv07ap9p3Ov1FSXYTTTsCZgwhDWqiZUAWk6uH-vSbky1AUahPIMMxfYo0hb8zusWvoRtUqEmFWrHaVZ1IbIzI21R7M2F4J8Xz6RMc2ZfFAt_Ae7gMGxVkGKeGR0VUhagVO9R20aBEQ')" }}>
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] flex items-center justify-center pointer-events-none">
-           <div className="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform pressable pointer-events-auto">
-             <span className="material-symbols-outlined text-4xl">play_arrow</span>
-           </div>
-        </div>
-      </div>
-    );
+  const getSportTitle = () => {
+    if (selectedSport === 'programs') return 'برامج واستوديو الاتحاد';
+    if (selectedSport === 'basketball') return 'كرة السلة';
+    return 'كرة القدم';
   };
 
   return (
@@ -161,38 +144,89 @@ export default function Live() {
       <main className="flex-1 flex flex-col">
         {/* Video Player */}
         <section className="relative w-full aspect-video bg-black shadow-lg sticky top-[64px] z-40 lg:static">
-          {renderPlayer()}
-          
-          {/* Overlay info if not playing native video (fallback) */}
-          {currentStream.isActive && !currentStream.url && (
-             <div className="absolute top-0 left-0 right-0 p-3 flex justify-between items-start pointer-events-none bg-gradient-to-b from-black/80 to-transparent">
-               <div className="bg-black/50 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur-md flex items-center gap-1.5">
-                 <span className="material-symbols-outlined text-xs">visibility</span> {(currentStream?.viewers || 0).toLocaleString()}
-               </div>
-               <div className="bg-primary/90 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur-md border border-white/10">
-                 {currentStream.title}
-               </div>
-             </div>
+          <LivePlayer
+            url={currentStream?.url}
+            title={currentStream?.title}
+            isActive={currentStream?.isActive}
+            sportName={getSportTitle()}
+          />
+
+          {/* Floating live info pill */}
+          {currentStream?.isActive && (
+            <div className="absolute top-2 left-2 right-2 flex justify-between items-center pointer-events-none z-20">
+              <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 text-white text-[10px] font-black shadow-md">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                <span>مباشر الآن</span>
+                <span className="text-white/40">|</span>
+                <Eye size={11} className="text-primary" />
+                <span>{((currentStream?.viewers || 0) + 1).toLocaleString()}</span>
+              </div>
+
+              <button
+                onClick={handleShare}
+                className="pointer-events-auto bg-black/60 hover:bg-black/80 backdrop-blur-md p-1.5 rounded-full border border-white/10 text-white transition-all shadow-md active:scale-95 cursor-pointer"
+                title="مشاركة البث"
+              >
+                <Share2 size={13} />
+              </button>
+            </div>
           )}
         </section>
 
-        {/* Sports Toggle Section */}
-        {(!appSettings.liveViewMode || appSettings.liveViewMode === 'both') && (
-          <div className="bg-white dark:bg-card-dark border-b border-border-light dark:border-border-dark p-3 flex justify-center gap-3">
-            <button 
-              onClick={() => setSelectedSport('football')}
-              className={`flex-1 h-11 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 ${selectedSport === 'football' ? 'bg-primary text-white shadow-glow' : 'bg-slate-50 dark:bg-surface-dark text-slate-400 hover:bg-slate-100'}`}
-            >
-              <span className="material-symbols-outlined !text-[20px]">sports_soccer</span>
-              كرة القدم
-            </button>
-            <button 
-              onClick={() => setSelectedSport('basketball')}
-              className={`flex-1 h-11 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 ${selectedSport === 'basketball' ? 'bg-orange-600 text-white shadow-glow' : 'bg-slate-50 dark:bg-surface-dark text-slate-400 hover:bg-slate-100'}`}
-            >
-              <span className="material-symbols-outlined !text-[20px]">sports_basketball</span>
-              كرة السلة
-            </button>
+        {/* Live Channel / Sport Tabs: Football, Basketball, Programs */}
+        <div className="bg-white dark:bg-card-dark border-b border-border-light dark:border-border-dark p-2 flex justify-center gap-1.5">
+          <button 
+            onClick={() => setSelectedSport('football')}
+            className={`flex-1 h-10 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${selectedSport === 'football' ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-slate-50 dark:bg-surface-dark text-slate-500 hover:bg-slate-100 dark:hover:bg-surface-dark/80'}`}
+          >
+            <span className="material-symbols-outlined !text-[18px]">sports_soccer</span>
+            <span>كرة القدم</span>
+            {liveStreams.football?.isActive && (
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+            )}
+          </button>
+
+          <button 
+            onClick={() => setSelectedSport('basketball')}
+            className={`flex-1 h-10 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${selectedSport === 'basketball' ? 'bg-orange-600 text-white shadow-md shadow-orange-600/20' : 'bg-slate-50 dark:bg-surface-dark text-slate-500 hover:bg-slate-100 dark:hover:bg-surface-dark/80'}`}
+          >
+            <span className="material-symbols-outlined !text-[18px]">sports_basketball</span>
+            <span>كرة السلة</span>
+            {liveStreams.basketball?.isActive && (
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+            )}
+          </button>
+
+          <button 
+            onClick={() => setSelectedSport('programs')}
+            className={`flex-1 h-10 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${selectedSport === 'programs' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'bg-slate-50 dark:bg-surface-dark text-slate-500 hover:bg-slate-100 dark:hover:bg-surface-dark/80'}`}
+          >
+            <span className="material-symbols-outlined !text-[18px]">live_tv</span>
+            <span>برامج</span>
+            {liveStreams.programs?.isActive && (
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+            )}
+          </button>
+        </div>
+
+        {/* Live Stream Title and Status Banner */}
+        {currentStream?.title && (
+          <div className="bg-slate-50 dark:bg-surface-dark/60 border-b border-border-light dark:border-border-dark px-4 py-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <Radio size={14} className="text-red-500 shrink-0 animate-pulse" />
+              <p className="text-xs font-black text-slate-800 dark:text-white truncate">
+                {currentStream.title}
+              </p>
+            </div>
+            {currentStream.isActive ? (
+              <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md shrink-0">
+                بث نشط 🟢
+              </span>
+            ) : (
+              <span className="text-[9px] font-black text-slate-400 bg-slate-200 dark:bg-surface-dark px-2 py-0.5 rounded-md shrink-0">
+                مغلق
+              </span>
+            )}
           </div>
         )}
 
@@ -203,8 +237,8 @@ export default function Live() {
               <span className="material-symbols-outlined text-primary text-xl">forum</span> 
               الدردشة المباشرة
             </h2>
-            <span className="text-[10px] text-slate-500 font-bold bg-slate-100 dark:bg-surface-dark px-2 py-1 rounded-full">
-              {(currentStream?.isActive ? (currentStream?.viewers || 0) : 0).toLocaleString()} متصل
+            <span className="text-[10px] text-slate-500 font-bold bg-slate-100 dark:bg-surface-dark px-2.5 py-1 rounded-full">
+              {(currentStream?.isActive ? (currentStream?.viewers || 0) + 1 : 0).toLocaleString()} متصل
             </span>
           </div>
           
@@ -222,7 +256,7 @@ export default function Live() {
                 <div key={msg.id} className={`flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300`}>
                   <div className="relative flex-shrink-0">
                     {chatAvatar ? (
-                      <img src={chatAvatar} referrerPolicy="no-referrer" className="w-8 h-8 rounded-full border shadow-sm" alt="" />
+                      <img src={chatAvatar} referrerPolicy="no-referrer" className="w-8 h-8 rounded-full border shadow-sm object-cover" alt="" />
                     ) : (
                       <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-surface-dark flex items-center justify-center text-slate-500 border border-border-light dark:border-border-dark">
                         <User size={16} />
@@ -253,19 +287,20 @@ export default function Live() {
                           {msg.createdAt && formatDistanceToNow(msg.createdAt.toDate(), { locale: ar, addSuffix: true })}
                         </span>
                       </div>
-                    {(profile.role === 'admin' || auth.currentUser?.uid === msg.userId) && (
-                      <button onClick={() => handleDeleteComment(msg.id)} className="p-1 text-red-400 hover:text-red-500 transition-colors">
-                        <Trash2 size={12} />
-                      </button>
-                    )}
-                  </div>
-                  <div className={`text-xs p-3 rounded-2xl rounded-tr-sm leading-relaxed border ${msg.role === 'admin' ? 'bg-primary/5 border-primary/10 text-slate-800 dark:text-slate-200' : 'bg-white dark:bg-card-dark border-border-light dark:border-border-dark text-slate-600 dark:text-slate-400 shadow-sm'}`}>
-                    {msg.text}
+                      {(profile.role === 'admin' || auth.currentUser?.uid === msg.userId) && (
+                        <button onClick={() => handleDeleteComment(msg.id)} className="p-1 text-red-400 hover:text-red-500 transition-colors cursor-pointer">
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                    <div className={`text-xs p-3 rounded-2xl rounded-tr-sm leading-relaxed border whitespace-pre-wrap break-words ${msg.role === 'admin' ? 'bg-primary/5 border-primary/10 text-slate-800 dark:text-slate-200' : 'bg-white dark:bg-card-dark border-border-light dark:border-border-dark text-slate-600 dark:text-slate-400 shadow-sm'}`}>
+                      {msg.text}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ); }) : (
-              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 space-y-2">
+              );
+            }) : (
+              <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 space-y-2 py-12">
                  <span className="material-symbols-outlined text-4xl opacity-50">forum</span>
                  <p className="text-xs font-bold">لا توجد تعليقات بعد.. كن أول من يعلق!</p>
               </div>
@@ -292,7 +327,7 @@ export default function Live() {
               <button 
                 type="submit"
                 disabled={!chatMessage.trim() || isSending || !auth.currentUser}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all pressable ${chatMessage.trim() && !isSending && auth.currentUser ? 'bg-primary text-white shadow-md' : 'bg-slate-100 dark:bg-surface-dark text-slate-400'}`}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all pressable cursor-pointer ${chatMessage.trim() && !isSending && auth.currentUser ? 'bg-primary text-white shadow-md' : 'bg-slate-100 dark:bg-surface-dark text-slate-400'}`}
               >
                 {isSending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} className="ml-1" />}
               </button>

@@ -99,6 +99,7 @@ export default function FanZone() {
   const [tick, setTick] = useState(0);
   const [matchDayMoments, setMatchDayMoments] = useState<any[]>([]);
   const [attendancePoll, setAttendancePoll] = useState<any>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [isPostingMoment, setIsPostingMoment] = useState(false);
   const [momentPost, setMomentPost] = useState({ content: '', image: '' });
   const [showMomentForm, setShowMomentForm] = useState(false);
@@ -1126,7 +1127,7 @@ export default function FanZone() {
                         </div>
                       </div>
                     ) : (
-                      <p className="text-[14px] text-slate-800 dark:text-slate-200 font-bold leading-relaxed mb-4">
+                      <p className="text-[14px] text-slate-800 dark:text-slate-200 font-bold leading-relaxed mb-4 whitespace-pre-wrap break-words">
                         {post.content}
                       </p>
                     )}
@@ -1185,14 +1186,22 @@ export default function FanZone() {
                   </div>
 
                   {post.image && (
-                    <div className="relative w-full aspect-[16/10] rounded-[36px] overflow-hidden mb-6 border border-border-light dark:border-border-dark shadow-premium group/img bg-slate-50 dark:bg-slate-900/40">
+                    <div 
+                      onClick={() => setLightboxImage(post.image)}
+                      className="relative w-full rounded-[24px] sm:rounded-[32px] overflow-hidden mb-6 border border-border-light/80 dark:border-border-dark/80 shadow-premium group/img bg-slate-100/50 dark:bg-slate-900/50 cursor-zoom-in flex items-center justify-center transition-all hover:border-primary/30"
+                    >
                       <img 
-                        src={getOptimizedImage(post.image, 800)} 
-                        className="w-full h-full object-contain transition-transform duration-1000" 
+                        src={getOptimizedImage(post.image, 1200)} 
+                        className="w-full h-auto max-h-[700px] object-contain transition-transform duration-500 group-hover/img:scale-[1.01]" 
                         alt="post attachment" 
+                        loading="lazy"
                         referrerPolicy="no-referrer" 
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity pointer-events-none"></div>
+                      <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors pointer-events-none flex items-end justify-end p-4">
+                        <span className="opacity-0 group-hover/img:opacity-100 transition-opacity bg-black/60 text-white text-[10px] font-bold px-3 py-1 rounded-full backdrop-blur-md">
+                          تكبير الصورة
+                        </span>
+                      </div>
                     </div>
                   )}
 
@@ -1342,7 +1351,7 @@ export default function FanZone() {
                                   </div>
                                 </div>
                               ) : (
-                                <p className="text-[12px] font-bold text-slate-600 dark:text-slate-300 leading-relaxed">{comment.text}</p>
+                                <p className="text-[12px] font-bold text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap break-words">{comment.text}</p>
                               )}
                             </div>
                           </motion.div>
@@ -1419,7 +1428,7 @@ export default function FanZone() {
                                   </button>
                                 )}
                               </div>
-                              <div className={`px-5 py-3 rounded-2xl text-[12px] font-bold leading-relaxed shadow-premium ${isOwn ? 'bg-primary text-white rounded-tl-[4px]' : 'glass-card text-slate-800 dark:text-white rounded-tr-[4px]'}`}>
+                              <div className={`px-5 py-3 rounded-2xl text-[12px] font-bold leading-relaxed shadow-premium whitespace-pre-wrap break-words ${isOwn ? 'bg-primary text-white rounded-tl-[4px]' : 'glass-card text-slate-800 dark:text-white rounded-tr-[4px]'}`}>
                                 {msg.text}
                               </div>
                             </div>
@@ -2246,18 +2255,27 @@ export default function FanZone() {
 
                       {moment.content && (
                         <div className="bg-slate-50 dark:bg-surface-dark/50 rounded-2xl p-4 mb-3 border border-border-light/20 dark:border-border-dark/20">
-                          <p className="text-[14px] font-bold text-slate-700 dark:text-slate-200 leading-relaxed italic">
+                          <p className="text-[14px] font-bold text-slate-700 dark:text-slate-200 leading-relaxed italic whitespace-pre-wrap break-words">
                             "{moment.content}"
                           </p>
                         </div>
                       )}
 
                       {moment.image && (
-                        <div className="rounded-[28px] overflow-hidden border-2 border-white dark:border-border-dark aspect-video sm:aspect-square relative group/img shadow-md">
-                          <img src={getOptimizedImage(moment.image, 800)} className="w-full h-full object-cover transition-transform duration-1000 group-hover/img:scale-110" alt="moment" referrerPolicy="no-referrer" />
+                        <div 
+                          onClick={() => setLightboxImage(moment.image)}
+                          className="rounded-[28px] overflow-hidden border-2 border-white dark:border-border-dark relative group/img shadow-md cursor-zoom-in bg-slate-100/50 dark:bg-slate-900/50 flex items-center justify-center"
+                        >
+                          <img 
+                            src={getOptimizedImage(moment.image, 1000)} 
+                            className="w-full h-auto max-h-[500px] object-contain transition-transform duration-700 group-hover/img:scale-105" 
+                            alt="moment" 
+                            loading="lazy"
+                            referrerPolicy="no-referrer" 
+                          />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity flex items-end p-4">
                              <div className="flex items-center gap-2 text-white text-[10px] font-black uppercase tracking-widest bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
-                               <Camera size={14} className="text-accent" /> Full Perspective
+                               <Camera size={14} className="text-accent" /> عرض بالحجم الكامل
                              </div>
                           </div>
                         </div>
@@ -2275,6 +2293,35 @@ export default function FanZone() {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Fullscreen Lightbox Modal */}
+      <AnimatePresence>
+        {lightboxImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setLightboxImage(null)}
+            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-8 cursor-zoom-out"
+          >
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+            >
+              <X size={22} />
+            </button>
+            <motion.img
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              src={lightboxImage}
+              alt="fullscreen preview"
+              className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

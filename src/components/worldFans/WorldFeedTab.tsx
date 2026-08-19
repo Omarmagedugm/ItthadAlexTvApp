@@ -481,7 +481,7 @@ export const WorldFeedTab: React.FC<WorldFeedTabProps> = ({
                 </div>
 
                 {/* Content */}
-                <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-medium whitespace-pre-line mb-3">
+                <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-medium whitespace-pre-wrap break-words mb-3">
                   {post.content}
                 </p>
 
