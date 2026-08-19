@@ -31,7 +31,8 @@ import {
   Globe,
   Menu,
   RotateCcw,
-  RadioTower
+  RadioTower,
+  TrendingUp
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -75,6 +76,7 @@ export default function AdminSidebar({ activeTab, setActiveTab, onClose }: Admin
   const groupedTabs = [
     { title: 'الرئيسية', items: [
       { id: 'overview', icon: <LayoutDashboard size={18} />, label: 'لوحة القيادة', show: true },
+      { id: 'analytics', icon: <TrendingUp size={18} className="text-emerald-500" />, label: 'الإحصاءات والتفاعل ⚡', show: true },
       { id: 'layout', icon: <LayoutDashboard size={18} />, label: 'إدارة الصفحة الرئيسية', show: hasRole('layout_editor') },
       { id: 'sidebar-menu', icon: <Menu size={18} />, label: 'ترتيب القائمة الجانبية', show: hasRole('layout_editor') },
     ]},

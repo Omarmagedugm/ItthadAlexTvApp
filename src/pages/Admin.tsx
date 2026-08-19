@@ -103,6 +103,7 @@ import AdminHomeSectionsManager from '../components/admin/AdminHomeSectionsManag
 import AdminBusiness from '../components/AdminBusiness';
 import AdminWorldFans from '../components/admin/AdminWorldFans';
 import AdminAuditLogs from '../components/admin/AdminAuditLogs';
+import AdminAnalytics from '../components/admin/AdminAnalytics';
 import ScoreSelector from '../components/ScoreSelector';
 import ImageUploader from '../components/ImageUploader';
 import CsvMatchesImporter from '../components/CsvMatchesImporter';
@@ -2227,6 +2228,7 @@ export default function Admin() {
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">
             {activeTab === 'overview' ? 'لوحة التحكم' :
+             activeTab === 'analytics' ? 'مركز الإحصاءات والتحليلات والتفاعل' :
              activeTab === 'world-fans' ? 'رابطة اتحاداوية العالم (مغتربين)' :
              activeTab === 'news' ? 'إدارة الأخبار' : 
              activeTab === 'news-categories' ? 'إدارة أقسام الأخبار' :
@@ -2859,6 +2861,34 @@ export default function Admin() {
 
           {activeTab === 'overview' && (
             <div className="space-y-8">
+              {/* Live Analytics Shortcut Banner */}
+              <div 
+                onClick={() => setActiveTab('analytics')}
+                className="cursor-pointer bg-gradient-to-r from-slate-900 via-primary-950 to-slate-900 text-white p-6 rounded-[32px] border border-primary/30 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 hover:shadow-xl transition-all group relative overflow-hidden"
+              >
+                <div className="flex items-center gap-4 relative z-10">
+                  <div className="w-14 h-14 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-2xl flex items-center justify-center font-black text-xl group-hover:scale-110 transition-transform">
+                    <Activity className="w-7 h-7 animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black animate-pulse">
+                        🟢 متزامن لحظياً
+                      </span>
+                      <span className="text-xs font-bold text-slate-400">تحديثات Firestore الحية</span>
+                    </div>
+                    <h3 className="font-black text-lg text-white mt-1">مركز الإحصاءات والتحليلات والتفاعل 📊</h3>
+                    <p className="text-xs text-slate-300 font-bold">
+                      تحليل شامل لمشاركات الجماهير، مشاهدات الأخبار، إعجابات الفان زون، ومبيعات المتجر لحظة بلحظة.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 px-5 py-3 rounded-xl bg-primary hover:bg-primary-light text-white text-xs font-black shrink-0 transition-all shadow-md group-hover:translate-x-[-4px] relative z-10">
+                  <span>فتح لوحة التحليلات المتقدمة</span>
+                  <ChevronLeft size={16} />
+                </div>
+              </div>
+
               {/* Pending Alert Banner for Businesses */}
               {(businesses.filter(b => b.status === 'pending').length > 0 || businessUpdates.filter(u => u.status === 'pending').length > 0) && (
                 <div 
@@ -5698,7 +5728,7 @@ export default function Admin() {
            )}
 
            {activeTab === 'business' && <AdminBusiness />}
-           {activeTab === 'radio' && <AdminRadio />}
+           {activeTab === 'analytics' && <AdminAnalytics />}
            {(activeTab === 'world-fans' || activeTab === 'world_fans') && <AdminWorldFans />}
            {(activeTab === 'audit-logs' || activeTab === 'audit_logs') && <AdminAuditLogs />}
 
