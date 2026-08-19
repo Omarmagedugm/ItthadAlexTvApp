@@ -2,41 +2,59 @@ import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect } from 'react';
 import { 
   ShoppingBag, 
-  ArrowRight, 
-  Filter, 
   Search, 
   ChevronRight, 
   ShoppingCart, 
-  CheckCircle2,
-  X,
-  Phone,
-  MapPin,
-  User,
-  CreditCard
+  CheckCircle2, 
+  X, 
+  Phone, 
+  MapPin, 
+  User, 
+  ExternalLink,
+  MessageCircle,
+  Sparkles,
+  ArrowRight,
+  Filter,
+  PackageCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppStore, Product } from '../store';
 import { useNavigate } from 'react-router-dom';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, addDoc, query, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, addDoc, query, onSnapshot } from 'firebase/firestore';
 import { getOptimizedImage } from '../lib/cloudinary';
 
 export default function Store() {
   const navigate = useNavigate();
-  const { products, setProducts } = useAppStore();
+  const { products, setProducts, profile, appSettings } = useAppStore();
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastWhatsAppUrl, setLastWhatsAppUrl] = useState<string>('');
+  const [lastOrderRef, setLastOrderRef] = useState<string>('');
   
   // Order Form State
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     address: '',
-    quantity: 1
+    quantity: 1,
+    notes: ''
   });
+
+  // Pre-fill user profile info when opening form
+  useEffect(() => {
+    if (showOrderForm && profile) {
+      setFormData(prev => ({
+        ...prev,
+        name: prev.name || profile.displayName || profile.name || '',
+        phone: prev.phone || profile.phoneNumber || profile.phone || '',
+      }));
+    }
+  }, [showOrderForm, profile]);
 
   useEffect(() => {
     const q = query(collection(db, 'products'));
@@ -44,7 +62,7 @@ export default function Store() {
       setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'products'));
     return () => unsubscribe();
-  }, []);
+  }, [setProducts]);
 
   const categories = [
     { id: 'all', label: 'الكل', icon: <ShoppingBag size={14} /> },
@@ -60,38 +78,104 @@ export default function Store() {
     return matchesCategory && matchesSearch;
   });
 
+  const getWhatsAppTargetUrl = (orderRef: string, product: Product, quantity: number, customer: { name: string; phone: string; address: string; notes?: string }) => {
+    const totalPrice = product.price * quantity;
+    const message = `👋 مرحباً @itthadalexchannel، أرغب في تأكيد طلب شراء من متجر تطبيق قناة الاتحاد 🟢⚪
+
+🛍️ المنتج: ${product.name}
+🔢 الكمية: ${quantity}
+💰 إجمالي المبلغ: ${totalPrice.toLocaleString()} ج.م
+🔖 كود الطلب: ${orderRef}
+
+👤 بيانات المشتري:
+- الاسم: ${customer.name}
+- رقم الهاتف: ${customer.phone}
+- عنوان التوصيل: ${customer.address}${customer.notes ? `\n- ملاحظات: ${customer.notes}` : ''}
+
+يرجى تأكيد استلام الطلب وموعد التوصيل. شكراً لكم 💚`;
+
+    // WhatsApp target configuration
+    const rawWhatsapp = appSettings.socialLinks?.whatsapp || 'itthadalexchannel';
+    let target = 'https://wa.me/itthadalexchannel';
+
+    if (rawWhatsapp) {
+      if (rawWhatsapp.startsWith('https://wa.me/') || rawWhatsapp.startsWith('https://api.whatsapp.com/')) {
+        target = rawWhatsapp;
+      } else if (/^\+?\d+$/.test(rawWhatsapp.replace(/\s+/g, ''))) {
+        const cleanPhone = rawWhatsapp.replace(/[^\d]/g, '');
+        target = `https://wa.me/${cleanPhone}`;
+      } else {
+        const cleanHandle = rawWhatsapp.replace(/^@/, '').replace(/^https?:\/\/(www\.)?wa\.me\//, '');
+        target = `https://wa.me/${cleanHandle || 'itthadalexchannel'}`;
+      }
+    }
+
+    const separator = target.includes('?') ? '&' : '?';
+    return `${target}${separator}text=${encodeURIComponent(message)}`;
+  };
+
   const handleOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProduct || !auth.currentUser) return;
+    if (!selectedProduct) return;
+    if (!formData.name.trim() || !formData.phone.trim() || !formData.address.trim()) {
+      toast.error('يرجى ملء جميع الحقول المطلوبة');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const orderRef = `#ORD-${Date.now().toString().slice(-6)}`;
+    const totalPrice = selectedProduct.price * formData.quantity;
 
     try {
+      // 1. Save order to Firestore so it immediately appears in Admin Dashboard
       await addDoc(collection(db, 'orders'), {
-        userId: auth.currentUser.uid,
-        userEmail: auth.currentUser.email,
-        userName: formData.name,
-        userPhone: formData.phone,
-        userAddress: formData.address,
+        orderRef,
+        userId: auth.currentUser?.uid || `guest_${Date.now()}`,
+        userEmail: auth.currentUser?.email || `${formData.phone}@guest.store`,
+        userName: formData.name.trim(),
+        userPhone: formData.phone.trim(),
+        userAddress: formData.address.trim(),
+        userNotes: formData.notes?.trim() || '',
         productId: selectedProduct.id,
         productName: selectedProduct.name,
-        productImage: selectedProduct.imageUrl,
+        productImage: selectedProduct.imageUrl || '',
         quantity: formData.quantity,
-        totalPrice: selectedProduct.price * formData.quantity,
+        totalPrice,
         status: 'pending',
+        channel: 'whatsapp',
+        whatsappTarget: '@itthadalexchannel',
         createdAt: new Date().toISOString()
       });
 
+      // 2. Generate WhatsApp link with order details
+      const waUrl = getWhatsAppTargetUrl(orderRef, selectedProduct, formData.quantity, {
+        name: formData.name.trim(),
+        phone: formData.phone.trim(),
+        address: formData.address.trim(),
+        notes: formData.notes?.trim()
+      });
+
+      setLastWhatsAppUrl(waUrl);
+      setLastOrderRef(orderRef);
       setOrderSuccess(true);
-      toast.success('تم استلام طلبك بنجاح');
-      setTimeout(() => {
-        setOrderSuccess(false);
-        setShowOrderForm(false);
-        setSelectedProduct(null);
-        setFormData({ name: '', phone: '', address: '', quantity: 1 });
-      }, 3000);
+      toast.success('تم تسجيل الطلب في لوحة التحكم وتجهيز رسالة واتساب');
+
+      // 3. Open WhatsApp link
+      window.open(waUrl, '_blank', 'noopener,noreferrer');
+
     } catch (error) {
       console.error('Error placing order:', error);
-      toast.error('حدث خطأ أثناء إرسال الطلب');
+      toast.error('حدث خطأ أثناء تسجيل الطلب، يرجى المحاولة ثانية');
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const handleCloseModal = () => {
+    setShowOrderForm(false);
+    setOrderSuccess(false);
+    setSelectedProduct(null);
+    setFormData({ name: '', phone: '', address: '', quantity: 1, notes: '' });
   };
 
   return (
@@ -106,22 +190,45 @@ export default function Store() {
             </button>
             <div>
               <h1 className="text-lg font-black text-primary-dark dark:text-white uppercase leading-none">متجر الجماهير</h1>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 inline-block">المتجر الرسمي للجماهير</span>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span className="text-[10px] font-bold text-slate-400">الشراء المباشر عبر واتساب @itthadalexchannel</span>
+              </div>
             </div>
           </div>
-          <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary relative">
-            <ShoppingCart size={20} />
+          <div className="flex items-center gap-2">
+            <div className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 text-[11px] font-black">
+              <MessageCircle size={14} className="fill-emerald-500/20" />
+              <span>طلب عبر WhatsApp</span>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="p-4 space-y-6">
+        {/* Banner */}
+        <div className="p-4 rounded-3xl bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 text-white shadow-xl flex items-center justify-between overflow-hidden relative">
+          <div className="relative z-10 space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-[10px] font-black backdrop-blur-md">خدمة العملاء السريعة</span>
+              <Sparkles size={14} className="text-amber-300 animate-pulse" />
+            </div>
+            <h2 className="text-base font-black">اطلب الآن واستلم في منزلك</h2>
+            <p className="text-xs text-emerald-100 font-bold max-w-xs">
+              يتم تسجيل طلبك مباشرة في لوحة التحكم وتأكيد تفاصيل الشحن والتوصيل عبر واتساب @itthadalexchannel
+            </p>
+          </div>
+          <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-emerald-200 shrink-0">
+            <MessageCircle size={28} />
+          </div>
+        </div>
+
         {/* Search Bar */}
         <div className="relative group">
           <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
           <input 
             type="text" 
-            placeholder="ابحث عن منتج..." 
+            placeholder="ابحث عن منتج بالاسم أو الفئة..." 
             className="w-full h-12 pr-12 pl-4 rounded-2xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark font-bold text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -134,10 +241,10 @@ export default function Store() {
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl whitespace-nowrap font-black text-[11px] transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl whitespace-nowrap font-black text-[11px] transition-all cursor-pointer ${
                 activeCategory === cat.id 
                 ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                : 'bg-white dark:bg-surface-dark text-slate-500 border border-border-light dark:border-border-dark pressable'
+                : 'bg-white dark:bg-surface-dark text-slate-500 border border-border-light dark:border-border-dark hover:bg-slate-50 dark:hover:bg-surface-dark/80'
               }`}
             >
               {cat.icon}
@@ -155,35 +262,50 @@ export default function Store() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
               key={product.id}
-              className="bg-white dark:bg-card-dark rounded-3xl border border-border-light dark:border-border-dark overflow-hidden shadow-sm flex flex-col group"
+              className="bg-white dark:bg-card-dark rounded-3xl border border-border-light dark:border-border-dark overflow-hidden shadow-sm hover:shadow-xl transition-all flex flex-col group"
             >
               <div 
-                className="h-44 relative bg-slate-100 overflow-hidden cursor-pointer"
-                onClick={() => setSelectedProduct(product)}
+                className="h-44 relative bg-slate-100 dark:bg-surface-dark overflow-hidden cursor-pointer"
+                onClick={() => {
+                  setSelectedProduct(product);
+                  setShowOrderForm(true);
+                }}
               >
-                <img src={getOptimizedImage(product.imageUrl, 400) || undefined} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={product.name} />
-                <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-2 py-1 rounded-lg shadow-sm border border-border-light">
-                   <span className="text-[10px] font-black text-primary tabular-nums">{product.price} ج.م</span>
+                <img 
+                  src={getOptimizedImage(product.imageUrl, 400) || undefined} 
+                  referrerPolicy="no-referrer" 
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                  alt={product.name} 
+                />
+                <div className="absolute top-3 left-3 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md px-2.5 py-1 rounded-xl shadow-md border border-border-light/60 dark:border-border-dark/60">
+                   <span className="text-[11px] font-black text-primary tabular-nums">{product.price} ج.م</span>
                 </div>
               </div>
-              <div className="p-3 space-y-2">
-                <h3 className="text-xs font-black text-slate-800 dark:text-white line-clamp-1">{product.name}</h3>
-                <p className="text-[10px] text-slate-400 font-bold line-clamp-2 min-h-[30px]">{product.description}</p>
+
+              <div className="p-3 space-y-2 flex-1 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-xs font-black text-slate-800 dark:text-white line-clamp-1">{product.name}</h3>
+                  <p className="text-[10px] text-slate-400 font-bold line-clamp-2 min-h-[30px] mt-1 leading-relaxed">{product.description}</p>
+                </div>
+
                 <button 
                   onClick={() => {
                     setSelectedProduct(product);
                     setShowOrderForm(true);
                   }}
-                  className="w-full py-2 bg-primary text-white rounded-xl text-[10px] font-black hover:bg-primary-dark transition-all pressable flex items-center justify-center gap-2"
+                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-95 cursor-pointer"
                 >
-                  <ShoppingCart size={12} />
-                  اطلب الآن
+                  <MessageCircle size={14} />
+                  <span>الشراء عبر واتساب</span>
                 </button>
               </div>
             </motion.div>
           ))}
+
           {filteredProducts.length === 0 && (
-            <div className="col-span-2 py-20 text-center flex flex-col items-center gap-4">
+            <div className="col-span-2 md:col-span-3 lg:col-span-4 py-20 text-center flex flex-col items-center gap-4">
                <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-surface-dark flex items-center justify-center text-slate-400">
                   <Search size={32} />
                </div>
@@ -201,89 +323,179 @@ export default function Store() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => setShowOrderForm(false)}
+              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+              onClick={handleCloseModal}
             />
             <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              className="relative w-full max-w-md bg-white dark:bg-background-dark rounded-t-[40px] sm:rounded-[40px] p-8 shadow-2xl overflow-hidden"
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              className="relative w-full max-w-md bg-white dark:bg-background-dark rounded-t-[36px] sm:rounded-[36px] p-6 sm:p-8 shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto no-scrollbar"
             >
               {orderSuccess ? (
-                <div className="py-12 flex flex-col items-center text-center gap-6">
-                   <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-green-500/20 animate-bounce">
-                      <CheckCircle2 size={40} />
+                <div className="py-8 flex flex-col items-center text-center gap-5">
+                   <div className="w-20 h-20 bg-emerald-500 rounded-3xl flex items-center justify-center text-white shadow-xl shadow-emerald-500/30 animate-bounce">
+                      <PackageCheck size={40} />
                    </div>
-                   <div>
-                      <h2 className="text-xl font-black text-slate-800 dark:text-white mb-2">تم استلام طلبك بنجاح!</h2>
-                      <p className="text-sm text-slate-500 font-bold">سيتواصل معك فريق المبيعات قريباً لتأكيد التوصيل.</p>
+
+                   <div className="space-y-1">
+                      <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+                        كود الطلب: {lastOrderRef}
+                      </span>
+                      <h2 className="text-xl font-black text-slate-800 dark:text-white pt-2">تم تسجيل طلبك بنجاح!</h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-bold max-w-xs leading-relaxed">
+                        تم إرسال بيانات الطلب إلى لوحة تحكم الإدارة وتجهيز المحادثة عبر WhatsApp (@itthadalexchannel) لتأكيد التوصيل.
+                      </p>
                    </div>
+
+                   {lastWhatsAppUrl && (
+                     <div className="w-full space-y-2 pt-2">
+                       <a
+                         href={lastWhatsAppUrl}
+                         target="_blank"
+                         rel="noopener noreferrer"
+                         className="w-full h-13 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all cursor-pointer"
+                       >
+                         <MessageCircle size={18} />
+                         <span>فتح محادثة WhatsApp (@itthadalexchannel)</span>
+                         <ExternalLink size={14} />
+                       </a>
+                       <button
+                         onClick={handleCloseModal}
+                         className="w-full py-3 bg-slate-100 dark:bg-surface-dark hover:bg-slate-200 text-slate-600 dark:text-slate-300 rounded-2xl font-black text-xs transition-all cursor-pointer"
+                       >
+                         إغلاق
+                       </button>
+                     </div>
+                   )}
                 </div>
               ) : (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                     <button onClick={() => setShowOrderForm(false)} className="h-10 w-10 bg-slate-100 dark:bg-surface-dark rounded-2xl flex items-center justify-center text-slate-500">
-                        <X size={20} />
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between border-b border-border-light dark:border-border-dark pb-3">
+                     <button onClick={handleCloseModal} className="h-9 w-9 bg-slate-100 dark:bg-surface-dark hover:bg-slate-200 rounded-xl flex items-center justify-center text-slate-500 transition-all cursor-pointer">
+                        <X size={18} />
                      </button>
-                     <h2 className="text-xl font-black text-slate-800 dark:text-white">إتمام الطلب</h2>
+                     <div className="text-right">
+                       <h2 className="text-base font-black text-slate-800 dark:text-white">إتمام الطلب عبر WhatsApp</h2>
+                       <p className="text-[10px] text-slate-400 font-bold">@itthadalexchannel</p>
+                     </div>
                   </div>
 
-                  <div className="flex gap-4 p-4 rounded-3xl bg-slate-50 dark:bg-surface-dark border border-border-light dark:border-border-dark">
-                    <img src={getOptimizedImage(selectedProduct.imageUrl, 200) || undefined} referrerPolicy="no-referrer" className="w-20 h-20 rounded-2xl object-cover shadow-sm" alt="" />
-                    <div className="flex-1 flex flex-col justify-center">
-                       <h3 className="font-black text-sm text-slate-800 dark:text-white">{selectedProduct.name}</h3>
-                       <p className="text-primary font-black text-sm tabular-nums mt-1">{selectedProduct.price * formData.quantity} ج.م</p>
+                  {/* Selected Product Card */}
+                  <div className="flex gap-3.5 p-3 rounded-2xl bg-slate-50 dark:bg-surface-dark border border-border-light dark:border-border-dark items-center">
+                    <img 
+                      src={getOptimizedImage(selectedProduct.imageUrl, 200) || undefined} 
+                      referrerPolicy="no-referrer" 
+                      className="w-16 h-16 rounded-xl object-cover shadow-sm shrink-0" 
+                      alt="" 
+                    />
+                    <div className="flex-1 min-w-0">
+                       <h3 className="font-black text-xs text-slate-800 dark:text-white truncate">{selectedProduct.name}</h3>
+                       <div className="flex items-center justify-between mt-1">
+                         <span className="text-[10px] text-slate-400 font-bold">سعر القطعة: {selectedProduct.price} ج.م</span>
+                         <span className="text-emerald-600 dark:text-emerald-400 font-black text-xs tabular-nums">
+                           الإجمالي: {(selectedProduct.price * formData.quantity).toLocaleString()} ج.م
+                         </span>
+                       </div>
                     </div>
                   </div>
 
-                  <form onSubmit={handleOrderSubmit} className="space-y-4">
-                    <div className="space-y-1.5 px-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase pr-2 flex items-center gap-1.5"><User size={10} /> الاسم بالكامل</label>
+                  {/* Order Form */}
+                  <form onSubmit={handleOrderSubmit} className="space-y-3.5">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-black text-slate-500 dark:text-slate-400 pr-1 flex items-center gap-1.5">
+                        <User size={12} className="text-primary" />
+                        الاسم بالكامل <span className="text-red-500">*</span>
+                      </label>
                       <input 
                         required
-                        className="w-full h-12 px-4 rounded-2xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark font-bold text-sm outline-none focus:ring-1 focus:ring-primary/40"
+                        type="text"
+                        placeholder="أدخل اسمك الكريم..."
+                        className="w-full h-11 px-3.5 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark font-bold text-xs outline-none focus:ring-2 focus:ring-emerald-500/20"
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                       />
                     </div>
-                    <div className="space-y-1.5 px-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase pr-2 flex items-center gap-1.5"><Phone size={10} /> رقم الهاتف</label>
-                      <input 
-                        required
-                        type="tel"
-                        className="w-full h-12 px-4 rounded-2xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark font-bold text-sm outline-none focus:ring-1 focus:ring-primary/40"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                      />
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="col-span-2 space-y-1">
+                        <label className="text-[11px] font-black text-slate-500 dark:text-slate-400 pr-1 flex items-center gap-1.5">
+                          <Phone size={12} className="text-primary" />
+                          رقم الهاتف (واتساب) <span className="text-red-500">*</span>
+                        </label>
+                        <input 
+                          required
+                          type="tel"
+                          dir="ltr"
+                          placeholder="010XXXXXXXX"
+                          className="w-full h-11 px-3.5 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark font-bold text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 text-right"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                        />
+                      </div>
+                      <div className="col-span-1 space-y-1">
+                        <label className="text-[11px] font-black text-slate-500 dark:text-slate-400 pr-1 flex items-center gap-1">
+                          الكمية
+                        </label>
+                        <select 
+                          className="w-full h-11 px-3 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark font-black text-xs outline-none focus:ring-2 focus:ring-emerald-500/20"
+                          value={formData.quantity}
+                          onChange={(e) => setFormData({...formData, quantity: Number(e.target.value)})}
+                        >
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v => (
+                            <option key={v} value={v}>{v} قطع</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <div className="space-y-1.5 px-1">
-                      <label className="text-[10px] font-black text-slate-400 uppercase pr-2 flex items-center gap-1.5"><MapPin size={10} /> عنوان التوصيل</label>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-black text-slate-500 dark:text-slate-400 pr-1 flex items-center gap-1.5">
+                        <MapPin size={12} className="text-primary" />
+                        عنوان التوصيل بالتفصيل <span className="text-red-500">*</span>
+                      </label>
                       <textarea 
                         required
-                        className="w-full p-4 rounded-2xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark font-bold text-sm outline-none focus:ring-1 focus:ring-primary/40 min-h-[80px]"
+                        rows={2}
+                        placeholder="المحافظة، المنطقة، اسم الشارع، رقم العقار والشقة..."
+                        className="w-full p-3 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark font-bold text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none leading-relaxed"
                         value={formData.address}
                         onChange={(e) => setFormData({...formData, address: e.target.value})}
                       />
                     </div>
-                    <div className="flex gap-4">
-                       <div className="flex-1 space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-400 uppercase pr-2 flex items-center gap-1.5">الكمية</label>
-                          <select 
-                             className="w-full h-12 px-4 rounded-2xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark font-bold text-sm outline-none"
-                             value={formData.quantity}
-                             onChange={(e) => setFormData({...formData, quantity: Number(e.target.value)})}
-                          >
-                             {[1,2,3,4,5].map(v => <option key={v} value={v}>{v}</option>)}
-                          </select>
-                       </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 pr-1">
+                        ملاحظات إضافية أو المقاس (اختياري)
+                      </label>
+                      <input 
+                        type="text"
+                        placeholder="مثال: المقاس L أو اللون المفضل..."
+                        className="w-full h-10 px-3.5 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark font-bold text-xs outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        value={formData.notes}
+                        onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                      />
                     </div>
+
+                    {/* Notice */}
+                    <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-100 dark:border-emerald-900/50 flex items-center gap-2 text-[10px] text-emerald-800 dark:text-emerald-300 font-bold">
+                      <MessageCircle size={16} className="shrink-0 text-emerald-600" />
+                      <span>سيتم حفظ بيانات طلبك في لوحة التحكم وتوجيهك فوراً إلى محادثة واتساب (@itthadalexchannel) لتأكيد الشحن.</span>
+                    </div>
+
                     <button 
                       type="submit"
-                      className="w-full h-14 bg-primary text-white rounded-3xl font-black text-sm flex items-center justify-center gap-3 shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all mt-4"
+                      disabled={isSubmitting}
+                      className="w-full h-13 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-xl shadow-emerald-600/25 active:scale-98 transition-all cursor-pointer"
                     >
-                      <CreditCard size={18} />
-                      تأكيد طلب الشراء
+                      {isSubmitting ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <MessageCircle size={18} className="fill-white" />
+                          <span>إرسال الطلب وإتمام الشراء عبر WhatsApp</span>
+                        </>
+                      )}
                     </button>
                   </form>
                 </div>

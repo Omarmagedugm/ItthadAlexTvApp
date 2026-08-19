@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getOptimizedImage } from '../lib/cloudinary';
+import { isImageInMemory, markImageLoaded, cacheImage } from '../lib/imageCache';
 
 export const getTeamLogoWithFallback = (teamName?: string, logoUrl?: string): string => {
   if (logoUrl && logoUrl.trim().length > 5) {
@@ -31,6 +32,7 @@ interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   fallback?: string;
   teamName?: string;
   fetchPriority?: 'high' | 'low' | 'auto';
+  showIconPlaceholder?: boolean;
 }
 
 export const SafeImage: React.FC<SafeImageProps> = ({ 
@@ -41,34 +43,61 @@ export const SafeImage: React.FC<SafeImageProps> = ({
   fallback,
   teamName,
   fetchPriority,
+  loading = 'lazy',
+  showIconPlaceholder = true,
   ...props 
 }) => {
   const [hasError, setHasError] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const imgRef = useRef<HTMLImageElement>(null);
-
   const effectiveSrc = teamName ? getTeamLogoWithFallback(teamName, src as string) : (src || fallback || 'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777720049/admin_homeLogo/bsxn6a8jxy6yfbyh56df.png');
   const optimizedSrc = getOptimizedImage(hasError ? (fallback || getTeamLogoWithFallback(teamName)) : effectiveSrc, width);
 
+  // Check if image was already cached/loaded in memory to prevent layout shift or loading flicker
+  const [isLoaded, setIsLoaded] = useState(() => isImageInMemory(optimizedSrc));
+  const imgRef = useRef<HTMLImageElement>(null);
+
   useEffect(() => {
     setHasError(false);
+    if (isImageInMemory(optimizedSrc)) {
+      setIsLoaded(true);
+      return;
+    }
+
     setIsLoaded(false);
     if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
+      markImageLoaded(optimizedSrc);
       setIsLoaded(true);
     }
-  }, [src, teamName]);
+  }, [optimizedSrc]);
+
+  const handleLoad = () => {
+    markImageLoaded(optimizedSrc);
+    cacheImage(optimizedSrc).catch(() => {});
+    setIsLoaded(true);
+  };
+
+  const handleError = () => {
+    if (!hasError) {
+      setHasError(true);
+    } else {
+      setIsLoaded(true);
+    }
+  };
 
   const isContain = className.includes('object-contain');
   const fitClass = isContain ? 'object-contain' : 'object-cover';
 
   return (
     <div className={`relative overflow-hidden ${className} flex items-center justify-center shrink-0`}>
-      {/* Fast Football Icon Placeholder while loading */}
+      {/* Lightweight, elegant placeholder during first download */}
       {!isLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-100/30 dark:bg-slate-800/30 rounded-full z-0">
-          <span className="material-symbols-outlined text-amber-500 animate-pulse text-[1.4em] select-none">
-            sports_soccer
-          </span>
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-100/40 dark:bg-surface-dark/40 z-0 animate-pulse">
+          {showIconPlaceholder ? (
+            <span className="material-symbols-outlined text-emerald-500/40 text-[1.3em] select-none">
+              sports_soccer
+            </span>
+          ) : (
+            <div className="w-full h-full bg-slate-200/50 dark:bg-slate-700/50" />
+          )}
         </div>
       )}
 
@@ -77,20 +106,14 @@ export const SafeImage: React.FC<SafeImageProps> = ({
         ref={imgRef}
         src={optimizedSrc}
         alt={alt || teamName || ''}
+        loading={loading}
+        decoding="async"
         fetchPriority={fetchPriority}
-        onLoad={() => setIsLoaded(true)}
-        onError={() => {
-          if (!hasError) {
-            setHasError(true);
-          } else {
-            setIsLoaded(true);
-          }
-        }}
+        onLoad={handleLoad}
+        onError={handleError}
         className={`relative z-10 w-full h-full ${fitClass} transition-opacity duration-200 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
         referrerPolicy="no-referrer"
       />
     </div>
   );
 };
-
-

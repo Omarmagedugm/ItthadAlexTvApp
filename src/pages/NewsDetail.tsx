@@ -117,6 +117,9 @@ export default function NewsDetail() {
               src={getOptimizedImage(article.image, 800)} 
               alt={article.title} 
               className="relative z-10 w-full h-full max-h-[55vh] object-contain drop-shadow-2xl" 
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
               referrerPolicy="no-referrer"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10"></div>

@@ -55,12 +55,47 @@ export default defineConfig(({ mode }) => {
               },
             },
             {
-              urlPattern: /\.(?:png|jpg|jpeg|svg|gif|ico)$/,
-              handler: 'StaleWhileRevalidate',
+              urlPattern: /^https:\/\/res\.cloudinary\.com\/.*/i,
+              handler: 'CacheFirst',
               options: {
-                cacheName: 'images',
+                cacheName: 'cloudinary-images-cache-v1',
                 expiration: {
-                  maxEntries: 50,
+                  maxEntries: 300,
+                  maxAgeSeconds: 60 * 60 * 24 * 30, // 30 Days
+                  purgeOnQuotaError: true,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+            {
+              urlPattern: /^https:\/\/(?:images\.unsplash\.com|firebasestorage\.googleapis\.com|upload\.wikimedia\.org|ui-avatars\.com|lh3\.googleusercontent\.com)\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'cdn-images-cache-v1',
+                expiration: {
+                  maxEntries: 200,
+                  maxAgeSeconds: 60 * 60 * 24 * 30, // 30 Days
+                  purgeOnQuotaError: true,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+            {
+              urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|avif|ico)(?:\?.*)?$/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'static-images-cache-v1',
+                expiration: {
+                  maxEntries: 250,
+                  maxAgeSeconds: 60 * 60 * 24 * 30, // 30 Days
+                  purgeOnQuotaError: true,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
                 },
               },
             },

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import { parseLiveStreamUrl } from '../../lib/videoUtils';
-import { Play, ExternalLink, RefreshCw, AlertTriangle, Youtube, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, ExternalLink, RefreshCw, AlertTriangle, Youtube, Volume2, VolumeX, Radio as RadioIcon } from 'lucide-react';
 
 interface LivePlayerProps {
   url?: string;
@@ -14,20 +14,49 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const hlsRef = useRef<Hls | null>(null);
 
   const parsed = parseLiveStreamUrl(url);
+  const isRadio = sportName.includes('راديو') || parsed.type === 'audio';
 
   // Reset states on URL change
   useEffect(() => {
     setHasError(false);
     setIsLoading(true);
-  }, [url, reloadKey]);
+    setIsAudioPlaying(false);
+  }, [url, reloadKey, sportName]);
+
+  // Audio stream setup
+  useEffect(() => {
+    if (!isRadio || !url || !isActive) return;
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.src = url;
+    audio.play()
+      .then(() => {
+        setIsAudioPlaying(true);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        // Autoplay may require user gesture
+        setIsAudioPlaying(false);
+        setIsLoading(false);
+      });
+
+    return () => {
+      audio.pause();
+    };
+  }, [url, isRadio, isActive, reloadKey]);
 
   // HLS stream setup
   useEffect(() => {
-    if (!url || parsed.type !== 'hls' || !isActive) return;
+    if (!url || parsed.type !== 'hls' || !isActive || isRadio) return;
 
     const video = videoRef.current;
     if (!video) return;
@@ -50,9 +79,7 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setIsLoading(false);
-        video.play().catch(() => {
-          // Autoplay may be muted by browser
-        });
+        video.play().catch(() => {});
       });
 
       hls.on(Hls.Events.ERROR, (_, data) => {
@@ -80,7 +107,6 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
         }
       };
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native Apple Safari HLS
       video.src = parsed.embedUrl;
       video.addEventListener('loadedmetadata', () => {
         setIsLoading(false);
@@ -91,17 +117,36 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
         setIsLoading(false);
       });
     }
-  }, [url, parsed.type, parsed.embedUrl, isActive, reloadKey]);
+  }, [url, parsed.type, parsed.embedUrl, isActive, reloadKey, isRadio]);
+
+  const toggleAudioPlay = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isAudioPlaying) {
+      audio.pause();
+      setIsAudioPlaying(false);
+    } else {
+      audio.play().then(() => setIsAudioPlaying(true)).catch(() => {});
+    }
+  };
+
+  const toggleMute = () => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
 
   if (!isActive) {
     return (
       <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center p-6 text-center z-10">
         <div className="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center mb-4 text-slate-500 shadow-inner">
-          <span className="material-symbols-outlined text-3xl">videocam_off</span>
+          <span className="material-symbols-outlined text-3xl">{isRadio ? 'radio' : 'videocam_off'}</span>
         </div>
         <h3 className="text-white font-black text-base mb-1.5">لا يوجد بث مباشر لـ {sportName} حالياً</h3>
         <p className="text-slate-400 text-xs max-w-xs leading-relaxed">
-          سيبدأ البث المباشر فور انطلاق أحداث المباراة. يمكنك متابعة التحديثات والدردشة مع الجماهير أدناه.
+          سيبدأ البث فور انطلاقه من قبل الإدارة. يمكنك متابعة الدردشة والتفاعل أدناه.
         </p>
       </div>
     );
@@ -113,8 +158,67 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
         <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-4 text-primary animate-pulse">
           <Play size={28} className="fill-primary ml-1" />
         </div>
-        <h3 className="text-white font-black text-sm mb-1">في انتظار إشارة البث المباشر</h3>
+        <h3 className="text-white font-black text-sm mb-1">في انتظار إشارة البث</h3>
         <p className="text-slate-400 text-xs">سيظهر البث هنا فور بدئه من قبل الإدارة</p>
+      </div>
+    );
+  }
+
+  // Radio Audio Player View
+  if (isRadio) {
+    return (
+      <div className="relative w-full h-full bg-gradient-to-br from-emerald-950 via-slate-950 to-slate-900 flex flex-col items-center justify-center p-6 text-center overflow-hidden">
+        <audio ref={audioRef} preload="auto" onError={() => setHasError(true)} />
+        
+        {/* Animated Sound Wave Background */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-15 pointer-events-none gap-1 px-4">
+          {[40, 65, 85, 30, 95, 50, 75, 90, 60, 45, 80, 100, 35, 70, 55, 85].map((h, i) => (
+            <div
+              key={i}
+              className="flex-1 bg-emerald-400 rounded-full transition-all duration-300"
+              style={{
+                height: isAudioPlaying ? `${Math.max(15, (h * (i % 3 + 1)) % 100)}%` : '10%',
+                animation: isAudioPlaying ? `pulse 1.${(i % 5) + 2}s infinite ease-in-out` : 'none'
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="relative z-10 flex flex-col items-center gap-3 max-w-xs">
+          <div className="relative">
+            <div className={`w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-2xl shadow-emerald-500/30 ${isAudioPlaying ? 'ring-4 ring-emerald-400/40 animate-pulse' : ''}`}>
+              <RadioIcon size={36} className="text-white" />
+            </div>
+            {isAudioPlaying && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white"></span>
+              </span>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-white font-black text-base">{title || 'راديو زعيم الثغر'}</h3>
+            <p className="text-emerald-400 text-xs font-bold mt-0.5">البث الصوتي المباشر 🎙️</p>
+          </div>
+
+          {/* Controls */}
+          <div className="flex items-center gap-3 mt-2">
+            <button
+              onClick={toggleAudioPlay}
+              className="w-12 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 transition-all cursor-pointer"
+            >
+              {isAudioPlaying ? <Pause size={22} /> : <Play size={22} className="fill-white ml-0.5" />}
+            </button>
+            <button
+              onClick={toggleMute}
+              className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-95 text-white transition-all cursor-pointer"
+              title={isMuted ? 'إلغاء الكتم' : 'كتم الصوت'}
+            >
+              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -138,7 +242,6 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
               setHasError(true);
             }}
           />
-          {/* Quick Fallback bar if YouTube restricts embedding */}
           {parsed.directWatchUrl && (
             <a
               href={parsed.directWatchUrl}

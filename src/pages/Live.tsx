@@ -23,28 +23,32 @@ export default function Live() {
   const { liveStream, liveStreams, profile, users, appSettings } = useAppStore();
   
   // Choose sport/channel based on settings or active stream
-  const [selectedSport, setSelectedSport] = useState<'football' | 'basketball' | 'programs'>(() => {
+  const [selectedSport, setSelectedSport] = useState<'football' | 'basketball' | 'radio' | 'programs'>(() => {
+    if (appSettings.liveViewMode === 'radio') return 'radio';
     if (appSettings.liveViewMode === 'basketball') return 'basketball';
     if (appSettings.liveViewMode === 'football') return 'football';
     if (liveStreams.football?.isActive) return 'football';
     if (liveStreams.basketball?.isActive) return 'basketball';
+    if (liveStreams.radio?.isActive) return 'radio';
     if (liveStreams.programs?.isActive) return 'programs';
     return 'football';
   });
 
   useEffect(() => {
     if (appSettings.liveViewMode && appSettings.liveViewMode !== 'both') {
-      if (['football', 'basketball', 'programs'].includes(appSettings.liveViewMode)) {
-        setSelectedSport(appSettings.liveViewMode as 'football' | 'basketball' | 'programs');
+      if (['football', 'basketball', 'radio', 'programs'].includes(appSettings.liveViewMode)) {
+        setSelectedSport(appSettings.liveViewMode as 'football' | 'basketball' | 'radio' | 'programs');
       }
     }
   }, [appSettings.liveViewMode]);
   
-  const currentStream = selectedSport === 'programs' 
-    ? liveStreams.programs 
-    : selectedSport === 'basketball' 
-      ? liveStreams.basketball 
-      : liveStreams.football;
+  const currentStream = selectedSport === 'radio'
+    ? liveStreams.radio
+    : selectedSport === 'programs' 
+      ? liveStreams.programs 
+      : selectedSport === 'basketball' 
+        ? liveStreams.basketball 
+        : liveStreams.football;
 
   const [chatMessage, setChatMessage] = useState('');
   const [comments, setComments] = useState<Comment[]>([]);
@@ -134,6 +138,7 @@ export default function Live() {
   };
 
   const getSportTitle = () => {
+    if (selectedSport === 'radio') return 'راديو زعيم الثغر';
     if (selectedSport === 'programs') return 'برامج واستوديو الاتحاد';
     if (selectedSport === 'basketball') return 'كرة السلة';
     return 'كرة القدم';
@@ -142,7 +147,7 @@ export default function Live() {
   return (
     <div className="flex-1 w-full max-w-md mx-auto flex flex-col pb-32 bg-background-light dark:bg-background-dark min-h-screen">
       <main className="flex-1 flex flex-col">
-        {/* Video Player */}
+        {/* Video / Audio Player */}
         <section className="relative w-full aspect-video bg-black shadow-lg sticky top-[64px] z-40 lg:static">
           <LivePlayer
             url={currentStream?.url}
@@ -173,7 +178,7 @@ export default function Live() {
           )}
         </section>
 
-        {/* Live Channel / Sport Tabs: Football, Basketball, Programs */}
+        {/* Live Channel / Sport Tabs: Football, Basketball, Radio */}
         <div className="bg-white dark:bg-card-dark border-b border-border-light dark:border-border-dark p-2 flex justify-center gap-1.5">
           <button 
             onClick={() => setSelectedSport('football')}
@@ -198,12 +203,12 @@ export default function Live() {
           </button>
 
           <button 
-            onClick={() => setSelectedSport('programs')}
-            className={`flex-1 h-10 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${selectedSport === 'programs' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'bg-slate-50 dark:bg-surface-dark text-slate-500 hover:bg-slate-100 dark:hover:bg-surface-dark/80'}`}
+            onClick={() => setSelectedSport('radio')}
+            className={`flex-1 h-10 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${selectedSport === 'radio' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' : 'bg-slate-50 dark:bg-surface-dark text-slate-500 hover:bg-slate-100 dark:hover:bg-surface-dark/80'}`}
           >
-            <span className="material-symbols-outlined !text-[18px]">live_tv</span>
-            <span>برامج</span>
-            {liveStreams.programs?.isActive && (
+            <span className="material-symbols-outlined !text-[18px]">radio</span>
+            <span>راديو</span>
+            {liveStreams.radio?.isActive && (
               <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
             )}
           </button>

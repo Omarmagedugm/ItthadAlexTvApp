@@ -6,6 +6,7 @@ import PullToRefresh from './components/PullToRefresh';
 import { useAppStore } from './store';
 import { useFirestoreSync } from './hooks/useFirestore';
 import { auth, requestNotificationPermission } from './lib/firebase';
+import { preloadImages } from './lib/imageCache';
 
 import Home from './pages/Home';
 import MaintenanceScreen from './components/MaintenanceScreen';
@@ -265,6 +266,16 @@ function AppContent() {
   const lastGoalCheck = useRef<Record<string, number>>({});
   const lastMatchStatus = useRef<Record<string, string>>({});
   const isInitialized = useRef(false);
+
+  // Pre-cache key club branding assets for instant offline/online rendering
+  useEffect(() => {
+    preloadImages([
+      '/icon.png',
+      'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777720049/admin_homeLogo/bsxn6a8jxy6yfbyh56df.png',
+      'https://upload.wikimedia.org/wikipedia/en/thumb/e/ef/Al_Ahly_SC_logo.svg/1200px-Al_Ahly_SC_logo.svg.png',
+      'https://upload.wikimedia.org/wikipedia/en/thumb/0/04/Zamalek_SC_logo.svg/1200px-Zamalek_SC_logo.svg.png'
+    ]);
+  }, []);
 
   useEffect(() => {
     // Check for Al-Ittihad goals in live matches

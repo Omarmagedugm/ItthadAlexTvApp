@@ -53,7 +53,15 @@ export default function News() {
               >
                 <Link to={`/news/${featured.id}`} className="group relative block w-full overflow-hidden rounded-[40px] bg-white dark:bg-surface-dark shadow-premium hover:shadow-2xl transition-all duration-500 border border-border-light dark:border-border-dark cinematic-glow">
                   <div className="aspect-[16/10] w-full relative overflow-hidden">
-                    <img src={getOptimizedImage(featured.image, 800)} alt={featured.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" referrerPolicy="no-referrer" />
+                    <img 
+                      src={getOptimizedImage(featured.image, 800)} 
+                      alt={featured.title} 
+                      className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+                      loading="eager"
+                      decoding="async"
+                      fetchPriority="high"
+                      referrerPolicy="no-referrer" 
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent"></div>
                     
                     <div className="absolute top-4 left-4 z-20 flex gap-2 flex-wrap max-w-[80%]">
@@ -158,7 +166,14 @@ export default function News() {
               {otherNews.map((item) => (
                 <Link to={`/news/${item.id}`} key={item.id} className="group flex flex-row md:flex-col gap-4 bg-white dark:bg-surface-dark rounded-[28px] overflow-hidden border border-border-light/40 dark:border-border-dark/40 shadow-premium hover:shadow-2xl transition-all duration-300 p-2.5 md:p-3.5">
                   <div className="w-[110px] h-[110px] md:w-full md:aspect-[16/10] md:h-auto overflow-hidden relative rounded-2xl flex-shrink-0">
-                    <img src={getOptimizedImage(item.image, 400)} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" referrerPolicy="no-referrer" />
+                    <img 
+                      src={getOptimizedImage(item.image, 400)} 
+                      alt={item.title} 
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer" 
+                    />
                     {item.type === 'rss' && (
                        <div className="absolute bottom-1 right-1 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-lg flex items-center gap-1 shadow-sm text-white">
                           <Rss size={8} className="text-orange-400" />
