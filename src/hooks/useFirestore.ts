@@ -121,12 +121,11 @@ export function useFirestoreSync() {
       }, 'settings/homeLayout', OperationType.GET);
 
       // Realtime listeners strictly for frequently changing social/interactive and core member data
-      unsubs.push(subscribeSnapshot(query(collection(db, 'fan_posts'), orderBy('createdAt', 'desc'), limit(100)), s => setFanPosts(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'fan_posts'));
-      unsubs.push(subscribeSnapshot(query(collection(db, 'polls'), orderBy('createdAt', 'desc'), limit(20)), s => setPolls(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'polls'));
-      unsubs.push(subscribeSnapshot(query(collection(db, 'predictions'), orderBy('createdAt', 'desc'), limit(100)), s => setPredictions(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'predictions'));
-      unsubs.push(subscribeSnapshot(collection(db, 'users'), s => setUsers(s.docs.map(d => ({id: d.id, uid: d.id, ...(d.data() as any)})) as any), 'users'));
+      unsubs.push(subscribeSnapshot(query(collection(db, 'fan_posts'), orderBy('createdAt', 'desc'), limit(50)), s => setFanPosts(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'fan_posts'));
+      unsubs.push(subscribeSnapshot(query(collection(db, 'polls'), orderBy('createdAt', 'desc'), limit(15)), s => setPolls(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'polls'));
+      unsubs.push(subscribeSnapshot(query(collection(db, 'predictions'), orderBy('createdAt', 'desc'), limit(50)), s => setPredictions(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'predictions'));
       
-      unsubs.push(unsubLiveFootball, unsubLiveBasketball, unsubMatches, unsubNews, unsubMedia, unsubAuditLogs, unsubLayout);
+      unsubs.push(unsubLiveFootball, unsubLiveBasketball, unsubMatches, unsubNews, unsubMedia, unsubLayout);
 
       const unsubNewsCategories = subscribeSnapshot(doc(db, 'settings', 'newsCategories'), (snap) => {
         if (snap.exists()) {
@@ -291,6 +290,17 @@ export function useFirestoreSync() {
         setMemberDiscounts(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
       }, 'member_discounts'));
 
+      // Realtime listener for Custom Pages (الصفحات المخصصة / الإضافية)
+      unsubs.push(subscribeSnapshot(query(collection(db, 'custom_pages'), orderBy('createdAt', 'desc')), s => {
+        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        setCustomPages(data as any);
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('fs_cache_custom_pages', JSON.stringify({ data, timestamp: Date.now() }));
+          }
+        } catch (e) {}
+      }, 'custom_pages'));
+
       let radioInitializedRef = false;
       unsubs.push(subscribeSnapshot(collection(db, 'radio_stations'), s => {
         const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
@@ -311,10 +321,6 @@ export function useFirestoreSync() {
           setRadioStations([]);
         }
       }, 'radio_stations'));
-
-      unsubs.push(subscribeSnapshot(query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'), limit(150)), s => {
-        setAuditLogs(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
-      }, 'audit_logs'));
 
       const currentUser = auth.currentUser;
       if (currentUser) {
@@ -338,10 +344,22 @@ export function useFirestoreSync() {
           console.warn('Activity update tracking failed', e);
         }
 
-        // Orders sync with strict limit
+        // Conditional Admin / Manager syncs (prevents permission denied errors & saves client quota)
         setTimeout(() => {
           const profile = useAppStore.getState().profile;
-          const isAdmin = profile?.role === 'admin' || (profile?.roles && profile.roles.includes('admin'));
+          const isOmar = currentUser.email?.toLowerCase() === 'omarmagedugm@ittihad.club';
+          const isDev = currentUser.email?.toLowerCase() === 'copyrightofficialco@gmail.com';
+          const isAdmin = profile?.role === 'admin' || profile?.role === 'moderator' || (profile?.roles && (profile.roles.includes('admin') || profile.roles.includes('moderator'))) || isOmar || isDev;
+          
+          if (isAdmin) {
+            unsubs.push(subscribeSnapshot(query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'), limit(100)), s => {
+              setAuditLogs(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+            }, 'audit_logs'));
+            unsubs.push(subscribeSnapshot(query(collection(db, 'users'), limit(300)), s => {
+              setUsers(s.docs.map(d => ({ id: d.id, uid: d.id, ...(d.data() as any) })) as any);
+            }, 'users'));
+          }
+
           const ordersQuery = isAdmin 
             ? query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(30))
             : query(collection(db, 'orders'), where('userId', '==', currentUser.uid), orderBy('createdAt', 'desc'), limit(30));
@@ -394,7 +412,7 @@ export function useFirestoreSync() {
             const s = await getDocs(q || collection(db, col));
             return s.docs.map(d => ({ id: d.id, uid: d.id, ...(d.data() as any) }));
           });
-          if (data && data.length > 0) setter(data);
+          if (data !== undefined && data !== null) setter(data);
         } catch (e) { console.warn(`Fetch ${col} failed`, e); }
       };
 
@@ -421,6 +439,7 @@ export function useFirestoreSync() {
           localStorage.removeItem('fs_cache_world_events');
           localStorage.removeItem('fs_cache_world_help_requests');
           localStorage.removeItem('fs_cache_world_applications');
+          localStorage.removeItem('fs_cache_custom_pages');
         }
       } catch (e) {}
 
@@ -432,7 +451,6 @@ export function useFirestoreSync() {
         fetchCol('clubs', setClubs),
         fetchCol('products', setProducts),
         fetchCol('ads', setAds, query(collection(db, 'ads'), where('active', '==', true), orderBy('order', 'asc'))),
-        fetchCol('custom_pages', setCustomPages),
         fetchCol('songs', setSongs),
         fetchCol('books', setBooks),
         fetchCol('media_playlists', setMediaPlaylists)

@@ -17,13 +17,21 @@ import {
   X, 
   Sparkles, 
   Menu, 
-  ExternalLink,
   ShieldCheck,
   Building2,
   Globe,
-  Tag
+  Palette
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+
+const HIGHLIGHT_COLORS = [
+  { id: 'primary', label: 'أخضر أساسي (Club Green)', class: 'bg-primary text-white border-primary' },
+  { id: 'amber', label: 'كهرماني / ذهبي (Amber)', class: 'bg-amber-500 text-white border-amber-500' },
+  { id: 'blue', label: 'أزرق (Blue)', class: 'bg-blue-600 text-white border-blue-600' },
+  { id: 'emerald', label: 'زمردي (Emerald)', class: 'bg-emerald-600 text-white border-emerald-600' },
+  { id: 'purple', label: 'بنفسجي (Purple)', class: 'bg-purple-600 text-white border-purple-600' },
+  { id: 'red', label: 'أحمر (Red)', class: 'bg-red-600 text-white border-red-600' },
+];
 
 export default function AdminSidebarManager() {
   const { sidebarMenuItems, setSidebarMenuItems } = useAppStore();
@@ -37,6 +45,8 @@ export default function AdminSidebarManager() {
     path: '',
     icon: 'link',
     active: true,
+    highlighted: false,
+    highlightColor: 'primary',
     group: 'main'
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -85,9 +95,29 @@ export default function AdminSidebarManager() {
     setItems(updated);
   };
 
+  const handleToggleHighlight = (id: string) => {
+    const updated = items.map(item => {
+      if (item.id === id) {
+        const nextState = !item.highlighted;
+        return { 
+          ...item, 
+          highlighted: nextState,
+          highlightColor: nextState ? (item.highlightColor || 'primary') : undefined
+        };
+      }
+      return item;
+    });
+    setItems(updated);
+    toast.success('تم تحديث حالة التمييز');
+  };
+
   const handleStartEdit = (item: SidebarMenuItem) => {
     setEditingId(item.id);
-    setEditForm({ ...item });
+    setEditForm({ 
+      ...item,
+      highlighted: item.highlighted || false,
+      highlightColor: item.highlightColor || 'primary'
+    });
   };
 
   const handleSaveEdit = () => {
@@ -122,6 +152,8 @@ export default function AdminSidebarManager() {
       icon: newItem.icon || 'link',
       badge: newItem.badge?.trim() || undefined,
       badgeColor: newItem.badgeColor || undefined,
+      highlighted: newItem.highlighted || false,
+      highlightColor: (newItem.highlightColor as any) || 'primary',
       active: true,
       group: (newItem.group as any) || 'main',
       order: items.length
@@ -129,7 +161,7 @@ export default function AdminSidebarManager() {
 
     setItems([...items, itemToAdd]);
     setIsAddingNew(false);
-    setNewItem({ title: '', path: '', icon: 'link', active: true, group: 'main' });
+    setNewItem({ title: '', path: '', icon: 'link', active: true, highlighted: false, highlightColor: 'primary', group: 'main' });
     toast.success('تمت إضافة العنصر بنجاح');
   };
 
@@ -141,7 +173,7 @@ export default function AdminSidebarManager() {
   };
 
   const handleResetToDefault = async () => {
-    if (!window.confirm('هل ترغب بإعادة تعيين القائمة الجانبية إلى الترتيب الافتراضي للنظام؟')) return;
+    if (!window.confirm('هل ترغب بإعادة تعيين القائمة الجانبية إلى الترتيب الافتراضي للنظام بدون تمييزات مسبقة؟')) return;
     setItems(DEFAULT_SIDEBAR_ITEMS);
     try {
       await setDoc(doc(db, 'settings', 'sidebar_layout'), { items: DEFAULT_SIDEBAR_ITEMS });
@@ -158,18 +190,25 @@ export default function AdminSidebarManager() {
     try {
       const normalizedItems = items.map((item, idx) => ({
         ...item,
-        order: idx
+        order: idx,
+        highlighted: item.highlighted || false,
+        highlightColor: item.highlighted ? (item.highlightColor || 'primary') : undefined
       }));
 
       await setDoc(doc(db, 'settings', 'sidebar_layout'), { items: normalizedItems });
       setSidebarMenuItems(normalizedItems);
-      toast.success('تم حفظ ترتيب وإعدادات القائمة الجانبية بنجاح');
+      toast.success('تم حفظ ترتيب وإعدادات القائمة الجانبية بنجاح ✨');
     } catch (error) {
       console.error('Error saving sidebar menu items:', error);
       toast.error('فشل في حفظ إعدادات القائمة الجانبية');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const getHighlightBadgeName = (color?: string) => {
+    const found = HIGHLIGHT_COLORS.find(c => c.id === color);
+    return found ? found.label.split(' ')[0] : 'مميز';
   };
 
   return (
@@ -183,7 +222,7 @@ export default function AdminSidebarManager() {
           <div>
             <h2 className="font-black text-lg text-slate-800 dark:text-white">إدارة وترتيب القائمة الجانبية</h2>
             <p className="text-xs font-bold text-slate-400">
-              تحكم بترتيب العناصر، تفعيلها أو إخفائها، وتخصيص الشارات والأقسام
+              تحكم بترتيب العناصر، تفعيلها أو إخفائها، تمييزها (Highlight) أو إلغاء تمييزها، وتخصيص الشارات
             </p>
           </div>
         </div>
@@ -255,7 +294,7 @@ export default function AdminSidebarManager() {
             </div>
 
             <div>
-              <label className="text-[11px] font-bold text-slate-500 mb-1 block">نص الشارة (اختياري)</label>
+              <label className="text-[11px] font-bold text-slate-500 mb-1 block">نص الشارة (Badge)</label>
               <input
                 type="text"
                 placeholder="مثال: جديد"
@@ -278,19 +317,48 @@ export default function AdminSidebarManager() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 mt-4">
-            <button
-              onClick={() => setIsAddingNew(false)}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800"
-            >
-              إلغاء
-            </button>
-            <button
-              onClick={handleAddNewItem}
-              className="px-5 py-2 rounded-xl bg-primary text-white text-xs font-black shadow-md hover:bg-primary-dark"
-            >
-              إضافة للقائمة
-            </button>
+          <div className="mt-3 pt-3 border-t border-slate-200 dark:border-border-dark flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={newItem.highlighted || false}
+                  onChange={e => setNewItem({ ...newItem, highlighted: e.target.checked })}
+                  className="rounded text-primary focus:ring-primary h-4 w-4"
+                />
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                  <Sparkles size={14} className="text-amber-500" />
+                  تمييز العنصر في القائمة (Highlight)
+                </span>
+              </label>
+
+              {newItem.highlighted && (
+                <select
+                  value={newItem.highlightColor || 'primary'}
+                  onChange={e => setNewItem({ ...newItem, highlightColor: e.target.value as any })}
+                  className="p-1.5 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-card-dark text-xs font-bold text-slate-700 dark:text-slate-300"
+                >
+                  {HIGHLIGHT_COLORS.map(c => (
+                    <option key={c.id} value={c.id}>{c.label}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setIsAddingNew(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleAddNewItem}
+                className="px-5 py-2 rounded-xl bg-primary text-white text-xs font-black shadow-md hover:bg-primary-dark"
+              >
+                إضافة للقائمة
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -302,7 +370,7 @@ export default function AdminSidebarManager() {
             <span>الترتيب</span>
             <span>العنصر والمسار</span>
           </div>
-          <span>الإجراءات والتحكم</span>
+          <span>الإجراءات والتخصيص</span>
         </div>
 
         {items.map((item, index) => {
@@ -310,6 +378,7 @@ export default function AdminSidebarManager() {
           const isFirst = index === 0;
           const isLast = index === items.length - 1;
           const isActive = item.active !== false;
+          const isHighlighted = item.highlighted === true;
 
           return (
             <div
@@ -317,7 +386,9 @@ export default function AdminSidebarManager() {
               className={`flex flex-col sm:flex-row sm:items-center justify-between p-3.5 sm:p-4 rounded-2xl border transition-all ${
                 !isActive 
                   ? 'bg-slate-50/50 dark:bg-surface-dark/40 border-dashed border-slate-200 dark:border-slate-800 opacity-60'
-                  : 'bg-white dark:bg-card-dark border-slate-200/80 dark:border-border-dark shadow-sm hover:border-primary/40'
+                  : isHighlighted
+                    ? 'bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/40 shadow-sm'
+                    : 'bg-white dark:bg-card-dark border-slate-200/80 dark:border-border-dark shadow-sm hover:border-primary/40'
               }`}
             >
               {/* Left Side: Order + Icon + Title + Path */}
@@ -342,36 +413,83 @@ export default function AdminSidebarManager() {
 
                 {/* Item Details or Inline Edit Form */}
                 {isEditing ? (
-                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2 mr-2">
-                    <input
-                      type="text"
-                      value={editForm.title || ''}
-                      onChange={e => setEditForm({ ...editForm, title: e.target.value })}
-                      placeholder="اسم العنصر"
-                      className="p-1.5 rounded-lg border border-primary text-xs font-bold"
-                    />
-                    <input
-                      type="text"
-                      value={editForm.path || ''}
-                      onChange={e => setEditForm({ ...editForm, path: e.target.value })}
-                      placeholder="المسار"
-                      className="p-1.5 rounded-lg border border-border-light text-xs font-bold"
-                      dir="ltr"
-                    />
-                    <input
-                      type="text"
-                      value={editForm.badge || ''}
-                      onChange={e => setEditForm({ ...editForm, badge: e.target.value })}
-                      placeholder="الشارة (Badge)"
-                      className="p-1.5 rounded-lg border border-border-light text-xs font-bold"
-                    />
+                  <div className="flex-1 space-y-2 mr-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 block mb-0.5">اسم العنصر</label>
+                        <input
+                          type="text"
+                          value={editForm.title || ''}
+                          onChange={e => setEditForm({ ...editForm, title: e.target.value })}
+                          placeholder="اسم العنصر"
+                          className="w-full p-2 rounded-xl border border-primary text-xs font-bold bg-white dark:bg-surface-dark"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 block mb-0.5">المسار أو الرابط</label>
+                        <input
+                          type="text"
+                          value={editForm.path || ''}
+                          onChange={e => setEditForm({ ...editForm, path: e.target.value })}
+                          placeholder="المسار"
+                          className="w-full p-2 rounded-xl border border-border-light text-xs font-bold bg-white dark:bg-surface-dark"
+                          dir="ltr"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 block mb-0.5">الشارة (Badge - اختياري)</label>
+                        <input
+                          type="text"
+                          value={editForm.badge || ''}
+                          onChange={e => setEditForm({ ...editForm, badge: e.target.value })}
+                          placeholder="اتركه فارغاً لإلغاء الشارة"
+                          className="w-full p-2 rounded-xl border border-border-light text-xs font-bold bg-white dark:bg-surface-dark"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 pt-1">
+                      <label className="flex items-center gap-2 cursor-pointer select-none bg-slate-100 dark:bg-surface-dark px-3 py-1.5 rounded-xl border border-slate-200 dark:border-border-dark">
+                        <input
+                          type="checkbox"
+                          checked={editForm.highlighted || false}
+                          onChange={e => setEditForm({ ...editForm, highlighted: e.target.checked })}
+                          className="rounded text-primary focus:ring-primary h-4 w-4"
+                        />
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                          <Sparkles size={14} className="text-amber-500" />
+                          تمييز العنصر (إطار ولون خلفية مميز)
+                        </span>
+                      </label>
+
+                      {editForm.highlighted && (
+                        <div className="flex items-center gap-1.5">
+                          <Palette size={14} className="text-slate-400" />
+                          <select
+                            value={editForm.highlightColor || 'primary'}
+                            onChange={e => setEditForm({ ...editForm, highlightColor: e.target.value as any })}
+                            className="p-1.5 rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-surface-dark text-xs font-bold"
+                          >
+                            {HIGHLIGHT_COLORS.map(c => (
+                              <option key={c.id} value={c.id}>{c.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="text-xs sm:text-sm font-black text-slate-800 dark:text-white truncate">
                         {item.title}
                       </h4>
+                      {isHighlighted && (
+                        <span className="px-2 py-0.5 text-[8px] font-black rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center gap-0.5">
+                          <Sparkles size={10} />
+                          مميز ({getHighlightBadgeName(item.highlightColor)})
+                        </span>
+                      )}
                       {item.badge && (
                         <span className={`px-2 py-0.5 text-[8px] font-black rounded-full uppercase ${item.badgeColor || 'bg-primary text-white'}`}>
                           {item.badge}
@@ -411,6 +529,19 @@ export default function AdminSidebarManager() {
                   </>
                 ) : (
                   <>
+                    {/* Toggle Highlight Quick Button */}
+                    <button
+                      onClick={() => handleToggleHighlight(item.id)}
+                      className={`p-2 rounded-xl transition-all active:scale-95 flex items-center gap-1 ${
+                        isHighlighted
+                          ? 'bg-amber-500 text-white shadow-sm hover:bg-amber-600'
+                          : 'bg-slate-100 dark:bg-surface-dark text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                      }`}
+                      title={isHighlighted ? 'إلغاء التمييز (إزالة الهايلايت)' : 'تمييز هذا العنصر (هايلايت)'}
+                    >
+                      <Sparkles size={16} />
+                    </button>
+
                     {/* Move Up */}
                     <button
                       onClick={() => handleMove(index, 'up')}
@@ -476,7 +607,7 @@ export default function AdminSidebarManager() {
         <div className="flex items-center gap-2.5">
           <Sparkles size={18} className="text-primary shrink-0" />
           <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
-            تذكر الضغط على زر <strong className="text-primary">"حفظ التغييرات"</strong> في الأعلى لتطبيق الترتيب فوراً على كافة مستخدمي التطبيق.
+            تذكر الضغط على زر <strong className="text-primary">"حفظ التغييرات"</strong> في الأعلى لتطبيق الترتيب والتمييزات فوراً على كافة مستخدمي التطبيق.
           </p>
         </div>
         <button
@@ -484,7 +615,7 @@ export default function AdminSidebarManager() {
           disabled={isSaving}
           className="w-full sm:w-auto px-5 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white text-xs font-black transition-all shadow-md active:scale-95 shrink-0"
         >
-          {isSaving ? 'جاري الحفظ...' : 'حفظ الترتيب الآن'}
+          {isSaving ? 'جاري الحفظ...' : 'حفظ التغييرات الآن'}
         </button>
       </div>
     </div>

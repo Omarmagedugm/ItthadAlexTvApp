@@ -123,20 +123,24 @@ export default function Sidebar({ isOpen, onClose, profile }: SidebarProps) {
   };
 
   const getItemCardClasses = (item: SidebarMenuItem) => {
-    if (item.id === 'club-members') {
-      return 'bg-amber-500/10 hover:bg-amber-500/20 text-slate-800 dark:text-white border border-amber-500/30';
-    }
-    if (item.id === 'world-fans') {
-      return 'bg-emerald-500/10 hover:bg-emerald-500/20 text-slate-800 dark:text-white border border-emerald-500/30';
-    }
-    if (item.id === 'business') {
-      return 'bg-emerald-500/10 hover:bg-emerald-500/20 text-slate-800 dark:text-white border border-emerald-500/30';
-    }
-    if (item.id === 'social') {
-      return 'bg-blue-500/10 hover:bg-blue-500/20 text-slate-800 dark:text-white border border-blue-500/30';
-    }
-    if (item.id === 'jersey-tryon') {
-      return 'bg-primary/5 hover:bg-primary/10 text-slate-700 dark:text-slate-300 border border-primary/10';
+    // If explicitly not highlighted or highlighted is undefined/false without a highlight flag
+    if (item.highlighted) {
+      const color = item.highlightColor || 'primary';
+      switch (color) {
+        case 'amber':
+          return 'bg-amber-500/10 hover:bg-amber-500/20 text-slate-800 dark:text-white border border-amber-500/30';
+        case 'blue':
+          return 'bg-blue-500/10 hover:bg-blue-500/20 text-slate-800 dark:text-white border border-blue-500/30';
+        case 'emerald':
+          return 'bg-emerald-500/10 hover:bg-emerald-500/20 text-slate-800 dark:text-white border border-emerald-500/30';
+        case 'purple':
+          return 'bg-purple-500/10 hover:bg-purple-500/20 text-slate-800 dark:text-white border border-purple-500/30';
+        case 'red':
+          return 'bg-red-500/10 hover:bg-red-500/20 text-slate-800 dark:text-white border border-red-500/30';
+        case 'primary':
+        default:
+          return 'bg-primary/10 hover:bg-primary/20 text-slate-800 dark:text-white border border-primary/30';
+      }
     }
     return 'hover:bg-slate-50 dark:hover:bg-surface-dark text-slate-700 dark:text-slate-300';
   };
@@ -240,12 +244,12 @@ export default function Sidebar({ isOpen, onClose, profile }: SidebarProps) {
                 );
               })}
 
-              {customPages.length > 0 && (
+              {customPages.filter(page => page.active !== false).length > 0 && (
                 <>
                   <div className="pt-2 pb-1 px-4 mt-2 border-t border-slate-100 dark:border-border-dark">
                     <p className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest mt-2">صفحات إضافية</p>
                   </div>
-                  {customPages.map(page => (
+                  {customPages.filter(page => page.active !== false).map(page => (
                     <Link key={page.id} to={`/page/${page.slug}`} onClick={onClose} className="flex items-center gap-3 p-3.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-surface-dark transition-colors text-slate-700 dark:text-slate-300 pressable">
                       <FileText size={20} className="text-slate-400 shrink-0" />
                       <span className="text-sm font-bold">{page.title}</span>

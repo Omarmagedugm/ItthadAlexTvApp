@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAppStore, AppRole } from '../store';
@@ -457,10 +457,37 @@ export default function Admin() {
     setSettings
   } = useAppStore();
 
-  const committeesList = clubCommittees.length > 0 ? clubCommittees : defaultCommittees;
-  const announcementsList = clubAnnouncements.length > 0 ? clubAnnouncements : defaultAnnouncements;
-  const servicesList = clubServices.length > 0 ? clubServices : defaultServices;
-  const tripsList = clubTrips.length > 0 ? clubTrips : defaultTrips;
+  const committeesList = useMemo(() => {
+    const firestoreList = (clubCommittees && clubCommittees.length > 0) ? clubCommittees : [];
+    const mergedMap = new Map<string, any>();
+    defaultCommittees.forEach(c => mergedMap.set(c.id, c));
+    firestoreList.forEach(c => mergedMap.set(c.id, c));
+    return Array.from(mergedMap.values()).filter(c => c.status !== 'inactive').sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [clubCommittees]);
+
+  const announcementsList = useMemo(() => {
+    const firestoreList = (clubAnnouncements && clubAnnouncements.length > 0) ? clubAnnouncements : [];
+    const mergedMap = new Map<string, any>();
+    defaultAnnouncements.forEach(a => mergedMap.set(a.id, a));
+    firestoreList.forEach(a => mergedMap.set(a.id, a));
+    return Array.from(mergedMap.values()).filter(a => a.active !== false);
+  }, [clubAnnouncements]);
+
+  const servicesList = useMemo(() => {
+    const firestoreList = (clubServices && clubServices.length > 0) ? clubServices : [];
+    const mergedMap = new Map<string, any>();
+    defaultServices.forEach(s => mergedMap.set(s.id, s));
+    firestoreList.forEach(s => mergedMap.set(s.id, s));
+    return Array.from(mergedMap.values()).filter(s => s.active !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [clubServices]);
+
+  const tripsList = useMemo(() => {
+    const firestoreList = (clubTrips && clubTrips.length > 0) ? clubTrips : [];
+    const mergedMap = new Map<string, any>();
+    defaultTrips.forEach(t => mergedMap.set(t.id, t));
+    firestoreList.forEach(t => mergedMap.set(t.id, t));
+    return Array.from(mergedMap.values()).filter(t => t.active !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [clubTrips]);
 
   const cleanPayload = (obj: any) => JSON.parse(JSON.stringify(obj));
 
@@ -550,7 +577,9 @@ export default function Admin() {
       
       const qPages = query(collection(db, 'custom_pages'), orderBy('createdAt', 'desc'));
       unsubPages = onSnapshot(qPages, (snapshot) => {
-        setCustomPages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        const pagesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setCustomPages(pagesList);
+        useAppStore.getState().setCustomPages(pagesList);
       }, (error) => {
         if (error.code !== 'permission-denied') {
           handleFirestoreError(error, OperationType.LIST, 'custom_pages');
@@ -1521,12 +1550,14 @@ export default function Admin() {
         if (isEditing && editingId) {
           try {
             await updateDoc(doc(db, 'custom_pages', editingId), cleanPayload(payload));
+            try { if (typeof window !== 'undefined') localStorage.removeItem('fs_cache_custom_pages'); } catch (e) {}
           } catch (err) {
             handleFirestoreError(err, OperationType.UPDATE, `custom_pages/${editingId}`);
           }
         } else {
           try {
             await addDoc(collection(db, 'custom_pages'), cleanPayload(payload));
+            try { if (typeof window !== 'undefined') localStorage.removeItem('fs_cache_custom_pages'); } catch (e) {}
           } catch (err) {
             handleFirestoreError(err, OperationType.CREATE, 'custom_pages');
           }
@@ -1737,16 +1768,16 @@ export default function Admin() {
           item = clubs.find(i => i.id === id);
           itemTitle = item?.name || 'نادي';
         } else if (coll === 'club_committees') {
-          item = clubCommittees.find(i => i.id === id);
+          item = committeesList.find((i: any) => i.id === id);
           itemTitle = item?.name || 'لجنة';
         } else if (coll === 'club_announcements') {
-          item = clubAnnouncements.find(i => i.id === id);
+          item = announcementsList.find((i: any) => i.id === id);
           itemTitle = item?.title || 'إعلان';
         } else if (coll === 'club_services') {
-          item = clubServices.find(i => i.id === id);
-          itemTitle = item?.name || 'خدمة';
+          item = servicesList.find((i: any) => i.id === id);
+          itemTitle = item?.title || item?.name || 'خدمة';
         } else if (coll === 'club_trips') {
-          item = clubTrips.find(i => i.id === id);
+          item = tripsList.find((i: any) => i.id === id);
           itemTitle = item?.title || 'رحلة';
         } else if (coll === 'member_discounts') {
           item = memberDiscounts.find(i => i.id === id);
@@ -1798,7 +1829,32 @@ export default function Admin() {
           details: `تم الحذف من لوحة التحكم بواسطة ${profile.name || auth.currentUser?.email || 'مشرف'}`
         });
 
-        await deleteDoc(docRef);
+        const isDefaultItem = 
+          (coll === 'club_announcements' && defaultAnnouncements.some(d => d.id === id)) ||
+          (coll === 'club_services' && defaultServices.some(d => d.id === id)) ||
+          (coll === 'club_committees' && defaultCommittees.some(d => d.id === id)) ||
+          (coll === 'club_trips' && defaultTrips.some(d => d.id === id));
+
+        if (isDefaultItem) {
+          if (coll === 'club_committees') {
+            await setDoc(doc(db, coll, id), { ...(item || {}), id, status: 'inactive' }, { merge: true });
+          } else {
+            await setDoc(doc(db, coll, id), { ...(item || {}), id, active: false }, { merge: true });
+          }
+        } else {
+          await deleteDoc(docRef);
+        }
+
+        if (coll === 'custom_pages') {
+          try {
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('fs_cache_custom_pages');
+            }
+          } catch (e) {}
+          setCustomPages(prev => prev.filter(p => p.id !== id));
+          useAppStore.getState().setCustomPages(useAppStore.getState().customPages.filter(p => p.id !== id));
+        }
+
         toast.success('تم الحذف ونقل نسخة احتياطية لسلة المحذوفات بنجاح 🗑️');
       } catch (err) {
         handleFirestoreError(err, OperationType.DELETE, `${coll}/${id}`);
@@ -6677,7 +6733,7 @@ export default function Admin() {
                             <label className="text-[10px] font-black text-slate-500 mb-1 block">اللجنة التابعة (اختياري)</label>
                             <select className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm font-bold" value={formData.committeeId || ''} onChange={(e) => setFormData({...formData, committeeId: e.target.value})}>
                               <option value="">إعلان عام للأعضاء</option>
-                              {clubCommittees.map(c => (
+                              {committeesList.map((c: any) => (
                                 <option key={c.id} value={c.id}>{c.name}</option>
                               ))}
                             </select>

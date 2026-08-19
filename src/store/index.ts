@@ -53,26 +53,28 @@ export interface SidebarMenuItem {
   badge?: string;
   badgeColor?: string;
   isCustom?: boolean;
+  highlighted?: boolean;
+  highlightColor?: 'default' | 'amber' | 'blue' | 'emerald' | 'primary' | 'purple' | 'red' | 'none';
   group?: 'main' | 'more' | 'legal';
 }
 
 export const DEFAULT_SIDEBAR_ITEMS: SidebarMenuItem[] = [
-  { id: 'home', title: 'الرئيسية', path: '/', icon: 'home', iconType: 'material', active: true, order: 0, group: 'main' },
-  { id: 'news', title: 'الأخبار والتغطيات', path: '/news', icon: 'newspaper', iconType: 'material', active: true, order: 1, group: 'main' },
-  { id: 'matches', title: 'جدول المباريات', path: '/matches', icon: 'sports_soccer', iconType: 'material', active: true, order: 2, group: 'main' },
-  { id: 'live', title: 'البث المباشر', path: '/live', icon: 'live_tv', iconType: 'material', active: true, order: 3, group: 'main' },
-  { id: 'radio', title: 'راديو زعيم الثغر', path: '/radio', icon: 'radio', iconType: 'material', active: true, order: 3.2, badge: 'بث إذاعي 🎙️', badgeColor: 'bg-emerald-600 text-white', group: 'main' },
-  { id: 'world-fans', title: 'رابطة اتحاداوية العالم', path: '/world-fans', icon: 'Globe', iconType: 'lucide', active: true, order: 3.5, badge: 'حول العالم 🌍', badgeColor: 'bg-emerald-600 text-white', group: 'main' },
-  { id: 'fan-zone', title: 'منطقة الجماهير', path: '/fan-zone', icon: 'stadium', iconType: 'material', active: true, order: 4, group: 'main' },
-  { id: 'jersey-tryon', title: 'استوديو المشجع (AI)', path: '/jersey-tryon', icon: 'bolt', iconType: 'material', active: true, order: 5, badge: 'جديد', badgeColor: 'bg-red-500 text-white', group: 'main' },
-  { id: 'club-members', title: 'أعضاء النادي', path: '/club-members', icon: 'ShieldCheck', iconType: 'lucide', active: true, order: 6, badge: 'الخدمات', badgeColor: 'bg-amber-500 text-white', group: 'main' },
-  { id: 'library', title: 'المكتبة الرقمية والوسائط', path: '/library', icon: 'perm_media', iconType: 'material', active: true, order: 7, group: 'main' },
-  { id: 'social', title: 'سوشيال ميديا', path: '/social', icon: 'facebook', iconType: 'facebook', active: true, order: 8, badge: 'فيسبوك', badgeColor: 'bg-blue-600 text-white', group: 'main' },
-  { id: 'history', title: 'تاريخ النادي', path: '/history', icon: 'history_edu', iconType: 'material', active: true, order: 9, group: 'main' },
-  { id: 'business', title: 'اتحاداوي بيزنس', path: '/business', icon: 'Building2', iconType: 'lucide', active: true, order: 10, badge: 'دليل الأعمال', badgeColor: 'bg-emerald-600 text-white', group: 'main' },
-  { id: 'store', title: 'متجر الجماهير', path: '/store', icon: 'shopping_bag', iconType: 'material', active: true, order: 11, group: 'main' },
-  { id: 'profile', title: 'حسابي', path: '/profile', icon: 'person', iconType: 'material', active: true, order: 12, group: 'more' },
-  { id: 'bookmarks', title: 'محفوظاتي', path: '/bookmarks', icon: 'bookmark', iconType: 'material', active: true, order: 13, group: 'more' },
+  { id: 'home', title: 'الرئيسية', path: '/', icon: 'home', iconType: 'material', active: true, order: 0, highlighted: false, group: 'main' },
+  { id: 'news', title: 'الأخبار والتغطيات', path: '/news', icon: 'newspaper', iconType: 'material', active: true, order: 1, highlighted: false, group: 'main' },
+  { id: 'matches', title: 'جدول المباريات', path: '/matches', icon: 'sports_soccer', iconType: 'material', active: true, order: 2, highlighted: false, group: 'main' },
+  { id: 'live', title: 'البث المباشر', path: '/live', icon: 'live_tv', iconType: 'material', active: true, order: 3, highlighted: false, group: 'main' },
+  { id: 'radio', title: 'راديو زعيم الثغر', path: '/radio', icon: 'radio', iconType: 'material', active: true, order: 3.2, badge: 'بث إذاعي 🎙️', badgeColor: 'bg-emerald-600 text-white', highlighted: false, group: 'main' },
+  { id: 'world-fans', title: 'رابطة اتحاداوية العالم', path: '/world-fans', icon: 'Globe', iconType: 'lucide', active: true, order: 3.5, badge: 'حول العالم 🌍', badgeColor: 'bg-emerald-600 text-white', highlighted: false, group: 'main' },
+  { id: 'fan-zone', title: 'منطقة الجماهير', path: '/fan-zone', icon: 'stadium', iconType: 'material', active: true, order: 4, highlighted: false, group: 'main' },
+  { id: 'jersey-tryon', title: 'استوديو المشجع (AI)', path: '/jersey-tryon', icon: 'bolt', iconType: 'material', active: true, order: 5, badge: 'جديد', badgeColor: 'bg-red-500 text-white', highlighted: false, group: 'main' },
+  { id: 'club-members', title: 'أعضاء النادي', path: '/club-members', icon: 'ShieldCheck', iconType: 'lucide', active: true, order: 6, highlighted: false, group: 'main' },
+  { id: 'library', title: 'المكتبة الرقمية والوسائط', path: '/library', icon: 'perm_media', iconType: 'material', active: true, order: 7, highlighted: false, group: 'main' },
+  { id: 'social', title: 'سوشيال ميديا', path: '/social', icon: 'facebook', iconType: 'facebook', active: true, order: 8, highlighted: false, group: 'main' },
+  { id: 'history', title: 'تاريخ النادي', path: '/history', icon: 'history_edu', iconType: 'material', active: true, order: 9, highlighted: false, group: 'main' },
+  { id: 'business', title: 'اتحاداوي بيزنس', path: '/business', icon: 'Building2', iconType: 'lucide', active: true, order: 10, highlighted: false, group: 'main' },
+  { id: 'store', title: 'متجر الجماهير', path: '/store', icon: 'shopping_bag', iconType: 'material', active: true, order: 11, highlighted: false, group: 'main' },
+  { id: 'profile', title: 'حسابي', path: '/profile', icon: 'person', iconType: 'material', active: true, order: 12, highlighted: false, group: 'more' },
+  { id: 'bookmarks', title: 'محفوظاتي', path: '/bookmarks', icon: 'bookmark', iconType: 'material', active: true, order: 13, highlighted: false, group: 'more' },
 ];
 
 export interface NewsTag {
