@@ -89,6 +89,8 @@ export interface NewsItem {
   rssUrl?: string;
   rssSource?: string;
   tagIds?: string[];
+  views?: number;
+  createdAt?: string;
 }
 
 export interface MediaItem {
@@ -105,6 +107,7 @@ export interface MediaItem {
   likes?: string[];
   playlistId?: string;
   isFeatured?: boolean;
+  createdAt?: string;
 }
 
 export interface MediaPlaylist {
@@ -239,6 +242,8 @@ export interface PredictionItem {
   userAvatar?: string;
   homeScore: number;
   awayScore: number;
+  status?: 'pending' | 'won' | 'lost';
+  pointsAwarded?: number;
   createdAt: string;
 }
 
@@ -247,6 +252,7 @@ export interface FanPostItem {
   userId: string;
   userName: string;
   userAvatar: string;
+  title?: string;
   content: string;
   image?: string;
   location?: string;
@@ -492,7 +498,9 @@ export interface StoreOrder {
   productImage?: string;
   quantity: number;
   totalPrice: number;
-  status: 'pending' | 'ready' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'sold';
+  status: 'pending' | 'ready' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'sold' | 'completed' | 'confirmed' | 'rejected';
+  channel?: string;
+  source?: string;
   createdAt: string;
 }
 
@@ -501,11 +509,19 @@ export type AppRole = 'admin' | 'moderator' | 'news_editor' | 'media_editor' | '
 export interface UserProfile {
   uid?: string;
   name: string;
+  displayName?: string;
   username?: string;
   location: string;
   joinDate: string;
   avatar: string;
   isVerified?: boolean;
+  isVerifiedMember?: boolean;
+  membershipNumber?: string;
+  points?: number;
+  lastActive?: string;
+  createdAt?: string;
+  phone?: string;
+  phoneNumber?: string;
   role?: 'user' | 'admin' | 'superadmin' | 'moderator' | 'writer'; // Legacy support
   roles?: AppRole[];
   tier?: 'new' | 'bronze' | 'silver' | 'gold' | 'diamond' | 'premium';

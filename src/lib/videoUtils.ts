@@ -2,7 +2,7 @@ export interface LiveStreamFormat {
   originalUrl: string;
   embedUrl: string;
   directWatchUrl: string;
-  type: 'youtube' | 'hls' | 'video' | 'iframe' | 'custom';
+  type: 'youtube' | 'hls' | 'video' | 'iframe' | 'custom' | 'audio';
   videoId?: string;
 }
 

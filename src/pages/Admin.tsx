@@ -60,6 +60,8 @@ import {
   ListMusic,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   ArrowUp,
   ArrowDown,
   CloudSun,

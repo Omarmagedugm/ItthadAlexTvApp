@@ -334,17 +334,17 @@ export function useFirestoreSync() {
           const isAdmin = profile?.role === 'admin' || profile?.role === 'moderator' || (profile?.roles && (profile.roles.includes('admin') || profile.roles.includes('moderator'))) || isOmar || isDev;
           
           if (isAdmin) {
-            unsubs.push(subscribeSnapshot(query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'), limit(100)), s => {
+            unsubs.push(subscribeSnapshot(query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'), limit(150)), s => {
               setAuditLogs(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
             }, 'audit_logs'));
-            unsubs.push(subscribeSnapshot(query(collection(db, 'users'), limit(300)), s => {
+            unsubs.push(subscribeSnapshot(collection(db, 'users'), s => {
               setUsers(s.docs.map(d => ({ id: d.id, uid: d.id, ...(d.data() as any) })) as any);
             }, 'users'));
           }
 
           const ordersQuery = isAdmin 
-            ? query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(30))
-            : query(collection(db, 'orders'), where('userId', '==', currentUser.uid), orderBy('createdAt', 'desc'), limit(30));
+            ? query(collection(db, 'orders'), orderBy('createdAt', 'desc'))
+            : query(collection(db, 'orders'), where('userId', '==', currentUser.uid), orderBy('createdAt', 'desc'), limit(50));
             
           unsubs.push(subscribeSnapshot(ordersQuery, (s) => setOrders(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'orders'));
         }, 1500);

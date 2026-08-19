@@ -64,8 +64,14 @@ export default function AdminAnalytics() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
 
-  // Listen to real-time live comments and fan comments count from Firestore
+  // Listen to real-time live comments and fan comments count from Firestore & sync full users
   useEffect(() => {
+    // Sync full users list to ensure all 500+ users are reflected immediately
+    getDocs(collection(db, 'users')).then(snap => {
+      const allUsers = snap.docs.map(d => ({ id: d.id, uid: d.id, ...(d.data() as any) }));
+      useAppStore.getState().setUsers(allUsers);
+    }).catch(err => console.warn('Sync users in analytics error:', err));
+
     const unsubLive = onSnapshot(collection(db, 'live_comments'), (snap) => {
       setLiveCommentsCount(snap.docs.length);
       setLastSyncTime(new Date());
@@ -159,18 +165,18 @@ export default function AdminAnalytics() {
 
   const totalPollVotes = useMemo(() => {
     return polls.reduce((total, poll) => {
-      if (!poll.options) return total;
-      const pollVotes = poll.options.reduce((optSum, opt) => optSum + (opt.votes || 0), 0);
+      if (!poll.votes) return total;
+      const pollVotes = Object.values(poll.votes).reduce((optSum, v) => optSum + (Number(v) || 0), 0);
       return total + pollVotes;
     }, 0);
   }, [polls]);
 
   const totalNewsViews = useMemo(() => {
-    return news.reduce((sum, item) => sum + (item.views || 0), 0);
+    return news.reduce((sum, item) => sum + (Number(item.views) || 0), 0);
   }, [news]);
 
   const totalMediaViews = useMemo(() => {
-    return media.reduce((sum, item) => sum + (item.views || 0), 0);
+    return media.reduce((sum, item) => sum + (Number(item.views) || 0), 0);
   }, [media]);
 
   const totalCompletedOrdersRevenue = useMemo(() => {
@@ -252,8 +258,11 @@ export default function AdminAnalytics() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
+      const snap = await getDocs(collection(db, 'users'));
+      const allUsers = snap.docs.map(d => ({ id: d.id, uid: d.id, ...(d.data() as any) }));
+      useAppStore.getState().setUsers(allUsers);
       setLastSyncTime(new Date());
-      toast.success('تمت مزامنة وتحديث جميع الإحصاءات لحظياً ⚡');
+      toast.success(`تمت مزامنة وتحديث جميع الإحصاءات لحظياً (${allUsers.length} عضو) ⚡`);
     } catch (e) {
       toast.error('فشل تحديث البيانات');
     } finally {
