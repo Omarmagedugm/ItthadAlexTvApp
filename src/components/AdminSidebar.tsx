@@ -89,7 +89,6 @@ export default function AdminSidebar({ activeTab, setActiveTab, onClose }: Admin
       { id: 'live', icon: <Radio size={18} />, label: 'البث المباشر', show: hasRole('matches_editor') },
     ]},
     { title: 'محتوى المنصة', items: [
-      { id: 'radio', icon: <RadioTower size={18} />, label: 'راديو وبث زعيم الثغر', show: hasRole(['media_editor', 'matches_editor', 'layout_editor']) },
       { id: 'club_members', icon: <ShieldCheck size={18} />, label: 'أعضاء النادي', show: hasRole(['members_editor', 'layout_editor', 'user_manager']) },
       { id: 'media', icon: <PlayCircle size={18} />, label: 'المالتيميديا والفيديو', show: hasRole('media_editor') },
       { id: 'music', icon: <Music size={18} />, label: 'المكتبة الموسيقية', show: hasRole('media_editor') },

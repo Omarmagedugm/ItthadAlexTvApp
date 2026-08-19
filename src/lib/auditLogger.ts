@@ -35,7 +35,6 @@ export const COLLECTION_LABELS: Record<string, string> = {
   'albums': 'ألبومات الأغاني',
   'playlists': 'قوائم تشغيل الأغاني',
   'books': 'المكتبة الرقمية (كتب ومجلات)',
-  'radio_stations': 'محطات وبرامج راديو زعيم الثغر',
   'fan_posts': 'منشورات الجماهير (الفان زون)',
   'fan_comments': 'تعليقات الجماهير',
   'live_comments': 'تعليقات البث المباشر',

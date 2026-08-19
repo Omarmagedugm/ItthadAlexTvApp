@@ -102,7 +102,6 @@ import AdminSidebarManager from '../components/AdminSidebarManager';
 import AdminHomeSectionsManager from '../components/admin/AdminHomeSectionsManager';
 import AdminBusiness from '../components/AdminBusiness';
 import AdminWorldFans from '../components/admin/AdminWorldFans';
-import AdminRadio from '../components/admin/AdminRadio';
 import AdminAuditLogs from '../components/admin/AdminAuditLogs';
 import ScoreSelector from '../components/ScoreSelector';
 import ImageUploader from '../components/ImageUploader';
@@ -895,7 +894,6 @@ export default function Admin() {
       'news-categories': ['news_editor'],
       'news-tags': ['news_editor'],
       'fanzone': ['user_manager'],
-      'radio': ['media_editor', 'matches_editor', 'layout_editor'],
       'media': ['media_editor'],
       'music': ['media_editor'],
       'books': ['media_editor'],
@@ -2229,7 +2227,6 @@ export default function Admin() {
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">
             {activeTab === 'overview' ? 'لوحة التحكم' :
-             activeTab === 'radio' ? 'إدارة راديو وبث زعيم الثغر' :
              activeTab === 'world-fans' ? 'رابطة اتحاداوية العالم (مغتربين)' :
              activeTab === 'news' ? 'إدارة الأخبار' : 
              activeTab === 'news-categories' ? 'إدارة أقسام الأخبار' :

@@ -4,13 +4,12 @@ import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAppStore } from '../store';
 import { defaultWorldCountries } from '../data/defaultWorldFansData';
 import { DEFAULT_MEDIA_ITEMS, DEFAULT_MEDIA_PLAYLISTS } from '../data/defaultMediaData';
-import { DEFAULT_RADIO_STATIONS } from '../data/defaultRadioData';
 
 export function useFirestoreSync() {
   const { 
     setNews, setMedia, setMatches, setClubs, setPolls, setPredictions, setFanPosts,
     setUsers, setSettings, setAiConfig, updateLiveStream, updateLiveStreams, updateProfile, setCityInfo, setAds, setCustomPages,
-    setNewsCategories, setNewsTags, setHomeSections, setSidebarMenuItems, setRadioStations, setProducts, setSongs, setAlbums, setPlaylists, setMediaPlaylists, setBooks,
+    setNewsCategories, setNewsTags, setHomeSections, setSidebarMenuItems, setProducts, setSongs, setAlbums, setPlaylists, setMediaPlaylists, setBooks,
     setClubStats, setClubTitles, setHistoryEvents, setStadiums, setDataLoaded, setOrders,
     setClubCommittees, setClubAnnouncements, setClubServices, setClubTrips, setClubMembersSettings, setMemberDiscounts,
     setBusinesses, setBusinessUpdates, setBusinessReports,
@@ -304,27 +303,6 @@ export function useFirestoreSync() {
           }
         } catch (e) {}
       }, 'custom_pages'));
-
-      let radioInitializedRef = false;
-      unsubs.push(subscribeSnapshot(collection(db, 'radio_stations'), s => {
-        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0) {
-          data.sort((a: any, b: any) => (a.order ?? 99) - (b.order ?? 99));
-          setRadioStations(data as any);
-          radioInitializedRef = true;
-        } else if (!radioInitializedRef) {
-          // On first load, seed default stations into Firestore so they exist as real Firestore documents
-          radioInitializedRef = true;
-          setRadioStations(DEFAULT_RADIO_STATIONS);
-          import('firebase/firestore').then(({ setDoc, doc }) => {
-            DEFAULT_RADIO_STATIONS.forEach(station => {
-              setDoc(doc(db, 'radio_stations', station.id), station, { merge: true }).catch(() => {});
-            });
-          });
-        } else {
-          setRadioStations([]);
-        }
-      }, 'radio_stations'));
 
       const currentUser = auth.currentUser;
       if (currentUser) {

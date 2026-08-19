@@ -56,7 +56,6 @@ const News = safeLazy(() => import('./pages/News'));
 const NewsDetail = safeLazy(() => import('./pages/NewsDetail'));
 const Media = safeLazy(() => import('./pages/Media'));
 const Live = safeLazy(() => import('./pages/Live'));
-const Radio = safeLazy(() => import('./pages/Radio'));
 const Matches = safeLazy(() => import('./pages/Matches'));
 const Profile = safeLazy(() => import('./pages/Profile'));
 const Admin = safeLazy(() => import('./pages/Admin'));
@@ -450,9 +449,6 @@ function AppContent() {
             <Route path="/news/:id" element={<NewsDetail />} />
             <Route path="/media" element={<Media />} />
             <Route path="/live" element={<Live />} />
-            <Route path="/radio" element={<Radio />} />
-            <Route path="/radio-live" element={<Radio />} />
-            <Route path="/broadcast" element={<Radio />} />
             <Route path="/matches" element={<Matches />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/admin" element={<Admin />} />

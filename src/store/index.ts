@@ -17,12 +17,6 @@ import {
   DEFAULT_MEDIA_ITEMS,
   DEFAULT_MEDIA_PLAYLISTS
 } from '../data/defaultMediaData';
-import {
-  RadioStation,
-  DEFAULT_RADIO_STATIONS
-} from '../data/defaultRadioData';
-
-export { type RadioStation } from '../data/defaultRadioData';
 
 export interface HomeSection {
   id: string;
@@ -63,7 +57,6 @@ export const DEFAULT_SIDEBAR_ITEMS: SidebarMenuItem[] = [
   { id: 'news', title: 'الأخبار والتغطيات', path: '/news', icon: 'newspaper', iconType: 'material', active: true, order: 1, highlighted: false, group: 'main' },
   { id: 'matches', title: 'جدول المباريات', path: '/matches', icon: 'sports_soccer', iconType: 'material', active: true, order: 2, highlighted: false, group: 'main' },
   { id: 'live', title: 'البث المباشر', path: '/live', icon: 'live_tv', iconType: 'material', active: true, order: 3, highlighted: false, group: 'main' },
-  { id: 'radio', title: 'راديو زعيم الثغر', path: '/radio', icon: 'radio', iconType: 'material', active: true, order: 3.2, badge: 'بث إذاعي 🎙️', badgeColor: 'bg-emerald-600 text-white', highlighted: false, group: 'main' },
   { id: 'world-fans', title: 'رابطة اتحاداوية العالم', path: '/world-fans', icon: 'Globe', iconType: 'lucide', active: true, order: 3.5, badge: 'حول العالم 🌍', badgeColor: 'bg-emerald-600 text-white', highlighted: false, group: 'main' },
   { id: 'fan-zone', title: 'منطقة الجماهير', path: '/fan-zone', icon: 'stadium', iconType: 'material', active: true, order: 4, highlighted: false, group: 'main' },
   { id: 'jersey-tryon', title: 'استوديو المشجع (AI)', path: '/jersey-tryon', icon: 'bolt', iconType: 'material', active: true, order: 5, badge: 'جديد', badgeColor: 'bg-red-500 text-white', highlighted: false, group: 'main' },
@@ -663,12 +656,6 @@ interface AppState {
   setWorldApplications: (applications: WorldGroupApplication[]) => void;
   setHomeSections: (sections: HomeSection[]) => void;
   setSidebarMenuItems: (items: SidebarMenuItem[]) => void;
-  radioStations: RadioStation[];
-  activeRadioStation: RadioStation | null;
-  isRadioPlaying: boolean;
-  setRadioStations: (stations: RadioStation[]) => void;
-  setActiveRadioStation: (station: RadioStation | null) => void;
-  setIsRadioPlaying: (playing: boolean) => void;
   setSongs: (songs: Song[]) => void;
   setAlbums: (albums: Album[]) => void;
   setPlaylists: (playlists: Playlist[]) => void;
@@ -887,12 +874,6 @@ export const useAppStore = create<AppState>()(
         { id: 'advertise', type: 'advertise', active: true, order: 10 },
       ],
       sidebarMenuItems: DEFAULT_SIDEBAR_ITEMS,
-      radioStations: DEFAULT_RADIO_STATIONS,
-      activeRadioStation: DEFAULT_RADIO_STATIONS[0] || null,
-      isRadioPlaying: false,
-      setRadioStations: (radioStations) => set({ radioStations }),
-      setActiveRadioStation: (activeRadioStation) => set({ activeRadioStation }),
-      setIsRadioPlaying: (isRadioPlaying) => set({ isRadioPlaying }),
       songs: [],
       albums: [],
       playlists: [],
