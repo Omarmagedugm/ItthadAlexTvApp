@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore, UserProfile } from '../store';
 import React, { useState, useEffect } from 'react';
 import { Camera, X, Check, Lock, ShieldCheck, Mail, Loader2, Save, Upload, Edit2, Newspaper } from 'lucide-react';
-import { db, auth, uploadImage, handleFirestoreError, OperationType, requestNotificationPermission } from '../lib/firebase';
+import { db, auth, uploadImage, handleFirestoreError, OperationType } from '../lib/firebase';
+import { requestNotificationPermission } from '../lib/onesignal';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { updatePassword, updateProfile as updateAuthProfile, updateEmail } from 'firebase/auth';
 import toast from 'react-hot-toast';
@@ -35,10 +36,18 @@ export default function Profile() {
 
   const handleToggleNotifications = async () => {
     if (!notificationsEnabled) {
-      const token = await requestNotificationPermission();
-      if (token || (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted')) {
+      const result = await requestNotificationPermission();
+      if (result.success || (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted')) {
         setNotificationsEnabled(true);
-        toast.success('تم تفعيل إشعارات المباريات والأخبار بنجاح 🔔');
+        toast.success('تم تفعيل إشعارات المباريات والأخبار بنجاح عبر OneSignal 🔔');
+      } else if (result.reason === 'ios_not_standalone') {
+        toast('يرجى تثبيت التطبيق أولاً (إضافة إلى الشاشة الرئيسية 📲) لتفعيل الإشعارات على هواتف آيفون', {
+          duration: 6000
+        });
+      } else if (result.reason === 'permission_denied') {
+        toast.error('تم حظر الإشعارات في المتصفح. اضغط على أيقونة القفل 🔒 بجانب الرابط وفعل الإشعارات.', {
+          duration: 6000
+        });
       } else {
         toast.error('يرجى السماح بالإشعارات في إعدادات المتصفح');
       }
