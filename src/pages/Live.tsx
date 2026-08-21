@@ -237,7 +237,28 @@ export default function Live() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8 items-start">
           
           {/* LEFT / MAIN COLUMN: Video Player & Stream Control Hub */}
-          <div className="lg:col-span-8 flex flex-col space-y-4">
+          <div className="lg:col-span-8 flex flex-col space-y-3">
+
+            {/* Header bar above video player: Live status badge & Share */}
+            {currentStream?.isActive && (
+              <div className="flex justify-between items-center px-1">
+                <div className="flex items-center gap-2 bg-red-600/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 px-3 py-1.5 rounded-full border border-red-500/30 text-xs font-black shadow-sm">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+                  <span>مباشر الآن</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleShare}
+                    className="bg-white dark:bg-card-dark hover:bg-slate-100 dark:hover:bg-surface-dark px-3 py-1.5 rounded-full border border-border-light dark:border-border-dark text-slate-700 dark:text-slate-200 text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-1.5 hover:text-primary"
+                    title="مشاركة البث"
+                  >
+                    <Share2 size={14} />
+                    <span>مشاركة</span>
+                  </button>
+                </div>
+              </div>
+            )}
             
             {/* 1. Video Player Container with rounded corners & shadow */}
             <div className="relative w-full aspect-video bg-black rounded-2xl lg:rounded-3xl overflow-hidden shadow-xl border border-slate-800">
@@ -248,26 +269,6 @@ export default function Live() {
                 isActive={currentStream?.isActive}
                 sportName={getSportTitle()}
               />
-
-              {/* Floating live info pill */}
-              {currentStream?.isActive && (
-                <div className="absolute top-3 left-3 right-3 flex justify-between items-center pointer-events-none z-30">
-                  <div className="flex items-center gap-2 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/15 text-white text-xs font-black shadow-lg">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
-                    <span>مباشر</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 pointer-events-auto">
-                    <button
-                      onClick={handleShare}
-                      className="bg-black/70 hover:bg-black/90 backdrop-blur-md p-2 rounded-full border border-white/15 text-white transition-all shadow-lg active:scale-95 cursor-pointer hover:text-primary"
-                      title="مشاركة البث"
-                    >
-                      <Share2 size={15} />
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* 2. Stream Channel Selector Tabs (Always Visible & Clickable) */}
