@@ -23,8 +23,7 @@ function safeLazy<T extends React.ComponentType<any>>(
       const isChunkError = 
         error?.message?.includes('Importing a module script failed') ||
         error?.message?.includes('dynamically imported module') ||
-        error?.message?.includes('Loading chunk') ||
-        error?.name === 'TypeError';
+        error?.message?.includes('Loading chunk');
 
       if (isChunkError) {
         const reloadKey = 'chunk_reload_' + window.location.pathname;
