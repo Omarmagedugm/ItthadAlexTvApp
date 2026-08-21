@@ -745,17 +745,46 @@ export default function Admin() {
     if (!notificationForm.title.trim() || !notificationForm.body.trim()) return toast.error('يرجى ملء جميع الحقول');
     setIsSending(true);
     try {
-      const isMatch = notificationForm.type === 'match' || notificationForm.url.includes('/live') || /⚽|🟢|🟨|🟥|🏁|هدف|مباراة|طرد/i.test(`${notificationForm.title} ${notificationForm.body}`);
+      const isMatch = notificationForm.type === 'match' || 
+                      notificationForm.url.includes('/live') || 
+                      /⚽|🟢|🟨|🟥|🔄|🏁|هدف|مباراة|طرد|تبديل/i.test(`${notificationForm.title} ${notificationForm.body}`);
+      
+      const targetUrl = notificationForm.url || (isMatch ? '/live' : '/');
+
+      // 1. Save to in-app Firestore notifications drawer
       await addDoc(collection(db, 'notifications'), {
         title: notificationForm.title,
         body: notificationForm.body,
         target: notificationForm.target || 'all',
         type: isMatch ? 'match' : 'general',
-        url: notificationForm.url || (isMatch ? '/live' : '/'),
+        url: targetUrl,
         isMatch: isMatch,
         readBy: [],
         createdAt: new Date().toISOString()
       });
+
+      // 2. Dispatch OneSignal Web Push Notification to all subscribed devices
+      try {
+        const pushRes = await fetch('/api/onesignal/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: notificationForm.title,
+            body: notificationForm.body,
+            url: targetUrl,
+            type: isMatch ? 'match' : 'general',
+            isMatch: isMatch,
+            target: notificationForm.target || 'all'
+          })
+        });
+        const pushData = await pushRes.json();
+        if (pushData.warning) {
+          console.info('[OneSignal Admin Note]:', pushData.warning);
+        }
+      } catch (pushErr) {
+        console.warn('OneSignal API dispatch error (push may require server configuration):', pushErr);
+      }
+
       toast.success('تم إرسال الإشعار بنجاح');
       setNotificationForm({ title: '', body: '', target: 'all', type: 'match', url: '/live' });
     } catch (e) {
@@ -4548,6 +4577,20 @@ export default function Admin() {
                       className="px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-black border border-red-200 dark:border-red-800/40 hover:scale-105 transition-all flex items-center gap-1.5"
                     >
                       <span>🟥</span> طرد
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setNotificationForm({
+                        title: '🔄 تبديل في صفوف الفريق',
+                        body: 'تغيير فني وتكتيكي جديد في أرضية الملعب! تابع مجريات المباراة مباشرة.',
+                        target: 'all',
+                        type: 'match',
+                        url: '/live'
+                      })}
+                      className="px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 text-xs font-black border border-purple-200 dark:border-purple-800/40 hover:scale-105 transition-all flex items-center gap-1.5"
+                    >
+                      <span>🔄</span> تبديل
                     </button>
 
                     <button

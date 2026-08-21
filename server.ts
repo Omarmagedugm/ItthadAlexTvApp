@@ -49,6 +49,77 @@ async function startServer() {
     res.json({ status: 'ok' });
   });
 
+  // OneSignal Push Notification Dispatch Endpoint (Secure Server-Side with REST API Key)
+  app.post('/api/onesignal/send', async (req: any, res: any) => {
+    try {
+      const { title, body, url, type, isMatch, target } = req.body;
+      const appId = process.env.ONESIGNAL_APP_ID || process.env.VITE_ONESIGNAL_APP_ID;
+      const apiKey = process.env.ONESIGNAL_REST_API_KEY;
+
+      if (!title || !body) {
+        return res.status(400).json({ error: 'العنوان ومحتوى الإشعار مطلوبان' });
+      }
+
+      if (!apiKey || !appId) {
+        console.warn('[OneSignal Server] ⚠️ ONESIGNAL_REST_API_KEY or ONESIGNAL_APP_ID missing. Push skipped on server.');
+        return res.json({ 
+          success: true, 
+          delivered: false, 
+          warning: 'مفتاح OneSignal REST API غير مضبوط في متغيرات الخادم بعد.' 
+        });
+      }
+
+      const matchAlert = Boolean(
+        isMatch || 
+        type === 'match' || 
+        (url && url.includes('/live')) || 
+        /⚽|🟢|🟨|🟥|🔄|🏁|هدف|مباراة|طرد/i.test(`${title} ${body}`)
+      );
+
+      const targetUrl = url || (matchAlert ? '/live' : '/');
+
+      const payload: any = {
+        app_id: appId,
+        included_segments: ['Total Subscriptions'],
+        headings: { en: title, ar: title },
+        contents: { en: body, ar: body },
+        web_url: targetUrl,
+        app_url: targetUrl,
+        chrome_web_icon: '/icon.png',
+        chrome_web_badge: '/icon.png',
+        firefox_icon: '/icon.png',
+        data: {
+          url: targetUrl,
+          isMatch: matchAlert,
+          type: type || (matchAlert ? 'match' : 'general'),
+          target: target || 'all'
+        },
+        priority: 10
+      };
+
+      const response = await fetch('https://onesignal.com/api/v1/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Authorization': `Basic ${apiKey}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const responseData = await response.json();
+      console.log('[OneSignal Server] 🚀 Push Notification dispatched:', responseData);
+
+      return res.json({
+        success: true,
+        delivered: true,
+        data: responseData
+      });
+    } catch (err: any) {
+      console.error('[OneSignal Server] ❌ Error sending push notification:', err);
+      return res.status(500).json({ error: err?.message || 'فشل إرسال إشعار OneSignal' });
+    }
+  });
+
   // AI Image Generation Endpoint for Jersey Try-On / Fan Studio
   app.post(['/api/jersey-try-on', '/api/ai/jersey-tryon'], async (req: any, res: any) => {
     try {

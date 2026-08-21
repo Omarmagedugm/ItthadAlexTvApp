@@ -6,6 +6,7 @@ import PullToRefresh from './components/PullToRefresh';
 import { useAppStore } from './store';
 import { useFirestoreSync } from './hooks/useFirestore';
 import { auth, requestNotificationPermission } from './lib/firebase';
+import { initOneSignal } from './lib/onesignal';
 import { preloadImages } from './lib/imageCache';
 
 import Home from './pages/Home';
@@ -334,11 +335,14 @@ function AppContent() {
     setShowGoal(false);
   };
   useEffect(() => {
+    // Initialize OneSignal Web SDK early for background push notification reception
+    initOneSignal();
+
     // If permission is already granted, refresh the token and update metadata
     if ('Notification' in window && Notification.permission === 'granted') {
       const timer = setTimeout(() => {
         requestNotificationPermission();
-      }, 5000); // Wait a bit after load
+      }, 3000); // Refresh subscription metadata in Firestore
       return () => clearTimeout(timer);
     }
   }, []);

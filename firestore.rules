@@ -291,6 +291,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /onesignal_subscriptions/{subId} {
+      allow read: if isAdmin();
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
+
     // Match Day Moments
     function isValidMoment(data) {
       return data.keys().hasAll(['userId', 'matchId', 'content', 'createdAt', 'likes', 'likedBy']) &&
