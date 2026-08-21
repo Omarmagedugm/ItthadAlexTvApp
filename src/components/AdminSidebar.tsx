@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { auth, db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useAppStore, AppRole } from '../store';
@@ -32,7 +32,8 @@ import {
   Menu,
   RotateCcw,
   RadioTower,
-  TrendingUp
+  TrendingUp,
+  X
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -123,17 +124,37 @@ export default function AdminSidebar({ activeTab, setActiveTab, onClose }: Admin
   ];
 
   return (
-    <div className="w-64 bg-white dark:bg-card-dark border-l border-border-light dark:border-border-dark flex flex-col h-full overflow-y-auto no-scrollbar py-6">
-      <div className="px-6 mb-4">
+    <div className="w-64 lg:w-72 bg-white dark:bg-card-dark border-l border-border-light dark:border-border-dark flex flex-col h-full overflow-y-auto no-scrollbar py-6">
+      <div className="px-5 mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20">
-            <LayoutDashboard size={24} />
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20 shrink-0">
+            <LayoutDashboard size={22} />
           </div>
           <div>
-            <h2 className="font-black text-lg tracking-tight leading-none">إدارة المنصة</h2>
+            <h2 className="font-black text-base tracking-tight leading-none text-slate-900 dark:text-white">إدارة المنصة</h2>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Admin Control</span>
           </div>
         </div>
+
+        {onClose && (
+          <button 
+            onClick={onClose} 
+            className="lg:hidden p-1.5 rounded-xl bg-slate-100 dark:bg-surface-dark text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+            title="إغلاق القائمة"
+          >
+            <X size={18} />
+          </button>
+        )}
+      </div>
+
+      <div className="px-4 mb-3">
+        <Link
+          to="/"
+          className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-slate-100 dark:bg-surface-dark hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20 text-slate-600 dark:text-slate-300 text-xs font-black transition-colors"
+        >
+          <span className="material-symbols-outlined !text-[16px]">home</span>
+          <span>العودة إلى التطبيق</span>
+        </Link>
       </div>
 
       <div className="flex flex-col px-4 pb-8 space-y-6">

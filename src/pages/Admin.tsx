@@ -2187,46 +2187,74 @@ export default function Admin() {
   };
 
   return (
-    <div className="flex-1 w-full max-w-md mx-auto flex flex-col pb-32 min-h-screen bg-slate-50 dark:bg-background-dark relative">
-      {/* Sidebar Overlay */}
+    <div className="flex-1 w-full min-h-screen bg-slate-50 dark:bg-background-dark flex flex-col lg:flex-row relative">
+      {/* Mobile Sidebar Overlay */}
       {showSidebar && (
         <div 
-          className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm lg:hidden transition-opacity"
           onClick={() => setShowSidebar(false)}
         />
       )}
       
-      {/* Sidebar Drawer */}
-      <div className={`fixed inset-y-0 right-0 z-[70] transition-transform duration-300 transform ${showSidebar ? 'translate-x-0' : 'translate-x-full'}`}>
+      {/* Mobile Drawer Sidebar */}
+      <div className={`fixed inset-y-0 right-0 z-[70] lg:hidden transition-transform duration-300 transform ${showSidebar ? 'translate-x-0' : 'translate-x-full'}`}>
         <AdminSidebar activeTab={activeTab} setActiveTab={(tab) => { setActiveTab(tab); setShowSidebar(false); }} onClose={() => setShowSidebar(false)} />
       </div>
 
-      <div className="p-4 flex items-center justify-between gap-3">
-         <button onClick={() => setShowSidebar(true)} className="flex-1 h-12 bg-white dark:bg-surface-dark rounded-2xl flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300 border border-border-light dark:border-border-dark shadow-sm pressable active:scale-95 transition-all">
-           <Menu size={18} />
-           <span className="text-[10px] font-black uppercase tracking-widest">قائمة الإدارة</span>
-         </button>
+      {/* Desktop Persistent Docked Sidebar */}
+      <aside className="hidden lg:flex lg:w-72 lg:shrink-0 lg:h-screen lg:sticky lg:top-0 lg:border-l lg:border-border-light lg:dark:border-border-dark lg:bg-white lg:dark:bg-card-dark z-30">
+        <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      </aside>
 
-         <button 
-           onClick={async () => {
-             try {
-               await auth.signOut();
-               localStorage.clear();
-               sessionStorage.clear();
-               window.location.href = '/auth';
-             } catch (error) {
-               console.error('Logout error:', error);
-               window.location.href = '/auth';
-             }
-           }}
-           className="h-12 px-5 bg-red-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm pressable active:scale-95 transition-all"
-         >
-           خروج
-         </button>
-      </div>
+      {/* Main Content Column */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+        {/* Responsive Admin Topbar */}
+        <header className="bg-white dark:bg-card-dark border-b border-border-light dark:border-border-dark px-4 lg:px-8 py-3.5 flex items-center justify-between gap-3 sticky top-0 z-40 shadow-xs">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setShowSidebar(true)} 
+              className="lg:hidden h-10 px-3.5 bg-slate-100 dark:bg-surface-dark rounded-xl flex items-center justify-center gap-2 text-slate-700 dark:text-slate-200 border border-border-light dark:border-border-dark pressable active:scale-95 transition-all text-xs font-black"
+            >
+              <Menu size={18} />
+              <span>القائمة</span>
+            </button>
 
-      {/* Main Content */}
-      <main className="flex-1 p-4 overflow-y-auto">
+            <div className="hidden lg:flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span className="text-xs font-black text-slate-500 uppercase tracking-wider">لوحة الإدارة الشاملة</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <Link
+              to="/"
+              className="h-10 px-3.5 rounded-xl bg-slate-100 dark:bg-surface-dark hover:bg-slate-200 dark:hover:bg-surface-dark/80 text-slate-700 dark:text-slate-200 text-xs font-black flex items-center gap-2 transition-colors border border-border-light dark:border-border-dark"
+            >
+              <span className="material-symbols-outlined !text-[18px]">open_in_new</span>
+              <span className="hidden sm:inline">عرض التطبيق</span>
+            </Link>
+
+            <button 
+              onClick={async () => {
+                try {
+                  await auth.signOut();
+                  localStorage.clear();
+                  sessionStorage.clear();
+                  window.location.href = '/auth';
+                } catch (error) {
+                  console.error('Logout error:', error);
+                  window.location.href = '/auth';
+                }
+              }}
+              className="h-10 px-4 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm pressable active:scale-95 transition-all cursor-pointer"
+            >
+              <span>خروج</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto max-w-[1600px] w-full mx-auto pb-32 lg:pb-16">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">
             {activeTab === 'overview' ? 'لوحة التحكم' :
@@ -5808,6 +5836,7 @@ export default function Admin() {
            )}
         </div>
       </main>
+      </div>
 
       {/* Modal */}
       {showModal && (
