@@ -34,28 +34,14 @@ export default function TopHeader() {
         setPermission(Notification.permission);
       };
       updatePermission();
-      const timer = setInterval(updatePermission, 1000);
+      const timer = setInterval(updatePermission, 1500);
       return () => clearInterval(timer);
     }
   }, []);
 
   const handleNotificationClick = async () => {
-    console.log('[TopHeader] 🔔 Notification bell clicked! Current state:', {
-      hasNotification: typeof window !== 'undefined' && 'Notification' in window,
-      currentPermission: typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'none',
-      isActivating
-    });
-
     if (typeof window === 'undefined' || !('Notification' in window)) {
       toast.error('المتصفح الحالي لا يدعم إشعارات الويب');
-      return;
-    }
-
-    if (Notification.permission === 'granted') {
-      toast.success('🔔 إشعارات OneSignal مفعلة وتستقبل أهداف وبث مباريات الاتحاد السكندري!', {
-        icon: '🟢',
-        duration: 3500
-      });
       return;
     }
 

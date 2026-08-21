@@ -3,10 +3,11 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import toast from 'react-hot-toast';
 
-// Fallback App ID or from environment variable
+// Official OneSignal App ID
 export const ONESIGNAL_APP_ID = 
-  import.meta.env.VITE_ONESIGNAL_APP_ID || 
-  'YOUR_ONESIGNAL_APP_ID';
+  (import.meta.env.VITE_ONESIGNAL_APP_ID && import.meta.env.VITE_ONESIGNAL_APP_ID !== 'YOUR_ONESIGNAL_APP_ID')
+    ? import.meta.env.VITE_ONESIGNAL_APP_ID
+    : 'd16c5bf7-0e69-4e78-9e5b-b9d9dfce76f9';
 
 let isOneSignalInitialized = false;
 let initializationPromise: Promise<boolean> | null = null;
@@ -56,11 +57,13 @@ export async function logOneSignalDiagnosticStatus(stage: string = 'Current Stat
     '1. Notification.permission': permission,
     '2. standalone mode': isStandalone,
     '3. isIOS': isIOS,
-    '4. OneSignal User ID': userId || '(pending/none)',
-    '5. OneSignal Push Subscription ID': pushId || pushToken || '(pending/none)',
-    '6. subscription optedIn': optedIn,
-    '7. Service Worker registration': swList,
-    '8. userAgent': navigator.userAgent
+    '4. OneSignal App ID': ONESIGNAL_APP_ID,
+    '5. OneSignal User ID': userId || '(pending/none)',
+    '6. OneSignal Push Subscription ID': pushId || pushToken || '(pending/none)',
+    '7. subscription optedIn': optedIn,
+    '8. Service Worker registration': swList,
+    '9. current Domain / Origin': window.location.origin,
+    '10. userAgent': navigator.userAgent
   });
 }
 
@@ -96,16 +99,11 @@ export async function initOneSignal(): Promise<boolean> {
       // 1. Clean legacy FCM workers to guarantee zero conflict
       await cleanLegacyServiceWorkers();
 
-      // 2. Validate App ID
       const appId = ONESIGNAL_APP_ID;
-      if (!appId || appId === 'YOUR_ONESIGNAL_APP_ID') {
-        console.warn('[OneSignal] ⚠️ VITE_ONESIGNAL_APP_ID is not configured yet. Set VITE_ONESIGNAL_APP_ID in your environment variables.');
-      }
-
-      console.log('[OneSignal] 🚀 Initializing OneSignal Web SDK...');
+      console.log('[OneSignal] 🚀 Initializing OneSignal Web SDK with App ID:', appId);
 
       await OneSignal.init({
-        appId: appId || 'd16c5bf7-0e69-4e78-9e5b-b9d9dfce76f9',
+        appId: appId,
         allowLocalhostAsSecureOrigin: true,
         notifyButton: {
           enable: false,
@@ -166,11 +164,23 @@ export async function initOneSignal(): Promise<boolean> {
         console.warn('[OneSignal] Notifications event listeners warning:', clickErr);
       }
 
+      // If browser already granted permission, opt-in immediately to ensure subscription is generated
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try {
+          if (OneSignal.User?.PushSubscription) {
+            await OneSignal.User.PushSubscription.optIn();
+            const subId = OneSignal.User.PushSubscription.id || OneSignal.User.PushSubscription.token;
+            if (subId) {
+              await saveCurrentSubscriptionToFirestore(subId);
+            }
+          }
+        } catch (optErr) {
+          console.warn('[OneSignal] Background optIn error:', optErr);
+        }
+      }
+
       // Log full status after initialization
       await logOneSignalDiagnosticStatus('Post Initialization');
-
-      // 4. If user is already subscribed, save subscription to Firestore
-      saveCurrentSubscriptionToFirestore().catch(() => {});
 
       return true;
     } catch (err: any) {
@@ -234,8 +244,7 @@ export async function saveCurrentSubscriptionToFirestore(subscriptionId?: string
 }
 
 /**
- * Request Notification Permission using native browser prompt immediately on user click,
- * and then registers with OneSignal and Firestore
+ * Request Notification Permission using OneSignal and native browser prompt
  */
 export const requestNotificationPermission = async (): Promise<string | null> => {
   if (typeof window === 'undefined') return null;
@@ -260,65 +269,57 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
     return null;
   }
 
-  if (currentPerm === 'granted') {
-    // Background ensure OneSignal is synced
-    initOneSignal().then(async () => {
+  try {
+    // 1. Initialize OneSignal
+    await initOneSignal();
+
+    // 2. Request permission via OneSignal's SDK
+    try {
+      if (typeof OneSignal !== 'undefined' && OneSignal.Notifications?.requestPermission) {
+        await OneSignal.Notifications.requestPermission();
+      }
+    } catch (sdkErr) {
+      console.warn('[OneSignal] SDK requestPermission note:', sdkErr);
+    }
+
+    // 3. Native prompt fallback if state is still default
+    if ((Notification.permission as string) === 'default') {
+      try {
+        await Notification.requestPermission();
+      } catch (natErr) {
+        console.warn('[OneSignal] Native requestPermission exception:', natErr);
+      }
+    }
+
+    currentPerm = Notification.permission as string;
+    console.log('[OneSignal] 🔔 Current permission after request:', currentPerm);
+
+    if (currentPerm === 'granted') {
+      // Opt-in to Push subscription explicitly in OneSignal
       try {
         if (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription) {
           await OneSignal.User.PushSubscription.optIn();
         }
-        const id = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
-        if (id) await saveCurrentSubscriptionToFirestore(id);
-      } catch (e) {}
-    });
-    return 'granted';
-  }
-
-  // Trigger permission prompt IMMEDIATELY in user gesture event stack
-  try {
-    let permResult: NotificationPermission = 'default';
-    
-    // Call native requestPermission directly to guarantee browser prompt pops up
-    if (typeof Notification.requestPermission === 'function') {
-      try {
-        permResult = await Notification.requestPermission();
-      } catch (e) {
-        // Fallback for older callback-based requestPermission
-        permResult = await new Promise((resolve) => {
-          Notification.requestPermission((p) => resolve(p));
-        });
+      } catch (optErr) {
+        console.warn('[OneSignal] Opt-in exception:', optErr);
       }
-    }
 
-    currentPerm = Notification.permission as string || permResult;
-    console.log('[OneSignal] 🔔 Native permission result:', currentPerm);
-
-    if (currentPerm === 'granted') {
-      // Background init & token retrieval
-      initOneSignal().then(async () => {
-        try {
-          if (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription) {
-            await OneSignal.User.PushSubscription.optIn();
-          }
-
-          let subscriptionId = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
-          if (!subscriptionId) {
-            for (let i = 0; i < 6; i++) {
-              await new Promise(r => setTimeout(r, 500));
-              subscriptionId = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
-              if (subscriptionId) break;
-            }
-          }
-
-          if (subscriptionId) {
-            await saveCurrentSubscriptionToFirestore(subscriptionId);
-          }
-        } catch (postErr) {
-          console.warn('[OneSignal] Post-permission setup error:', postErr);
+      // Wait up to 3 seconds for Push Subscription ID generation
+      let subscriptionId = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
+      if (!subscriptionId) {
+        for (let i = 0; i < 6; i++) {
+          await new Promise(r => setTimeout(r, 500));
+          subscriptionId = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
+          if (subscriptionId) break;
         }
-      });
+      }
 
-      return 'granted';
+      if (subscriptionId) {
+        await saveCurrentSubscriptionToFirestore(subscriptionId);
+      }
+
+      await logOneSignalDiagnosticStatus('Permission Granted Complete');
+      return subscriptionId || 'granted';
     } else if (currentPerm === 'denied') {
       toast.error('تم رفض إذن الإشعارات.');
       return null;
