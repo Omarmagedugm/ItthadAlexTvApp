@@ -53,7 +53,7 @@ async function startServer() {
   app.post('/api/onesignal/send', async (req: any, res: any) => {
     try {
       const { title, body, url, type, isMatch, target } = req.body;
-      const appId = process.env.ONESIGNAL_APP_ID || process.env.VITE_ONESIGNAL_APP_ID;
+      const appId = process.env.ONESIGNAL_APP_ID || process.env.VITE_ONESIGNAL_APP_ID || 'f93522a8-2af6-40a7-aa4e-25fc0e21e572';
       const apiKey = process.env.ONESIGNAL_REST_API_KEY;
 
       if (!title || !body) {
@@ -80,7 +80,7 @@ async function startServer() {
 
       const payload: any = {
         app_id: appId,
-        included_segments: ['Total Subscriptions'],
+        included_segments: ['Subscribed Users', 'Total Subscriptions', 'Active Subscriptions'],
         headings: { en: title, ar: title },
         contents: { en: body, ar: body },
         web_url: targetUrl,
@@ -109,9 +109,16 @@ async function startServer() {
       const responseData = await response.json();
       console.log('[OneSignal Server] 🚀 Push Notification dispatched:', responseData);
 
+      const hasNoSubscribers = responseData.errors && responseData.errors.some((e: string) => 
+        e.includes('All included players are not subscribed') || 
+        e.includes('not subscribed')
+      );
+
       return res.json({
         success: true,
-        delivered: true,
+        delivered: !hasNoSubscribers,
+        noSubscribers: hasNoSubscribers,
+        recipients: responseData.recipients || 0,
         data: responseData
       });
     } catch (err: any) {

@@ -127,7 +127,8 @@ testConnection();
 export const messaging = null;
 
 export const requestNotificationPermission = async (): Promise<string | null> => {
-  return requestOneSignalPermission();
+  const res = await requestOneSignalPermission();
+  return res.subscriptionId || (res.success ? 'granted' : null);
 };
 
 export const uploadImage = async (file: File, folder: string): Promise<string> => {

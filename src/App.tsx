@@ -5,8 +5,8 @@ import ScrollToTop from './components/ScrollToTop';
 import PullToRefresh from './components/PullToRefresh';
 import { useAppStore } from './store';
 import { useFirestoreSync } from './hooks/useFirestore';
-import { auth, requestNotificationPermission } from './lib/firebase';
-import { initOneSignal } from './lib/onesignal';
+import { auth } from './lib/firebase';
+import { initOneSignal, requestNotificationPermission } from './lib/onesignal';
 import { preloadImages } from './lib/imageCache';
 
 import Home from './pages/Home';

@@ -58,13 +58,26 @@ export default function TopHeader() {
       const currentPerm = (typeof window !== 'undefined' && 'Notification' in window) ? (Notification.permission as string) : 'denied';
       setPermission(currentPerm);
 
-      if (result || currentPerm === 'granted') {
+      if (result.success) {
         toast.success('تم تفعيل إشعارات المباريات والبث المباشر بنجاح 🔔', {
           icon: '✅',
           duration: 4000
         });
-      } else if (currentPerm === 'denied') {
-        toast.error('تم حظر الإشعارات من قبل المتصفح.');
+      } else if (result.reason === 'ios_not_standalone') {
+        toast('يرجى تثبيت التطبيق أولاً (إضافة إلى الشاشة الرئيسية 📲) لتفعيل الإشعارات على هواتف آيفون', {
+          duration: 6000
+        });
+      } else if (result.reason === 'permission_denied') {
+        toast.error('تم حظر الإشعارات في المتصفح. اضغط على أيقونة القفل 🔒 بجانب الرابط وفعل الإشعارات.', {
+          duration: 6000
+        });
+      } else if (result.reason === 'subscription_creation_timeout') {
+        toast('تم منح الإذن في المتصفح! جارٍ تسجيل الجهاز في OneSignal...', {
+          icon: '⏳',
+          duration: 5000
+        });
+      } else if (result.reason === 'unsupported') {
+        toast.error('المتصفح الحالي لا يدعم إشعارات الويب');
       }
     } catch (err: any) {
       console.error('Notification activation error:', err);
