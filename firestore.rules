@@ -287,8 +287,7 @@ service cloud.firestore {
 
     match /fcm_tokens/{tokenId} {
       allow read: if isAdmin();
-      allow create: if true;
-      allow update: if isSignedIn();
+      allow create, update: if true;
       allow delete: if isAdmin();
     }
 

@@ -389,23 +389,6 @@ function AppContent() {
     }
   }, [theme]);
 
-  useEffect(() => {
-    const handleFcmMessage = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const { title, body } = customEvent.detail;
-      toast.success(
-        <div className="flex flex-col gap-1 cursor-pointer">
-          <div className="font-bold text-sm">{title}</div>
-          {body && <div className="text-xs opacity-90">{body}</div>}
-        </div>,
-        { duration: 6000 }
-      );
-    };
-
-    window.addEventListener('fcm-message', handleFcmMessage);
-    return () => window.removeEventListener('fcm-message', handleFcmMessage);
-  }, []);
-
   const handlePullRefresh = async () => {
     try {
       Object.keys(localStorage).forEach(key => {
@@ -423,6 +406,7 @@ function AppContent() {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <NotificationNavigator />
       <AuthRedirector />
       <Toaster 
         position="top-center" 
@@ -527,3 +511,23 @@ function AppNav() {
   if (isSplashOrAuth) return null;
   return <BottomNav />;
 }
+
+function NotificationNavigator() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Listen for native push notification clicks forwarded by Service Worker
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      const handleSwMessage = (event: MessageEvent) => {
+        if (event.data?.type === 'NOTIFICATION_CLICK' && event.data?.url) {
+          navigate(event.data.url);
+        }
+      };
+      navigator.serviceWorker.addEventListener('message', handleSwMessage);
+      return () => navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+    }
+  }, [navigate]);
+
+  return null;
+}
+

@@ -732,22 +732,32 @@ export default function Admin() {
     }
   };
 
-  const [notificationForm, setNotificationForm] = useState({ title: '', body: '', target: 'all' });
+  const [notificationForm, setNotificationForm] = useState({ 
+    title: '', 
+    body: '', 
+    target: 'all',
+    type: 'match',
+    url: '/live' 
+  });
   const [isSending, setIsSending] = useState(false);
 
   const handleSendNotification = async () => {
     if (!notificationForm.title.trim() || !notificationForm.body.trim()) return toast.error('يرجى ملء جميع الحقول');
     setIsSending(true);
     try {
+      const isMatch = notificationForm.type === 'match' || notificationForm.url.includes('/live') || /⚽|🟢|🟨|🟥|🏁|هدف|مباراة|طرد/i.test(`${notificationForm.title} ${notificationForm.body}`);
       await addDoc(collection(db, 'notifications'), {
         title: notificationForm.title,
         body: notificationForm.body,
-        target: notificationForm.target,
+        target: notificationForm.target || 'all',
+        type: isMatch ? 'match' : 'general',
+        url: notificationForm.url || (isMatch ? '/live' : '/'),
+        isMatch: isMatch,
         readBy: [],
         createdAt: new Date().toISOString()
       });
       toast.success('تم إرسال الإشعار بنجاح');
-      setNotificationForm({ title: '', body: '', target: 'all' });
+      setNotificationForm({ title: '', body: '', target: 'all', type: 'match', url: '/live' });
     } catch (e) {
       console.error(e);
       toast.error('حدث خطأ أثناء الإرسال');
@@ -4482,13 +4492,88 @@ export default function Admin() {
                    <Bell className="text-primary opacity-20" size={32} />
                 </div>
                 <div>
+                  <label className="text-[10px] font-black text-slate-500 mb-2 block">نماذج سريعة لإشعارات المباريات (فتح البث المباشر /live تلقائياً):</label>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <button
+                      type="button"
+                      onClick={() => setNotificationForm({
+                        title: '⚽ هدف لصالح الاتحاد السكندري!',
+                        body: 'جوووووول! هدف جديد لزعيم الثغر، اضغط لمتابعة البث المباشر الآن!',
+                        target: 'all',
+                        type: 'match',
+                        url: '/live'
+                      })}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-xs font-black border border-emerald-200 dark:border-emerald-800/40 hover:scale-105 transition-all flex items-center gap-1.5"
+                    >
+                      <span>⚽</span> هدف
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setNotificationForm({
+                        title: '🟢 بداية المباراة الآن!',
+                        body: 'صافرة البداية انطلقت! شاهد البث المباشر وأحداث المباراة فوراً.',
+                        target: 'all',
+                        type: 'match',
+                        url: '/live'
+                      })}
+                      className="px-3 py-1.5 rounded-xl bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 text-xs font-black border border-green-200 dark:border-green-800/40 hover:scale-105 transition-all flex items-center gap-1.5"
+                    >
+                      <span>🟢</span> بداية المباراة
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setNotificationForm({
+                        title: '🟨 إنذار وبطاقة صفراء',
+                        body: 'الحكم يشهر بطاقة صفراء خلال مجريات اللقاء، تابع البث المباشر.',
+                        target: 'all',
+                        type: 'match',
+                        url: '/live'
+                      })}
+                      className="px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 text-xs font-black border border-amber-200 dark:border-amber-800/40 hover:scale-105 transition-all flex items-center gap-1.5"
+                    >
+                      <span>🟨</span> بطاقة صفراء
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setNotificationForm({
+                        title: '🟥 بطاقة حمراء وطرد!',
+                        body: 'حالة طرد في اللقاء! تابع تفاصيل وأحداث المباراة عبر البث المباشر.',
+                        target: 'all',
+                        type: 'match',
+                        url: '/live'
+                      })}
+                      className="px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-black border border-red-200 dark:border-red-800/40 hover:scale-105 transition-all flex items-center gap-1.5"
+                    >
+                      <span>🟥</span> طرد
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setNotificationForm({
+                        title: '🏁 نهاية المباراة',
+                        body: 'صافرة النهاية! تابع الآن ملخص المباراة وردود الفعل والتحليل الفني.',
+                        target: 'all',
+                        type: 'match',
+                        url: '/live'
+                      })}
+                      className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-black border border-blue-200 dark:border-blue-800/40 hover:scale-105 transition-all flex items-center gap-1.5"
+                    >
+                      <span>🏁</span> نهاية المباراة
+                    </button>
+                  </div>
+                </div>
+
+                <div>
                   <label className="text-[10px] font-black text-slate-500 mb-1.5 block">عنوان الإشعار</label>
                   <input 
                     type="text" 
                     value={notificationForm.title} 
                     onChange={(e) => setNotificationForm({...notificationForm, title: e.target.value})}
                     className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm font-bold focus:border-primary outline-none transition-colors"
-                    placeholder="مثال: عاجل - تعاقد جديد"
+                    placeholder="مثال: ⚽ هدف لصالح الاتحاد السكندري!"
                   />
                 </div>
                 <div>

@@ -53,19 +53,41 @@ export default function TopHeader() {
       setNotifications(notifs);
 
       if (!initialLoadRef.current) {
-        snap.docChanges().forEach((change) => {
+        snap.docChanges().forEach(async (change) => {
           if (change.type === 'added') {
             const data = change.doc.data();
             if (!data.readBy?.includes(profile.uid)) {
-              toast((t) => (
-                <div onClick={() => { toast.dismiss(t.id); setShowNotifications(true); }} className="flex flex-col gap-1 cursor-pointer">
-                  <div className="font-black text-sm text-primary flex items-center gap-2">
-                    <Bell size={16} /> إشعار جديد
-                  </div>
-                  <div className="text-xs font-bold text-slate-700 dark:text-slate-300">{data.title}</div>
-                  <div className="text-[10px] font-bold text-slate-500 line-clamp-1 mt-1">{data.body}</div>
-                </div>
-              ));
+              // Trigger Native OS Notification instead of internal UI Toast
+              if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                try {
+                  const isMatch = (data?.type === 'match') || 
+                                  (data?.category === 'match') || 
+                                  (String(data?.isMatch) === 'true') ||
+                                  (typeof data?.url === 'string' && data.url.includes('/live')) ||
+                                  /⚽|🟢|🟨|🟥|🏁|هدف|بداية المباراة|بطاقة|طرد|نهاية المباراة|مباشر|مباراة|شوط/i.test(`${data.title || ''} ${data.body || ''}`);
+                  const targetUrl = (typeof data?.url === 'string' && data.url) ? data.url : (isMatch ? '/live' : '/');
+
+                  if ('serviceWorker' in navigator) {
+                    const reg = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js') || await navigator.serviceWorker.ready;
+                    if (reg) {
+                      await reg.showNotification(data.title || 'قناة الاتحاد السكندري', {
+                        body: data.body || '',
+                        icon: '/icon.png',
+                        badge: '/icon.png',
+                        tag: isMatch ? 'match-alert' : `notif-${change.doc.id}`,
+                        renotify: true,
+                        data: {
+                          ...data,
+                          url: targetUrl,
+                          isMatch
+                        }
+                      } as NotificationOptions & { vibrate?: number[] });
+                    }
+                  }
+                } catch (err) {
+                  console.warn('Could not display native notification:', err);
+                }
+              }
             }
           }
         });
@@ -243,10 +265,12 @@ export default function TopHeader() {
               <motion.button 
                 whileTap={{ scale: 0.9 }}
                 aria-label="تفعيل الإشعارات"
-                onClick={() => {
-                  requestNotificationPermission().then(() => {
-                    if ('Notification' in window) setPermission(Notification.permission);
-                  });
+                onClick={async () => {
+                  const token = await requestNotificationPermission();
+                  if ('Notification' in window) setPermission(Notification.permission);
+                  if (token || Notification.permission === 'granted') {
+                    toast.success('تم تفعيل إشعارات المباريات والبث المباشر بنجاح 🔔');
+                  }
                 }}
                 className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-all duration-300 shadow-sm relative group"
                 title="تفعيل الإشعارات"
@@ -357,8 +381,12 @@ export default function TopHeader() {
                       )}
                    {('Notification' in window) && Notification.permission !== 'granted' && Notification.permission !== 'denied' && (
                      <button
-                       onClick={() => {
-                         requestNotificationPermission();
+                       onClick={async () => {
+                         const token = await requestNotificationPermission();
+                         if ('Notification' in window) setPermission(Notification.permission);
+                         if (token || Notification.permission === 'granted') {
+                           toast.success('تم تفعيل إشعارات المباريات والبث المباشر بنجاح 🔔');
+                         }
                        }}
                        className="bg-primary/10 text-primary hover:bg-primary hover:text-white px-3 py-1.5 rounded-xl font-bold text-xs transition-all duration-300"
                      >

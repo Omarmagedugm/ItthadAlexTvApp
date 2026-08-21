@@ -347,11 +347,6 @@ export default function Live() {
                   </button>
                 </div>
               </div>
-
-              {/* Match / Broadcaster description */}
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
-                متابعة حية وشاملة لكافة فعاليات وأنشطة نادي الاتحاد السكندري. استمتع بأعلى جودة للبث مع دردشة تفاعلية ومباشرة مع جماهير الأخضر في كل مكان.
-              </p>
             </div>
           </div>
 

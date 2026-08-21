@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore, UserProfile } from '../store';
 import React, { useState, useEffect } from 'react';
 import { Camera, X, Check, Lock, ShieldCheck, Mail, Loader2, Save, Upload, Edit2, Newspaper } from 'lucide-react';
-import { db, auth, uploadImage, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, auth, uploadImage, handleFirestoreError, OperationType, requestNotificationPermission } from '../lib/firebase';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { updatePassword, updateProfile as updateAuthProfile, updateEmail } from 'firebase/auth';
 import toast from 'react-hot-toast';
@@ -25,8 +25,28 @@ export default function Profile() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return Notification.permission === 'granted';
+    }
+    return false;
+  });
   const navigate = useNavigate();
+
+  const handleToggleNotifications = async () => {
+    if (!notificationsEnabled) {
+      const token = await requestNotificationPermission();
+      if (token || (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted')) {
+        setNotificationsEnabled(true);
+        toast.success('تم تفعيل إشعارات المباريات والأخبار بنجاح 🔔');
+      } else {
+        toast.error('يرجى السماح بالإشعارات في إعدادات المتصفح');
+      }
+    } else {
+      setNotificationsEnabled(false);
+      toast('يمكنك كتم الإشعارات أو إدارتها من إعدادات المتصفح');
+    }
+  };
 
   // Handle auth state check
   useEffect(() => {
@@ -337,7 +357,7 @@ export default function Profile() {
           <div className="overflow-hidden rounded-3xl bg-white shadow-sm border border-border-light/60 dark:border-border-dark dark:bg-card-dark">
             {/* Notification Setting */}
             <button 
-              onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+              onClick={handleToggleNotifications}
               className="flex w-full items-center justify-between p-4 transition-colors hover:bg-slate-50 dark:hover:bg-surface-dark pressable group"
             >
               <div className="flex items-center gap-4">
