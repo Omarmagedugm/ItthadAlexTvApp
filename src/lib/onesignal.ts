@@ -154,7 +154,17 @@ export async function saveCurrentSubscriptionToFirestore(subscriptionId?: string
  * Used directly by the existing notification bell buttons in TopHeader and Profile
  */
 export const requestNotificationPermission = async (): Promise<string | null> => {
-  if (typeof window === 'undefined' || !('Notification' in window)) {
+  if (typeof window === 'undefined') return null;
+
+  // iOS Safari check: Web Push on iOS requires adding to Home Screen (PWA)
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+  
+  if (isIOS && !isStandalone) {
+    console.info('[OneSignal] 📱 iOS requires adding app to Home Screen (PWA) to enable Web Push notifications.');
+  }
+
+  if (!('Notification' in window)) {
     console.warn('[OneSignal] ⚠️ Notifications API is not supported in this browser.');
     return null;
   }
@@ -163,10 +173,14 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
     // 1. Initialize OneSignal first
     await initOneSignal();
 
-    console.log('[OneSignal] 📱 Requesting push notification permission...');
+    console.log('[OneSignal] 📱 Requesting push notification permission via OneSignal...');
 
-    // 2. Request permission via OneSignal
-    await OneSignal.Notifications.requestPermission();
+    // 2. Request permission via OneSignal Web SDK
+    try {
+      await OneSignal.Notifications.requestPermission();
+    } catch (reqErr) {
+      console.warn('[OneSignal] Permission request note:', reqErr);
+    }
 
     const isGranted = Notification.permission === 'granted';
     console.log('[OneSignal] 🔔 Permission status:', Notification.permission);
