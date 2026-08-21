@@ -1,6 +1,7 @@
 import OneSignal from 'react-onesignal';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from './firebase';
+import toast from 'react-hot-toast';
 
 // Fallback App ID or from environment variable
 export const ONESIGNAL_APP_ID = 
@@ -151,7 +152,7 @@ export async function saveCurrentSubscriptionToFirestore(subscriptionId?: string
 
 /**
  * Request Notification Permission using OneSignal
- * Used directly by the existing notification bell buttons in TopHeader and Profile
+ * Used directly by the notification bell button
  */
 export const requestNotificationPermission = async (): Promise<string | null> => {
   if (typeof window === 'undefined') return null;
@@ -161,54 +162,99 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
   
   if (isIOS && !isStandalone) {
-    console.info('[OneSignal] 📱 iOS requires adding app to Home Screen (PWA) to enable Web Push notifications.');
+    toast('يرجى تثبيت التطبيق أولاً (إضافة إلى الشاشة الرئيسية) لتفعيل الإشعارات على أجهزة آيفون 📲', { duration: 5000 });
   }
 
   if (!('Notification' in window)) {
-    console.warn('[OneSignal] ⚠️ Notifications API is not supported in this browser.');
+    toast.error('المتصفح الحالي لا يدعم إشعارات الويب');
+    return null;
+  }
+
+  // If already granted
+  if (Notification.permission === 'granted') {
+    try {
+      await initOneSignal();
+      if (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription) {
+        await OneSignal.User.PushSubscription.optIn();
+        const id = OneSignal.User.PushSubscription.id;
+        if (id) await saveCurrentSubscriptionToFirestore(id);
+      }
+    } catch (e) {}
+    return 'granted';
+  }
+
+  // If explicitly denied by user in browser
+  if (Notification.permission === 'denied') {
+    toast.error('تم حظر الإشعارات في المتصفح. اضغط على أيقونة القفل 🔒 بجانب الرابط وفعل الإشعارات.', { duration: 6000 });
     return null;
   }
 
   try {
-    // 1. Initialize OneSignal first
+    // 1. Try OneSignal initialization
     await initOneSignal();
 
-    console.log('[OneSignal] 📱 Requesting push notification permission via OneSignal...');
+    console.log('[OneSignal] 📱 Requesting push notification permission...');
 
     // 2. Request permission via OneSignal Web SDK
     try {
-      await OneSignal.Notifications.requestPermission();
-    } catch (reqErr) {
-      console.warn('[OneSignal] Permission request note:', reqErr);
+      if (typeof OneSignal !== 'undefined' && OneSignal.Notifications?.requestPermission) {
+        await OneSignal.Notifications.requestPermission();
+      }
+    } catch (sdkErr) {
+      console.warn('[OneSignal] SDK permission request note:', sdkErr);
     }
 
-    const isGranted = Notification.permission === 'granted';
-    console.log('[OneSignal] 🔔 Permission status:', Notification.permission);
+    // 3. Fallback to native browser permission request if still default
+    if ((Notification.permission as string) === 'default') {
+      try {
+        await Notification.requestPermission();
+      } catch (natErr) {
+        console.warn('Native requestPermission error:', natErr);
+      }
+    }
 
-    if (!isGranted) {
-      console.warn('[OneSignal] 🚫 Notification permission was not granted:', Notification.permission);
+    const currentPermissionStatus = Notification.permission as string;
+    const isGranted = currentPermissionStatus === 'granted';
+    console.log('[OneSignal] 🔔 Permission status after request:', currentPermissionStatus);
+
+    if (isGranted) {
+      // 4. Opt-in to Push notifications
+      try {
+        if (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription) {
+          await OneSignal.User.PushSubscription.optIn();
+        }
+      } catch (optErr) {
+        console.warn('[OneSignal] Opt-in note:', optErr);
+      }
+
+      // 5. Retrieve Subscription ID
+      const subscriptionId = (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription?.id) || 
+                             (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription?.token);
+      
+      console.log('[OneSignal] ✅ Subscription ID:', subscriptionId);
+
+      // 6. Save to Firestore
+      if (subscriptionId) {
+        await saveCurrentSubscriptionToFirestore(subscriptionId);
+      }
+
+      return subscriptionId || 'granted';
+    } else if (currentPermissionStatus === 'denied') {
+      toast.error('تم رفض إذن الإشعارات. يمكنك السماح بها من إعدادات المتصفح.');
       return null;
     }
 
-    // 3. Opt-in to Push notifications
-    try {
-      await OneSignal.User.PushSubscription.optIn();
-    } catch (optErr) {
-      console.warn('[OneSignal] Opt-in note:', optErr);
-    }
-
-    // 4. Retrieve Subscription ID
-    const subscriptionId = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
-    console.log('[OneSignal] ✅ Subscription generated successfully:', subscriptionId);
-
-    // 5. Save to Firestore
-    if (subscriptionId) {
-      await saveCurrentSubscriptionToFirestore(subscriptionId);
-    }
-
-    return subscriptionId || 'granted';
+    return null;
   } catch (err: any) {
     console.error('[OneSignal] ❌ Permission request error:', err?.message || err);
+    
+    // Emergency native request
+    if ((Notification.permission as string) === 'default') {
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted') return 'granted';
+      } catch (e) {}
+    }
     return null;
   }
 };
