@@ -234,16 +234,14 @@ export async function saveCurrentSubscriptionToFirestore(subscriptionId?: string
 }
 
 /**
- * Request Notification Permission using OneSignal and native browser fallback
- * Handles Desktop, Android, and iOS Safari PWA
+ * Request Notification Permission using native browser prompt immediately on user click,
+ * and then registers with OneSignal and Firestore
  */
 export const requestNotificationPermission = async (): Promise<string | null> => {
   if (typeof window === 'undefined') return null;
 
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
   const isStandalone = checkIsStandalone();
-
-  await logOneSignalDiagnosticStatus('Permission Request Started');
 
   if (isIOS && !isStandalone) {
     toast('يرجى تثبيت التطبيق أولاً (إضافة إلى الشاشة الرئيسية) لتفعيل الإشعارات على هواتف آيفون 📲', { duration: 6000 });
@@ -254,101 +252,81 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
     return null;
   }
 
-  // If already granted in browser, ensure OneSignal is opted-in and registered
-  if (Notification.permission === 'granted') {
-    try {
-      await initOneSignal();
-      if (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription) {
-        await OneSignal.User.PushSubscription.optIn();
-      }
-      
-      let id = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
-      if (!id) {
-        // Give APNs/OneSignal up to 2 seconds if generating token in background
-        for (let i = 0; i < 4; i++) {
-          await new Promise(r => setTimeout(r, 500));
-          id = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
-          if (id) break;
-        }
-      }
+  // Check current permission
+  let currentPerm = Notification.permission as string;
 
-      await logOneSignalDiagnosticStatus('Already Granted Flow');
-      if (id) await saveCurrentSubscriptionToFirestore(id);
-    } catch (e) {
-      console.warn('[OneSignal Diagnostic] Error opting-in existing granted permission:', e);
-    }
-    return 'granted';
-  }
-
-  if (Notification.permission === 'denied') {
+  if (currentPerm === 'denied') {
     toast.error('تم حظر الإشعارات في المتصفح. اضغط على أيقونة القفل 🔒 بجانب الرابط وفعل الإشعارات.', { duration: 6000 });
     return null;
   }
 
-  try {
-    // 1. Ensure OneSignal is initialized
-    await initOneSignal();
-
-    console.log('[OneSignal Diagnostic] 📱 Prompting permission...');
-
-    // 2. Request permission via OneSignal
-    try {
-      if (typeof OneSignal !== 'undefined' && OneSignal.Notifications?.requestPermission) {
-        await OneSignal.Notifications.requestPermission();
-      }
-    } catch (sdkErr) {
-      console.warn('[OneSignal Diagnostic] SDK requestPermission notice:', sdkErr);
-    }
-
-    // 3. Native prompt fallback if state is still default
-    if ((Notification.permission as string) === 'default') {
-      try {
-        await Notification.requestPermission();
-      } catch (natErr) {
-        console.warn('[OneSignal Diagnostic] Native requestPermission exception:', natErr);
-      }
-    }
-
-    const currentPermissionStatus = (Notification.permission as string);
-    console.log('[OneSignal Diagnostic] 🔔 Permission status after prompt:', currentPermissionStatus);
-
-    if (currentPermissionStatus === 'granted') {
-      // 4. Opt-in to Push notifications
+  if (currentPerm === 'granted') {
+    // Background ensure OneSignal is synced
+    initOneSignal().then(async () => {
       try {
         if (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription) {
           await OneSignal.User.PushSubscription.optIn();
         }
-      } catch (optErr) {
-        console.warn('[OneSignal Diagnostic] Opt-in exception:', optErr);
-      }
+        const id = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
+        if (id) await saveCurrentSubscriptionToFirestore(id);
+      } catch (e) {}
+    });
+    return 'granted';
+  }
 
-      // 5. Poll up to 3 seconds for Apple APNs / FCM token generation
-      let subscriptionId = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
-      if (!subscriptionId) {
-        for (let i = 0; i < 6; i++) {
-          await new Promise(r => setTimeout(r, 500));
-          subscriptionId = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
-          if (subscriptionId) break;
+  // Trigger permission prompt IMMEDIATELY in user gesture event stack
+  try {
+    let permResult: NotificationPermission = 'default';
+    
+    // Call native requestPermission directly to guarantee browser prompt pops up
+    if (typeof Notification.requestPermission === 'function') {
+      try {
+        permResult = await Notification.requestPermission();
+      } catch (e) {
+        // Fallback for older callback-based requestPermission
+        permResult = await new Promise((resolve) => {
+          Notification.requestPermission((p) => resolve(p));
+        });
+      }
+    }
+
+    currentPerm = Notification.permission as string || permResult;
+    console.log('[OneSignal] 🔔 Native permission result:', currentPerm);
+
+    if (currentPerm === 'granted') {
+      // Background init & token retrieval
+      initOneSignal().then(async () => {
+        try {
+          if (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription) {
+            await OneSignal.User.PushSubscription.optIn();
+          }
+
+          let subscriptionId = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
+          if (!subscriptionId) {
+            for (let i = 0; i < 6; i++) {
+              await new Promise(r => setTimeout(r, 500));
+              subscriptionId = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
+              if (subscriptionId) break;
+            }
+          }
+
+          if (subscriptionId) {
+            await saveCurrentSubscriptionToFirestore(subscriptionId);
+          }
+        } catch (postErr) {
+          console.warn('[OneSignal] Post-permission setup error:', postErr);
         }
-      }
+      });
 
-      await logOneSignalDiagnosticStatus('Permission Granted Flow Complete');
-
-      if (subscriptionId) {
-        await saveCurrentSubscriptionToFirestore(subscriptionId);
-      }
-
-      return subscriptionId || 'granted';
-    } else if (currentPermissionStatus === 'denied') {
+      return 'granted';
+    } else if (currentPerm === 'denied') {
       toast.error('تم رفض إذن الإشعارات.');
-      await logOneSignalDiagnosticStatus('Permission Denied');
       return null;
     }
 
     return null;
   } catch (err: any) {
-    console.error('[OneSignal Diagnostic] ❌ Permission request error:', err?.message || err);
-    await logOneSignalDiagnosticStatus('Permission Request Threw Error');
+    console.error('[OneSignal] ❌ Permission request exception:', err);
     return null;
   }
 };

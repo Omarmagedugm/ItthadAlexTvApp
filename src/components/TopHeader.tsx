@@ -4,7 +4,8 @@ import { Menu, Bell, Search, ChevronRight, Sun, Moon, Settings, BellRing } from 
 import { useAppStore } from '../store';
 import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
-import { auth, requestNotificationPermission } from '../lib/firebase';
+import { auth } from '../lib/firebase';
+import { requestNotificationPermission, isNotificationPermissionGranted } from '../lib/onesignal';
 import toast from 'react-hot-toast';
 
 export default function TopHeader() {
@@ -13,7 +14,7 @@ export default function TopHeader() {
   const { profile, theme, toggleTheme, appSettings } = useAppStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [permission, setPermission] = useState<NotificationPermission>(() => {
+  const [permission, setPermission] = useState<string>(() => {
     return typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'denied';
   });
   const [isActivating, setIsActivating] = useState(false);
@@ -29,17 +30,22 @@ export default function TopHeader() {
   // Keep permission state in sync with browser
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
-      const checkPermission = () => {
-        if (Notification.permission !== permission) {
-          setPermission(Notification.permission);
-        }
+      const updatePermission = () => {
+        setPermission(Notification.permission);
       };
-      const timer = setInterval(checkPermission, 1500);
+      updatePermission();
+      const timer = setInterval(updatePermission, 1000);
       return () => clearInterval(timer);
     }
-  }, [permission]);
+  }, []);
 
   const handleNotificationClick = async () => {
+    console.log('[TopHeader] 🔔 Notification bell clicked! Current state:', {
+      hasNotification: typeof window !== 'undefined' && 'Notification' in window,
+      currentPermission: typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'none',
+      isActivating
+    });
+
     if (typeof window === 'undefined' || !('Notification' in window)) {
       toast.error('المتصفح الحالي لا يدعم إشعارات الويب');
       return;
@@ -64,7 +70,7 @@ export default function TopHeader() {
     try {
       const result = await requestNotificationPermission();
       const currentPerm = (typeof window !== 'undefined' && 'Notification' in window) ? (Notification.permission as string) : 'denied';
-      setPermission(currentPerm as NotificationPermission);
+      setPermission(currentPerm);
 
       if (result || currentPerm === 'granted') {
         toast.success('تم تفعيل إشعارات المباريات والبث المباشر بنجاح 🔔', {
@@ -209,7 +215,7 @@ export default function TopHeader() {
                 whileTap={{ scale: 0.9 }}
                 onClick={() => navigate(-1)}
                 aria-label="رجوع للصفحة السابقة"
-                className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-500 dark:text-slate-400 hover:text-primary transition-all duration-300 shadow-sm"
+                className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-500 dark:text-slate-400 hover:text-primary transition-all duration-300 shadow-sm cursor-pointer"
                 title="رجوع للصفحة السابقة"
               >
                 <ChevronRight size={22} strokeWidth={2.5} />
@@ -223,7 +229,7 @@ export default function TopHeader() {
                   } catch (e) { return 'overview'; }
                 })()}`}
                 aria-label="لوحة التحكم"
-                className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-500 dark:text-slate-400 hover:text-primary transition-all duration-300 shadow-sm"
+                className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-500 dark:text-slate-400 hover:text-primary transition-all duration-300 shadow-sm cursor-pointer"
                 title="لوحة التحكم"
               >
                 <Settings size={20} strokeWidth={2.5} />
@@ -233,11 +239,12 @@ export default function TopHeader() {
             {/* OneSignal Web Push Notifications Bell Toggle */}
             <motion.button 
               id="notification-button"
+              type="button"
               aria-label={isPushGranted ? 'إشعارات OneSignal مفعلة' : 'تفعيل إشعارات OneSignal'}
               whileTap={{ scale: 0.9 }}
               onClick={handleNotificationClick}
               disabled={isActivating}
-              className={`relative flex h-10 w-10 items-center justify-center rounded-2xl transition-all duration-300 ${
+              className={`relative flex h-10 w-10 items-center justify-center rounded-2xl transition-all duration-300 cursor-pointer ${
                 isPushGranted
                   ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
                   : 'bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20'
@@ -251,7 +258,7 @@ export default function TopHeader() {
               )}
               
               {/* Status Dot */}
-              <span className="absolute -top-1 -right-1 flex h-3 w-3">
+              <span className="absolute -top-1 -right-1 flex h-3 w-3 pointer-events-none">
                 {isPushGranted ? (
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 ring-2 ring-white dark:ring-surface-dark"></span>
                 ) : (
@@ -266,10 +273,11 @@ export default function TopHeader() {
             {/* Theme Toggle Button */}
             <motion.button 
               id="theme-toggle-button"
+              type="button"
               aria-label="تبديل المظهر"
               whileTap={{ scale: 0.9 }}
               onClick={toggleTheme}
-              className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-500 dark:text-slate-400 hover:text-primary transition-all duration-300"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-500 dark:text-slate-400 hover:text-primary transition-all duration-300 cursor-pointer"
             >
               {theme === 'dark' ? <Sun size={20} strokeWidth={2.5} /> : <Moon size={20} strokeWidth={2.5} />}
             </motion.button>
@@ -279,7 +287,7 @@ export default function TopHeader() {
               id="search-button-link"
               aria-label="البحث عن الأخبار"
               to="/news"
-              className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-500 dark:text-slate-400 hover:text-primary transition-all duration-300"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-500 dark:text-slate-400 hover:text-primary transition-all duration-300 cursor-pointer"
               title="البحث عن الأخبار"
             >
               <Search size={20} strokeWidth={2.5} />
@@ -288,7 +296,7 @@ export default function TopHeader() {
             {/* User Profile Quick Link on Desktop */}
             <Link
               to="/profile"
-              className="hidden md:flex items-center justify-center h-10 w-10 rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all overflow-hidden"
+              className="hidden md:flex items-center justify-center h-10 w-10 rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all overflow-hidden cursor-pointer"
               title="الملف الشخصي"
             >
               {profile?.avatar ? (
