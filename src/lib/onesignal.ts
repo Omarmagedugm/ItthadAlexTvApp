@@ -151,18 +151,17 @@ export async function saveCurrentSubscriptionToFirestore(subscriptionId?: string
 }
 
 /**
- * Request Notification Permission using OneSignal
- * Used directly by the notification bell button
+ * Request Notification Permission using OneSignal and native browser fallback
+ * Triggered synchronously on user gesture to avoid losing browser activation
  */
 export const requestNotificationPermission = async (): Promise<string | null> => {
   if (typeof window === 'undefined') return null;
 
-  // iOS Safari check: Web Push on iOS requires adding to Home Screen (PWA)
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
   
   if (isIOS && !isStandalone) {
-    toast('يرجى تثبيت التطبيق أولاً (إضافة إلى الشاشة الرئيسية) لتفعيل الإشعارات على أجهزة آيفون 📲', { duration: 5000 });
+    toast('يرجى تثبيت التطبيق أولاً (إضافة إلى الشاشة الرئيسية) لتفعيل الإشعارات على هواتف آيفون 📲', { duration: 6000 });
   }
 
   if (!('Notification' in window)) {
@@ -172,14 +171,16 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
 
   // If already granted
   if (Notification.permission === 'granted') {
-    try {
-      await initOneSignal();
-      if (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription) {
-        await OneSignal.User.PushSubscription.optIn();
-        const id = OneSignal.User.PushSubscription.id;
-        if (id) await saveCurrentSubscriptionToFirestore(id);
-      }
-    } catch (e) {}
+    // Run background setup without blocking
+    initOneSignal().then(() => {
+      try {
+        if (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription) {
+          OneSignal.User.PushSubscription.optIn();
+          const id = OneSignal.User.PushSubscription.id || OneSignal.User.PushSubscription.token;
+          if (id) saveCurrentSubscriptionToFirestore(id);
+        }
+      } catch (e) {}
+    });
     return 'granted';
   }
 
@@ -190,12 +191,17 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
   }
 
   try {
-    // 1. Try OneSignal initialization
-    await initOneSignal();
+    // Prompt immediately to keep user gesture valid
+    let permissionResult: NotificationPermission = 'default';
 
-    console.log('[OneSignal] 📱 Requesting push notification permission...');
+    // Try native requestPermission directly to guarantee browser prompt
+    try {
+      permissionResult = await Notification.requestPermission();
+    } catch (natErr) {
+      console.warn('Native requestPermission exception:', natErr);
+    }
 
-    // 2. Request permission via OneSignal Web SDK
+    // Try OneSignal requestPermission as well
     try {
       if (typeof OneSignal !== 'undefined' && OneSignal.Notifications?.requestPermission) {
         await OneSignal.Notifications.requestPermission();
@@ -204,41 +210,27 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
       console.warn('[OneSignal] SDK permission request note:', sdkErr);
     }
 
-    // 3. Fallback to native browser permission request if still default
-    if ((Notification.permission as string) === 'default') {
-      try {
-        await Notification.requestPermission();
-      } catch (natErr) {
-        console.warn('Native requestPermission error:', natErr);
-      }
-    }
-
-    const currentPermissionStatus = Notification.permission as string;
-    const isGranted = currentPermissionStatus === 'granted';
+    const currentPermissionStatus = (Notification.permission as string);
     console.log('[OneSignal] 🔔 Permission status after request:', currentPermissionStatus);
 
-    if (isGranted) {
-      // 4. Opt-in to Push notifications
-      try {
-        if (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription) {
-          await OneSignal.User.PushSubscription.optIn();
+    if (currentPermissionStatus === 'granted' || permissionResult === 'granted') {
+      // Background initialization and subscription
+      initOneSignal().then(async () => {
+        try {
+          if (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription) {
+            await OneSignal.User.PushSubscription.optIn();
+          }
+          const subscriptionId = (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription?.id) || 
+                                 (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription?.token);
+          if (subscriptionId) {
+            await saveCurrentSubscriptionToFirestore(subscriptionId);
+          }
+        } catch (e) {
+          console.warn('[OneSignal] Post-permission setup error:', e);
         }
-      } catch (optErr) {
-        console.warn('[OneSignal] Opt-in note:', optErr);
-      }
+      });
 
-      // 5. Retrieve Subscription ID
-      const subscriptionId = (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription?.id) || 
-                             (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription?.token);
-      
-      console.log('[OneSignal] ✅ Subscription ID:', subscriptionId);
-
-      // 6. Save to Firestore
-      if (subscriptionId) {
-        await saveCurrentSubscriptionToFirestore(subscriptionId);
-      }
-
-      return subscriptionId || 'granted';
+      return 'granted';
     } else if (currentPermissionStatus === 'denied') {
       toast.error('تم رفض إذن الإشعارات. يمكنك السماح بها من إعدادات المتصفح.');
       return null;
@@ -247,14 +239,6 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
     return null;
   } catch (err: any) {
     console.error('[OneSignal] ❌ Permission request error:', err?.message || err);
-    
-    // Emergency native request
-    if ((Notification.permission as string) === 'default') {
-      try {
-        const perm = await Notification.requestPermission();
-        if (perm === 'granted') return 'granted';
-      } catch (e) {}
-    }
     return null;
   }
 };
