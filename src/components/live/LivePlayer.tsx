@@ -70,28 +70,43 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
-        backBufferLength: 30
+        backBufferLength: 60,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 120,
+        maxBufferSize: 60 * 1000 * 1000,
+        autoStartLoad: true
       });
       hlsRef.current = hls;
 
-      hls.loadSource(parsed.embedUrl);
+      hls.loadSource(parsed.embedUrl || url);
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setIsLoading(false);
-        video.play().catch(() => {});
+        setHasError(false);
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {
+            // Autoplay with audio was blocked by browser policy - mute and retry
+            video.muted = true;
+            video.play().catch(() => {});
+          });
+        }
       });
 
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
+              console.warn('HLS Network Error, attempting reload...', data);
               hls.startLoad();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
+              console.warn('HLS Media Error, recovering...', data);
               hls.recoverMediaError();
               break;
             default:
+              console.error('HLS Fatal unrecoverable error:', data);
               setHasError(true);
               setIsLoading(false);
               hls.destroy();
@@ -107,10 +122,17 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
         }
       };
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = parsed.embedUrl;
+      video.src = parsed.embedUrl || url;
       video.addEventListener('loadedmetadata', () => {
         setIsLoading(false);
-        video.play().catch(() => {});
+        setHasError(false);
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {
+            video.muted = true;
+            video.play().catch(() => {});
+          });
+        }
       });
       video.addEventListener('error', () => {
         setHasError(true);
@@ -242,18 +264,7 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
               setIsLoading(false);
             }}
           />
-          {parsed.directWatchUrl && (
-            <a
-              href={parsed.directWatchUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="absolute bottom-2 right-2 bg-red-600/90 hover:bg-red-600 text-white text-[10px] font-black px-2.5 py-1 rounded-lg backdrop-blur-sm flex items-center gap-1.5 shadow-lg z-20 transition-all"
-            >
-              <Youtube size={12} />
-              <span>فتح على YouTube</span>
-              <ExternalLink size={10} />
-            </a>
-          )}
+          {/* Embed / Video / HLS Stream Container */}
         </div>
       )}
 
@@ -262,18 +273,21 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
         <video
           key={`video-${reloadKey}`}
           ref={videoRef}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain bg-black"
           controls
           playsInline
           autoPlay
-          muted={false}
-          onLoadedData={() => setIsLoading(false)}
+          preload="auto"
+          onLoadedData={() => {
+            setIsLoading(false);
+            setHasError(false);
+          }}
           onError={() => {
             setHasError(true);
             setIsLoading(false);
           }}
         >
-          {parsed.type === 'video' && <source src={parsed.embedUrl} />}
+          {parsed.type === 'video' && <source src={parsed.embedUrl || url} />}
           متصفحك لا يدعم تشغيل هذا البث المباشر.
         </video>
       )}
@@ -316,7 +330,7 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
           <AlertTriangle size={36} className="text-amber-400 mb-3" />
           <h4 className="text-white font-black text-sm mb-1">تعذر تشغيل البث المباشر</h4>
           <p className="text-slate-400 text-xs max-w-xs mb-4">
-            قد يكون الرابط غير متاح حالياً أو يتطلب تشغيله في نافذة جديدة
+            قد يكون البث غير متاح حالياً أو متوقف من المصدر
           </p>
           <div className="flex gap-2">
             <button
@@ -330,17 +344,6 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
               <RefreshCw size={13} />
               إعادة المحاولة
             </button>
-            {parsed.directWatchUrl && (
-              <a
-                href={parsed.directWatchUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all"
-              >
-                <span>مشاهدة خارجية</span>
-                <ExternalLink size={13} />
-              </a>
-            )}
           </div>
         </div>
       )}

@@ -108,6 +108,7 @@ import AdminAuditLogs from '../components/admin/AdminAuditLogs';
 import AdminAnalytics from '../components/admin/AdminAnalytics';
 import ScoreSelector from '../components/ScoreSelector';
 import ImageUploader from '../components/ImageUploader';
+import LivePlayer from '../components/live/LivePlayer';
 import CsvMatchesImporter from '../components/CsvMatchesImporter';
 import { getOptimizedImage } from '../lib/cloudinary';
 import { logAdminActivity } from '../lib/auditLogger';
@@ -550,17 +551,6 @@ export default function Admin() {
   const isSuperAdmin = isDev || isOmar || profile.role === 'admin' || profile.role === 'superadmin' || (profile.roles && profile.roles.includes('admin'));
   const hasGranularRole = (profile.roles && profile.roles.length > 0) || profile.role === 'moderator' || profile.role === 'writer';
   const hasAdminAccess = isSuperAdmin || hasGranularRole;
-
-  if (profile.uid && !hasAdminAccess) {
-    return <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark">
-      <div className="text-center p-8 glass-card rounded-[32px]">
-        <ShieldAlert size={64} className="mx-auto text-red-500 mb-4" />
-        <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-2">دخول غير مصرح</h2>
-        <p className="text-slate-500 dark:text-slate-400 font-bold">لا تمتلك الصلاحيات الكافية للوصول إلى لوحة التحكم.</p>
-        <Link to="/" className="mt-6 inline-block bg-primary text-white px-8 py-3 rounded-2xl font-black transition-transform active:scale-95 leading-none">العودة للرئيسية</Link>
-      </div>
-    </div>;
-  }
 
   useEffect(() => {
     if (!profile.uid || !hasAdminAccess) return;
@@ -2185,6 +2175,19 @@ export default function Admin() {
     setEditingId(null);
     setShowModal(true);
   };
+
+  if (profile.uid && !hasAdminAccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark p-4">
+        <div className="text-center p-8 bg-white dark:bg-card-dark rounded-3xl border border-border-light dark:border-border-dark shadow-xl max-w-md w-full">
+          <ShieldAlert size={64} className="mx-auto text-red-500 mb-4" />
+          <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-2">دخول غير مصرح</h2>
+          <p className="text-slate-500 dark:text-slate-400 font-bold mb-6">لا تمتلك الصلاحيات الكافية للوصول إلى لوحة التحكم.</p>
+          <Link to="/" className="inline-block bg-primary hover:bg-primary-light text-white px-8 py-3 rounded-2xl font-black transition-all shadow-md shadow-primary/20 cursor-pointer">العودة للرئيسية</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 w-full min-h-screen bg-slate-50 dark:bg-background-dark flex flex-col lg:flex-row relative">
@@ -5622,31 +5625,17 @@ export default function Admin() {
                          </div>
 
                          <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black shadow-lg">
-                           {parsedStream.type === 'youtube' || parsedStream.type === 'iframe' ? (
-                             <iframe 
-                               className="w-full h-full absolute inset-0 border-0"
-                               src={parsedStream.embedUrl} 
-                               title="Admin Preview"
-                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                               allowFullScreen
-                             />
-                           ) : parsedStream.type === 'video' ? (
-                             <video 
-                               className="w-full h-full object-cover absolute inset-0"
-                               controls
-                               playsInline
-                               src={parsedStream.embedUrl}
-                             />
-                           ) : (
-                             <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">
-                               يرجى إدخال رابط بث صالح للمعاينة
-                             </div>
-                           )}
-                         </div>
-                       </div>
-                     )}
+                            <LivePlayer 
+                              key={`preview-${currentUrl}`}
+                              url={currentUrl} 
+                              title={formData.title || currentStream?.title || "معاينة البث"} 
+                              isActive={true} 
+                            />
+                          </div>
+                        </div>
+                      )}
 
-                     <button onClick={handleAdd} className="w-full mt-2 bg-primary hover:bg-primary-dark text-white py-3.5 rounded-xl font-black text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+                      <button onClick={handleAdd} className="w-full mt-2 bg-primary hover:bg-primary-dark text-white py-3.5 rounded-xl font-black text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
                         <CheckCircle2 size={18} />
                         حفظ وتحديث البث المباشر
                      </button>

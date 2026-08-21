@@ -107,6 +107,20 @@ export function detectMediaType(url?: string): 'audio' | 'youtube' | 'facebook' 
 }
 
 /**
+ * Checks if a URL is an HLS (.m3u8) live stream
+ */
+export function isHlsUrl(url?: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const lower = url.trim().toLowerCase();
+  return lower.includes('.m3u8') || 
+         lower.includes('/hls/') || 
+         lower.includes('playlist-hls') ||
+         lower.includes('manifest.m3u8') ||
+         lower.includes('.m3u8?') ||
+         lower.endsWith('.m3u8');
+}
+
+/**
  * Universal Live Stream Parser for YouTube Live, HLS (m3u8), MP4, and iframes
  */
 export function parseLiveStreamUrl(rawUrl?: string): LiveStreamFormat {
@@ -173,8 +187,8 @@ export function parseLiveStreamUrl(rawUrl?: string): LiveStreamFormat {
     };
   }
 
-  // 5. HLS .m3u8 stream
-  if (trimmed.endsWith('.m3u8') || trimmed.includes('.m3u8?')) {
+  // 5. HLS .m3u8 stream (Brightcove, Akamai, Cloudflare, Fastly, Custom CDN)
+  if (isHlsUrl(trimmed)) {
     return {
       originalUrl: trimmed,
       embedUrl: trimmed,

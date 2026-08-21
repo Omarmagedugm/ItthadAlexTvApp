@@ -255,9 +255,6 @@ export default function Live() {
                   <div className="flex items-center gap-2 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/15 text-white text-xs font-black shadow-lg">
                     <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
                     <span>مباشر</span>
-                    <span className="text-white/40">|</span>
-                    <Eye size={13} className="text-primary" />
-                    <span>{((currentStream?.viewers || 0) + 1).toLocaleString('ar-EG')}</span>
                   </div>
 
                   <div className="flex items-center gap-2 pointer-events-auto">
@@ -338,20 +335,6 @@ export default function Live() {
                     <RefreshCw size={15} />
                     <span className="hidden sm:inline">إعادة تحميل</span>
                   </button>
-
-                  {parsedUrl.directWatchUrl && (
-                    <a
-                      href={parsedUrl.directWatchUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2.5 sm:px-3 sm:py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black flex items-center gap-1.5 shadow-md shadow-red-600/20 transition-all cursor-pointer active:scale-95"
-                      title="فتح في يوتيوب أو نافذة مستقلة"
-                    >
-                      <Tv size={15} />
-                      <span className="hidden sm:inline">نافذة خارجية</span>
-                      <ExternalLink size={13} />
-                    </a>
-                  )}
 
                   <button
                     onClick={handleShare}
