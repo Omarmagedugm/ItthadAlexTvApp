@@ -12,6 +12,59 @@ let isOneSignalInitialized = false;
 let initializationPromise: Promise<boolean> | null = null;
 
 /**
+ * Diagnostic helper: checks standalone mode for PWA (Desktop, Android, iOS Safari)
+ */
+export function checkIsStandalone(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true ||
+    document.referrer.includes('android-app://')
+  );
+}
+
+/**
+ * Diagnostic helper: prints full diagnostic status
+ */
+export async function logOneSignalDiagnosticStatus(stage: string = 'Current State'): Promise<void> {
+  if (typeof window === 'undefined') return;
+
+  const isStandalone = checkIsStandalone();
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+  const permission = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
+  
+  let swList: any[] = [];
+  if ('serviceWorker' in navigator) {
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      swList = registrations.map(reg => ({
+        scope: reg.scope,
+        scriptURL: reg.active?.scriptURL || reg.installing?.scriptURL || reg.waiting?.scriptURL || 'none',
+        state: reg.active?.state || 'unknown',
+      }));
+    } catch (e) {
+      swList = ['error reading service workers: ' + String(e)];
+    }
+  }
+
+  const userId = typeof OneSignal !== 'undefined' ? OneSignal.User?.onesignalId : undefined;
+  const pushId = typeof OneSignal !== 'undefined' ? OneSignal.User?.PushSubscription?.id : undefined;
+  const pushToken = typeof OneSignal !== 'undefined' ? OneSignal.User?.PushSubscription?.token : undefined;
+  const optedIn = typeof OneSignal !== 'undefined' ? OneSignal.User?.PushSubscription?.optedIn : undefined;
+
+  console.log(`%c[OneSignal Diagnostic - ${stage}]`, 'color: #00e676; font-weight: bold; font-size: 13px;', {
+    '1. Notification.permission': permission,
+    '2. standalone mode': isStandalone,
+    '3. isIOS': isIOS,
+    '4. OneSignal User ID': userId || '(pending/none)',
+    '5. OneSignal Push Subscription ID': pushId || pushToken || '(pending/none)',
+    '6. subscription optedIn': optedIn,
+    '7. Service Worker registration': swList,
+    '8. userAgent': navigator.userAgent
+  });
+}
+
+/**
  * Clean up legacy Firebase Cloud Messaging Service Workers to prevent any push event conflicts.
  */
 async function cleanLegacyServiceWorkers() {
@@ -19,8 +72,9 @@ async function cleanLegacyServiceWorkers() {
   try {
     const registrations = await navigator.serviceWorker.getRegistrations();
     for (const reg of registrations) {
-      if (reg.active?.scriptURL.includes('firebase-messaging-sw.js')) {
-        console.log('[OneSignal] 🧹 Cleaning up legacy Firebase FCM service worker:', reg.active.scriptURL);
+      const script = reg.active?.scriptURL || '';
+      if (script.includes('firebase-messaging-sw.js')) {
+        console.log('[OneSignal] 🧹 Cleaning up legacy Firebase FCM service worker:', script);
         await reg.unregister();
       }
     }
@@ -51,7 +105,7 @@ export async function initOneSignal(): Promise<boolean> {
       console.log('[OneSignal] 🚀 Initializing OneSignal Web SDK...');
 
       await OneSignal.init({
-        appId: appId || 'd16c5bf7-0e69-4e78-9e5b-b9d9dfce76f9', // Default placeholder if not set
+        appId: appId || 'd16c5bf7-0e69-4e78-9e5b-b9d9dfce76f9',
         allowLocalhostAsSecureOrigin: true,
         notifyButton: {
           enable: false,
@@ -63,27 +117,57 @@ export async function initOneSignal(): Promise<boolean> {
       isOneSignalInitialized = true;
       console.log('[OneSignal] ✅ OneSignal Web SDK initialized successfully.');
 
-      // 3. Listen for notification click events to route to /live for match alerts
+      // 3. Register Event Listeners for Subscription & Permissions
       try {
-        OneSignal.Notifications.addEventListener('click', (event: any) => {
-          console.log('[OneSignal] 🔔 Notification clicked:', event);
-          const additionalData = event?.notification?.additionalData || {};
-          const isMatch = additionalData.isMatch || 
-            additionalData.type === 'match' || 
-            (additionalData.url && additionalData.url.includes('/live')) ||
-            /⚽|🟢|🟨|🟥|🔄|🏁|هدف|مباراة|طرد/i.test(`${event?.notification?.title || ''} ${event?.notification?.body || ''}`);
+        if (OneSignal.User?.PushSubscription) {
+          OneSignal.User.PushSubscription.addEventListener('change', async (event: any) => {
+            console.log('[OneSignal Diagnostic] 🔄 PushSubscription changed event:', {
+              currentId: event?.current?.id,
+              currentToken: event?.current?.token,
+              optedIn: event?.current?.optedIn,
+              previousId: event?.previous?.id,
+            });
 
-          const targetUrl = additionalData.url || (isMatch ? '/live' : '/');
-
-          if (typeof window !== 'undefined' && targetUrl) {
-            if (window.location.pathname !== targetUrl) {
-              window.location.href = targetUrl;
+            const subscriptionId = event?.current?.id || event?.current?.token;
+            if (subscriptionId && event?.current?.optedIn) {
+              await saveCurrentSubscriptionToFirestore(subscriptionId);
             }
-          }
-        });
-      } catch (clickErr) {
-        console.warn('[OneSignal] Click listener registration warning:', clickErr);
+          });
+        }
+      } catch (subErr) {
+        console.warn('[OneSignal] Subscription change listener notice:', subErr);
       }
+
+      try {
+        if (OneSignal.Notifications) {
+          OneSignal.Notifications.addEventListener('permissionChange', (permission: boolean) => {
+            console.log('[OneSignal Diagnostic] 🔔 Notifications permissionChange:', permission, 'Notification.permission:', Notification.permission);
+          });
+
+          // Route notification clicks to /live for match alerts
+          OneSignal.Notifications.addEventListener('click', (event: any) => {
+            console.log('[OneSignal] 🔔 Notification clicked:', event);
+            const additionalData = event?.notification?.additionalData || {};
+            const isMatch = additionalData.isMatch || 
+              additionalData.type === 'match' || 
+              (additionalData.url && additionalData.url.includes('/live')) ||
+              /⚽|🟢|🟨|🟥|🔄|🏁|هدف|مباراة|طرد/i.test(`${event?.notification?.title || ''} ${event?.notification?.body || ''}`);
+
+            const targetUrl = additionalData.url || (isMatch ? '/live' : '/');
+
+            if (typeof window !== 'undefined' && targetUrl) {
+              if (window.location.pathname !== targetUrl) {
+                window.location.href = targetUrl;
+              }
+            }
+          });
+        }
+      } catch (clickErr) {
+        console.warn('[OneSignal] Notifications event listeners warning:', clickErr);
+      }
+
+      // Log full status after initialization
+      await logOneSignalDiagnosticStatus('Post Initialization');
 
       // 4. If user is already subscribed, save subscription to Firestore
       saveCurrentSubscriptionToFirestore().catch(() => {});
@@ -94,7 +178,7 @@ export async function initOneSignal(): Promise<boolean> {
       if (errMsg.includes('Can only be used on')) {
         console.warn(`[OneSignal] ℹ️ Domain mismatch note: This OneSignal App ID is configured for production (${errMsg.replace('Can only be used on: ', '')}). Push notifications will activate on that domain, or you can add this preview domain in your OneSignal Dashboard Settings.`);
       } else {
-        console.warn('[OneSignal] ⚠️ OneSignal initialization note:', errMsg);
+        console.warn('[OneSignal Diagnostic] ❌ OneSignal initialization error:', errMsg);
       }
       return false;
     }
@@ -116,8 +200,7 @@ export async function saveCurrentSubscriptionToFirestore(subscriptionId?: string
     if (!id && !token) return;
 
     const subKey = id || token || 'sub_' + Date.now();
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
-                  (window.navigator as any).standalone === true;
+    const isPWA = checkIsStandalone();
 
     const subscriptionData = {
       subscriptionId: id || null,
@@ -152,14 +235,16 @@ export async function saveCurrentSubscriptionToFirestore(subscriptionId?: string
 
 /**
  * Request Notification Permission using OneSignal and native browser fallback
- * Triggered synchronously on user gesture to avoid losing browser activation
+ * Handles Desktop, Android, and iOS Safari PWA
  */
 export const requestNotificationPermission = async (): Promise<string | null> => {
   if (typeof window === 'undefined') return null;
 
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
-  
+  const isStandalone = checkIsStandalone();
+
+  await logOneSignalDiagnosticStatus('Permission Request Started');
+
   if (isIOS && !isStandalone) {
     toast('يرجى تثبيت التطبيق أولاً (إضافة إلى الشاشة الرئيسية) لتفعيل الإشعارات على هواتف آيفون 📲', { duration: 6000 });
   }
@@ -169,76 +254,101 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
     return null;
   }
 
-  // If already granted
+  // If already granted in browser, ensure OneSignal is opted-in and registered
   if (Notification.permission === 'granted') {
-    // Run background setup without blocking
-    initOneSignal().then(() => {
-      try {
-        if (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription) {
-          OneSignal.User.PushSubscription.optIn();
-          const id = OneSignal.User.PushSubscription.id || OneSignal.User.PushSubscription.token;
-          if (id) saveCurrentSubscriptionToFirestore(id);
+    try {
+      await initOneSignal();
+      if (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription) {
+        await OneSignal.User.PushSubscription.optIn();
+      }
+      
+      let id = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
+      if (!id) {
+        // Give APNs/OneSignal up to 2 seconds if generating token in background
+        for (let i = 0; i < 4; i++) {
+          await new Promise(r => setTimeout(r, 500));
+          id = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
+          if (id) break;
         }
-      } catch (e) {}
-    });
+      }
+
+      await logOneSignalDiagnosticStatus('Already Granted Flow');
+      if (id) await saveCurrentSubscriptionToFirestore(id);
+    } catch (e) {
+      console.warn('[OneSignal Diagnostic] Error opting-in existing granted permission:', e);
+    }
     return 'granted';
   }
 
-  // If explicitly denied by user in browser
   if (Notification.permission === 'denied') {
     toast.error('تم حظر الإشعارات في المتصفح. اضغط على أيقونة القفل 🔒 بجانب الرابط وفعل الإشعارات.', { duration: 6000 });
     return null;
   }
 
   try {
-    // Prompt immediately to keep user gesture valid
-    let permissionResult: NotificationPermission = 'default';
+    // 1. Ensure OneSignal is initialized
+    await initOneSignal();
 
-    // Try native requestPermission directly to guarantee browser prompt
-    try {
-      permissionResult = await Notification.requestPermission();
-    } catch (natErr) {
-      console.warn('Native requestPermission exception:', natErr);
-    }
+    console.log('[OneSignal Diagnostic] 📱 Prompting permission...');
 
-    // Try OneSignal requestPermission as well
+    // 2. Request permission via OneSignal
     try {
       if (typeof OneSignal !== 'undefined' && OneSignal.Notifications?.requestPermission) {
         await OneSignal.Notifications.requestPermission();
       }
     } catch (sdkErr) {
-      console.warn('[OneSignal] SDK permission request note:', sdkErr);
+      console.warn('[OneSignal Diagnostic] SDK requestPermission notice:', sdkErr);
+    }
+
+    // 3. Native prompt fallback if state is still default
+    if ((Notification.permission as string) === 'default') {
+      try {
+        await Notification.requestPermission();
+      } catch (natErr) {
+        console.warn('[OneSignal Diagnostic] Native requestPermission exception:', natErr);
+      }
     }
 
     const currentPermissionStatus = (Notification.permission as string);
-    console.log('[OneSignal] 🔔 Permission status after request:', currentPermissionStatus);
+    console.log('[OneSignal Diagnostic] 🔔 Permission status after prompt:', currentPermissionStatus);
 
-    if (currentPermissionStatus === 'granted' || permissionResult === 'granted') {
-      // Background initialization and subscription
-      initOneSignal().then(async () => {
-        try {
-          if (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription) {
-            await OneSignal.User.PushSubscription.optIn();
-          }
-          const subscriptionId = (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription?.id) || 
-                                 (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription?.token);
-          if (subscriptionId) {
-            await saveCurrentSubscriptionToFirestore(subscriptionId);
-          }
-        } catch (e) {
-          console.warn('[OneSignal] Post-permission setup error:', e);
+    if (currentPermissionStatus === 'granted') {
+      // 4. Opt-in to Push notifications
+      try {
+        if (typeof OneSignal !== 'undefined' && OneSignal.User?.PushSubscription) {
+          await OneSignal.User.PushSubscription.optIn();
         }
-      });
+      } catch (optErr) {
+        console.warn('[OneSignal Diagnostic] Opt-in exception:', optErr);
+      }
 
-      return 'granted';
+      // 5. Poll up to 3 seconds for Apple APNs / FCM token generation
+      let subscriptionId = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
+      if (!subscriptionId) {
+        for (let i = 0; i < 6; i++) {
+          await new Promise(r => setTimeout(r, 500));
+          subscriptionId = OneSignal.User?.PushSubscription?.id || OneSignal.User?.PushSubscription?.token;
+          if (subscriptionId) break;
+        }
+      }
+
+      await logOneSignalDiagnosticStatus('Permission Granted Flow Complete');
+
+      if (subscriptionId) {
+        await saveCurrentSubscriptionToFirestore(subscriptionId);
+      }
+
+      return subscriptionId || 'granted';
     } else if (currentPermissionStatus === 'denied') {
-      toast.error('تم رفض إذن الإشعارات. يمكنك السماح بها من إعدادات المتصفح.');
+      toast.error('تم رفض إذن الإشعارات.');
+      await logOneSignalDiagnosticStatus('Permission Denied');
       return null;
     }
 
     return null;
   } catch (err: any) {
-    console.error('[OneSignal] ❌ Permission request error:', err?.message || err);
+    console.error('[OneSignal Diagnostic] ❌ Permission request error:', err?.message || err);
+    await logOneSignalDiagnosticStatus('Permission Request Threw Error');
     return null;
   }
 };

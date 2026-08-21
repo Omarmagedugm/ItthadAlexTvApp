@@ -1,16 +1,25 @@
 {
   "headers": [
     {
-      "source": "/firebase-messaging-sw.js",
+      "source": "/OneSignalSDKWorker.js",
       "headers": [
-        { "key": "Content-Type", "value": "text/javascript" },
-        { "key": "Service-Worker-Allowed", "value": "/" }
+        { "key": "Content-Type", "value": "application/javascript" },
+        { "key": "Service-Worker-Allowed", "value": "/" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
     },
     {
       "source": "/sw.js",
       "headers": [
-        { "key": "Content-Type", "value": "text/javascript" },
+        { "key": "Content-Type", "value": "application/javascript" },
+        { "key": "Service-Worker-Allowed", "value": "/" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/firebase-messaging-sw.js",
+      "headers": [
+        { "key": "Content-Type", "value": "application/javascript" },
         { "key": "Service-Worker-Allowed", "value": "/" }
       ]
     }
