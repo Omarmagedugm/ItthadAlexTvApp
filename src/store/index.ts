@@ -558,6 +558,8 @@ interface AppState {
     liveViewMode?: 'both' | 'football' | 'basketball';
     libraryBanner?: string;
     facebookPageUrl?: string;
+    onesignalRestApiKey?: string;
+    onesignalAppId?: string;
     maintenanceEnabled?: boolean;
     maintenanceTitle?: string;
     maintenanceMessage?: string;

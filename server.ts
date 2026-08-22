@@ -52,20 +52,20 @@ async function startServer() {
   // OneSignal Push Notification Dispatch Endpoint (Secure Server-Side with REST API Key)
   app.post('/api/onesignal/send', async (req: any, res: any) => {
     try {
-      const { title, body, url, type, isMatch, target } = req.body;
-      const appId = process.env.ONESIGNAL_APP_ID || process.env.VITE_ONESIGNAL_APP_ID || 'f93522a8-2af6-40a7-aa4e-25fc0e21e572';
-      const apiKey = process.env.ONESIGNAL_REST_API_KEY;
+      const { title, body, url, type, isMatch, target, apiKey: clientApiKey, appId: clientAppId } = req.body;
+      const appId = clientAppId || process.env.ONESIGNAL_APP_ID || process.env.VITE_ONESIGNAL_APP_ID || 'f93522a8-2af6-40a7-aa4e-25fc0e21e572';
+      const apiKey = clientApiKey || req.headers['x-onesignal-api-key'] || process.env.ONESIGNAL_REST_API_KEY;
 
       if (!title || !body) {
         return res.status(400).json({ error: 'العنوان ومحتوى الإشعار مطلوبان' });
       }
 
       if (!apiKey || !appId) {
-        console.warn('[OneSignal Server] ⚠️ ONESIGNAL_REST_API_KEY or ONESIGNAL_APP_ID missing. Push skipped on server.');
+        console.warn('[OneSignal Server] ⚠️ ONESIGNAL_REST_API_KEY missing. Push skipped on server.');
         return res.json({ 
           success: true, 
           delivered: false, 
-          warning: 'مفتاح OneSignal REST API غير مضبوط في متغيرات الخادم بعد.' 
+          warning: 'لم يتم تزويد مفتاح OneSignal REST API. يمكنك إدخاله مباشرة من لوحة التحكم أو في متغيرات البيئة.' 
         });
       }
 
@@ -80,7 +80,6 @@ async function startServer() {
 
       const payload: any = {
         app_id: appId,
-        included_segments: ['Subscribed Users', 'Total Subscriptions', 'Active Subscriptions'],
         headings: { en: title, ar: title },
         contents: { en: body, ar: body },
         web_url: targetUrl,
@@ -97,11 +96,22 @@ async function startServer() {
         priority: 10
       };
 
+      if (!target || target === 'all') {
+        payload.included_segments = ['Subscribed Users', 'Total Subscriptions', 'Active Subscriptions'];
+      } else if (target.includes('-') && target.length > 20) {
+        // Likely a OneSignal subscription ID / player ID
+        payload.include_player_ids = [target];
+      } else {
+        // Target by user external_id (Firebase UID)
+        payload.include_aliases = { external_id: [target] };
+        payload.target_channel = 'push';
+      }
+
       const response = await fetch('https://onesignal.com/api/v1/notifications', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
-          'Authorization': `Basic ${apiKey}`
+          'Authorization': `Basic ${String(apiKey).trim()}`
         },
         body: JSON.stringify(payload)
       });
@@ -114,12 +124,15 @@ async function startServer() {
         e.includes('not subscribed')
       );
 
+      const hasError = Boolean(responseData.errors && !hasNoSubscribers);
+
       return res.json({
-        success: true,
-        delivered: !hasNoSubscribers,
+        success: !hasError,
+        delivered: !hasNoSubscribers && !hasError,
         noSubscribers: hasNoSubscribers,
         recipients: responseData.recipients || 0,
-        data: responseData
+        data: responseData,
+        error: hasError ? responseData.errors : undefined
       });
     } catch (err: any) {
       console.error('[OneSignal Server] ❌ Error sending push notification:', err);

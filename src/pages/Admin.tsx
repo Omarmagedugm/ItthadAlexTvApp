@@ -78,6 +78,7 @@ import {
   Wrench,
   Copy,
   Pin,
+  Save,
   Maximize2,
   MoveVertical,
   Minus,
@@ -740,6 +741,30 @@ export default function Admin() {
     url: '/live' 
   });
   const [isSending, setIsSending] = useState(false);
+  const [onesignalApiKeyInput, setOnesignalApiKeyInput] = useState(() => appSettings?.onesignalRestApiKey || '');
+  const [isSavingKey, setIsSavingKey] = useState(false);
+
+  useEffect(() => {
+    if (appSettings?.onesignalRestApiKey) {
+      setOnesignalApiKeyInput(appSettings.onesignalRestApiKey);
+    }
+  }, [appSettings?.onesignalRestApiKey]);
+
+  const handleSaveOneSignalKey = async () => {
+    setIsSavingKey(true);
+    try {
+      await setDoc(doc(db, 'settings', 'general'), {
+        onesignalRestApiKey: onesignalApiKeyInput.trim(),
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      toast.success('تم حفظ مفتاح OneSignal REST API بنجاح 🔑');
+    } catch (e: any) {
+      console.error('Error saving OneSignal key:', e);
+      toast.error('حدث خطأ أثناء حفظ المفتاح: ' + e?.message);
+    } finally {
+      setIsSavingKey(false);
+    }
+  };
 
   const handleSendNotification = async () => {
     if (!notificationForm.title.trim() || !notificationForm.body.trim()) return toast.error('يرجى ملء جميع الحقول');
@@ -765,6 +790,7 @@ export default function Admin() {
 
       // 2. Dispatch OneSignal Web Push Notification to all subscribed devices
       try {
+        const apiKey = onesignalApiKeyInput.trim() || appSettings?.onesignalRestApiKey || '';
         const pushRes = await fetch('/api/onesignal/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -774,18 +800,28 @@ export default function Admin() {
             url: targetUrl,
             type: isMatch ? 'match' : 'general',
             isMatch: isMatch,
-            target: notificationForm.target || 'all'
+            target: notificationForm.target || 'all',
+            apiKey: apiKey || undefined
           })
         });
         const pushData = await pushRes.json();
-        if (pushData.warning) {
+        if (pushData.delivered) {
+          toast.success(`تم إرسال الإشعار بنجاح عبر OneSignal 🚀 (${pushData.recipients || 'الأجهزة المشتركة'})`);
+        } else if (pushData.noSubscribers) {
+          toast.success('تم حفظ الإشعار وسيعرض للمستخدمين فور تفعيل الإشعارات 🔔');
+        } else if (pushData.warning) {
           console.info('[OneSignal Admin Note]:', pushData.warning);
+          toast.success('تم حفظ الإشعار في التطبيق 🔔');
+        } else if (pushData.error) {
+          toast.error('ملاحظة OneSignal: ' + JSON.stringify(pushData.error));
+        } else {
+          toast.success('تم إرسال الإشعار بنجاح');
         }
       } catch (pushErr) {
         console.warn('OneSignal API dispatch error (push may require server configuration):', pushErr);
+        toast.success('تم حفظ الإشعار في التطبيق');
       }
 
-      toast.success('تم إرسال الإشعار بنجاح');
       setNotificationForm({ title: '', body: '', target: 'all', type: 'match', url: '/live' });
     } catch (e) {
       console.error(e);
@@ -4512,6 +4548,57 @@ export default function Admin() {
 
           {activeTab === 'notifications' && (
             <div className="space-y-6">
+              {/* OneSignal Configuration & Status Banner */}
+              <div className="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-2xl p-5 shadow-lg border border-slate-800 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/20 text-primary flex items-center justify-center font-black">
+                      <Bell size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black flex items-center gap-2">
+                        ربط إشعارات OneSignal Web Push
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          {onesignalApiKeyInput.trim() ? 'متصل بنجاح 🟢' : 'جاهز للربط ⚡'}
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-slate-400">إرسال إشعارات فورية لجميع أجهزة المتابعين (iPhone, Android, Desktop)</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                  <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
+                    <span className="text-[10px] font-black text-slate-400 block mb-1">OneSignal App ID (معرف التطبيق)</span>
+                    <span className="font-mono text-emerald-400 font-bold text-xs select-all break-all">f93522a8-2af6-40a7-aa4e-25fc0e21e572</span>
+                  </div>
+
+                  <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 flex flex-col justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] font-black text-slate-400 block mb-1">OneSignal REST API Key (مفتاح الإرسال)</span>
+                      <input 
+                        type="password"
+                        value={onesignalApiKeyInput}
+                        onChange={(e) => setOnesignalApiKeyInput(e.target.value)}
+                        placeholder="أدخل مفتاح REST API Key من لوحة OneSignal..."
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono placeholder:text-slate-600 focus:border-primary outline-none"
+                      />
+                    </div>
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleSaveOneSignalKey}
+                        disabled={isSavingKey}
+                        className="px-3 py-1 bg-primary hover:bg-primary/90 text-white rounded-lg font-black text-[10px] transition-all flex items-center gap-1 shadow-sm"
+                      >
+                        {isSavingKey ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                        حفظ المفتاح
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="bg-white dark:bg-card-dark rounded-xl p-5 shadow-sm space-y-5 border border-border-light dark:border-border-dark">
                 <div className="pb-4 border-b border-border-light dark:border-border-dark flex items-center justify-between">
                    <div>

@@ -160,7 +160,6 @@ export default function Profile() {
       setShowEmailModal(false);
       setNewEmail('');
       setMessage({ text: 'تم تغيير البريد الإلكتروني بنجاح', type: 'success' });
-      window.location.reload();
     } catch (err: any) {
       console.error(err);
       setMessage({ text: err.code === 'auth/requires-recent-login' ? 'يجب تسجيل الخروج والدخول مرة أخرى لتغيير البريد الإلكتروني' : 'حدث خطأ في تغيير البريد الإلكتروني', type: 'error' });

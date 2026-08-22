@@ -19,31 +19,11 @@ function safeLazy<T extends React.ComponentType<any>>(
     try {
       return await factory();
     } catch (error: any) {
-      console.warn('Failed to load route chunk, attempting recovery:', error);
-      const isChunkError = 
-        error?.message?.includes('Importing a module script failed') ||
-        error?.message?.includes('dynamically imported module') ||
-        error?.message?.includes('Loading chunk');
-
-      if (isChunkError) {
-        const reloadKey = 'chunk_reload_' + window.location.pathname;
-        const reloaded = sessionStorage.getItem(reloadKey);
-        if (!reloaded) {
-          sessionStorage.setItem(reloadKey, 'true');
-          if ('caches' in window) {
-            try {
-              const keys = await caches.keys();
-              await Promise.all(keys.map(k => caches.delete(k)));
-            } catch (e) {}
-          }
-          window.location.reload();
-          return new Promise<{ default: T }>(() => {});
-        }
-      }
-      // Second attempt
+      console.warn('Failed to load route chunk on first attempt, retrying once...', error);
       try {
         return await factory();
       } catch (retryErr) {
+        console.error('Route chunk failed to load:', retryErr);
         throw retryErr;
       }
     }
@@ -128,17 +108,6 @@ class GlobalErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBound
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("APP CRASH:", error, errorInfo);
-    const msg = String(error?.message || '');
-    if (msg.includes('Importing a module script failed') || msg.includes('dynamically imported module') || msg.includes('Loading chunk')) {
-      const reloadCount = parseInt(sessionStorage.getItem('global_chunk_reload_count') || '0', 10);
-      if (reloadCount < 2) {
-        sessionStorage.setItem('global_chunk_reload_count', String(reloadCount + 1));
-        if ('caches' in window) {
-          caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
-        }
-        window.location.reload();
-      }
-    }
   }
 
   handleReload = () => {
