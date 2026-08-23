@@ -693,55 +693,11 @@ interface AppState {
   popFromUndoStack: () => { collection: string; action: 'add' | 'delete' | 'update'; data: any } | undefined;
 }
 
-const defaultNews: NewsItem[] = [
-  {
-    id: uuidv4(),
-    title: 'الإسكندرية تستعد لكرنفال رياضي كبير بمناسبة مئوية النادي',
-    content: 'بدأت اللجنة المنظمة لاحتفالات مئوية نادي الاتحاد السكندري في وضع اللمسات الأخيرة للبرنامج الحافل الذي يتضمن مباريات ودية عالمية وعروض فنية وجماهيرية تليق بتاريخ سيد البلد.',
-    image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1000&auto=format&fit=crop',
-    date: new Date(Date.now() - 1 * 3600000).toISOString(),
-    type: 'manual',
-  },
-  {
-    id: uuidv4(),
-    title: 'الاتحاد يستعد لمواجهة الزمالك بتدريبات مكثفة',
-    content: 'أجرى الفريق الأول لكرة القدم بنادي الاتحاد السكندري تدريباته اليوم تحت قيادة الجهاز الفني، استعداداً للمباراة المرتقبة أمام الزمالك في الجولة القادمة من الدوري المصري الممتاز.',
-    image: 'https://images.unsplash.com/photo-1543351611-58f69d7c1781?q=80&w=1000&auto=format&fit=crop',
-    date: new Date(Date.now() - 2 * 3600000).toISOString(),
-    type: 'manual',
-  }
-];
+const defaultNews: NewsItem[] = [];
 
 const defaultMedia: MediaItem[] = DEFAULT_MEDIA_ITEMS;
 
-const defaultMatches: MatchItem[] = [
-  {
-    id: uuidv4(),
-    homeTeam: 'الاتحاد',
-    awayTeam: 'الأهلي',
-    homeLogo: 'https://upload.wikimedia.org/wikipedia/ar/thumb/0/0e/Al_Ittihad_Alexandria_Club_Logo.svg/1024px-Al_Ittihad_Alexandria_Club_Logo.svg.png',
-    awayLogo: 'https://upload.wikimedia.org/wikipedia/en/thumb/e/ef/Al_Ahly_SC_logo.svg/1200px-Al_Ahly_SC_logo.svg.png',
-    homeScore: '1',
-    awayScore: '1',
-    date: new Date().toISOString(),
-    status: 'live',
-    competition: 'الدوري المصري الممتاز',
-    sport: 'football',
-  },
-  {
-    id: uuidv4(),
-    homeTeam: 'الزمالك',
-    awayTeam: 'الاتحاد',
-    homeLogo: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/04/Zamalek_SC_logo.svg/1200px-Zamalek_SC_logo.svg.png',
-    awayLogo: 'https://upload.wikimedia.org/wikipedia/ar/thumb/0/0e/Al_Ittihad_Alexandria_Club_Logo.svg/1024px-Al_Ittihad_Alexandria_Club_Logo.svg.png',
-    homeScore: '-',
-    awayScore: '-',
-    date: new Date(Date.now() + 7 * 86400000).toISOString(),
-    status: 'upcoming',
-    competition: 'الدوري المصري الممتاز',
-    sport: 'football',
-  }
-];
+const defaultMatches: MatchItem[] = [];
 
 const defaultLiveStream: LiveStream = {
   isActive: false,
@@ -1006,11 +962,13 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: 'ittihad-app-storage',
-      partialize: (state) => {
-        const { isAuthReady, ...rest } = state;
-        return rest;
-      },
+      name: 'ittihad-app-storage-v3',
+      partialize: (state) => ({
+        theme: state.theme,
+        playerVolume: state.playerVolume,
+        stadiumOpacity: state.stadiumOpacity,
+        profile: state.profile
+      }),
     }
   )
 );

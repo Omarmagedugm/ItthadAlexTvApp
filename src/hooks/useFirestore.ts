@@ -77,15 +77,15 @@ export function useFirestoreSync() {
         if (snap.exists()) updateLiveStreams({ programs: snap.data() as any });
       }, 'settings/liveStream_programs', OperationType.GET);
 
-      // Quota Optimization: Added strict limit(25) to prevent reading large collections on every sync
-      const unsubMatches = subscribeSnapshot(query(collection(db, 'matches'), orderBy('date', 'desc'), limit(25)), (snap) => {
+      // Real-time synchronization for Matches and News from Firestore
+      const unsubMatches = subscribeSnapshot(query(collection(db, 'matches'), orderBy('date', 'desc'), limit(50)), (snap) => {
         const data = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0 || !isFetchedRef.current) setMatches(data as any);
+        setMatches(data as any);
       }, 'matches');
 
-      const unsubNews = subscribeSnapshot(query(collection(db, 'news'), orderBy('date', 'desc'), limit(25)), (snap) => {
+      const unsubNews = subscribeSnapshot(query(collection(db, 'news'), orderBy('date', 'desc'), limit(50)), (snap) => {
         const data = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0 || !isFetchedRef.current) setNews(data as any);
+        setNews(data as any);
       }, 'news');
 
       const unsubMedia = subscribeSnapshot(query(collection(db, 'media'), orderBy('date', 'desc'), limit(150)), (snap) => {
@@ -360,40 +360,25 @@ export function useFirestoreSync() {
       }
     }, 6000);
 
-    // Static Reference Data Fetching with 1-hour LocalStorage cache
+    // Static Reference Data Fetching directly from Firestore
     const fetchStaticData = async () => {
-      const fetchWithCache = async (key: string, fetcher: () => Promise<any>) => {
-        const cacheKey = `fs_cache_${key}`;
-        try {
-          const cached = typeof window !== 'undefined' ? localStorage.getItem(cacheKey) : null;
-          if (cached) {
-            const { data, timestamp } = JSON.parse(cached);
-            // 1 hour cache (3600000ms) to prevent re-fetching static data on every reload
-            if (Date.now() - timestamp < 3600000 && data) {
-              return data;
+      // Purge any legacy localStorage caches
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('ittihad-app-storage');
+          localStorage.removeItem('ittihad-app-storage-v2');
+          Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('fs_cache_')) {
+              localStorage.removeItem(key);
             }
-          }
-        } catch (e) {
-          console.warn('Cache read failed', e);
+          });
         }
-
-        const data = await fetcher();
-        try { 
-          if (typeof window !== 'undefined' && data) {
-            localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() })); 
-          }
-        } catch (e) {
-          console.warn('Cache write failed', e);
-        }
-        return data;
-      };
+      } catch (e) {}
 
       const fetchCol = async (col: string, setter: (d: any) => void, q?: any) => {
         try {
-          const data = await fetchWithCache(col, async () => {
-            const s = await getDocs(q || collection(db, col));
-            return s.docs.map(d => ({ id: d.id, uid: d.id, ...(d.data() as any) }));
-          });
+          const s = await getDocs(q || collection(db, col));
+          const data = s.docs.map(d => ({ id: d.id, uid: d.id, ...(d.data() as any) }));
           if (data !== undefined && data !== null) setter(data);
         } catch (e) { console.warn(`Fetch ${col} failed`, e); }
       };
@@ -401,29 +386,12 @@ export function useFirestoreSync() {
       const fetchDocItem = async (path: string, setter: (d: any) => void) => {
         try {
           const parts = path.split('/');
-          const data = await fetchWithCache(path.replace('/', '_'), async () => {
-            const s = await getDoc(doc(db, parts[0], parts[1]));
-            return s.exists() ? { id: s.id, ...(s.data() as any) } : null;
-          });
-          if (data) setter(data);
+          const s = await getDoc(doc(db, parts[0], parts[1]));
+          if (s.exists()) {
+            setter({ id: s.id, ...(s.data() as any) });
+          }
         } catch (e) { console.warn(`Fetch doc ${path} failed`, e); }
       };
-
-      try {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('fs_cache_users');
-          localStorage.removeItem('fs_cache_businesses');
-          localStorage.removeItem('fs_cache_business_updates');
-          localStorage.removeItem('fs_cache_business_reports');
-          localStorage.removeItem('fs_cache_world_countries');
-          localStorage.removeItem('fs_cache_world_groups');
-          localStorage.removeItem('fs_cache_world_posts');
-          localStorage.removeItem('fs_cache_world_events');
-          localStorage.removeItem('fs_cache_world_help_requests');
-          localStorage.removeItem('fs_cache_world_applications');
-          localStorage.removeItem('fs_cache_custom_pages');
-        }
-      } catch (e) {}
 
       await Promise.allSettled([
         fetchDocItem('settings/global', setSettings),
