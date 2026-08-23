@@ -1534,17 +1534,19 @@ export default function Admin() {
             category: formData.category || 'chant',
             duration: formData.duration || '03:30',
             hidden: formData.hidden || false,
-            createdAt: new Date().toISOString()
+            createdAt: isEditing ? (formData.createdAt || new Date().toISOString()) : new Date().toISOString()
           };
           if (isEditing && editingId) {
             try {
               await updateDoc(doc(db, 'songs', editingId), cleanPayload(payload));
+              setSongs(songs.map(s => s.id === editingId ? { id: editingId, ...payload } : s));
             } catch (err) {
               handleFirestoreError(err, OperationType.UPDATE, `songs/${editingId}`);
             }
           } else {
             try {
-              await addDoc(collection(db, 'songs'), cleanPayload(payload));
+              const docRef = await addDoc(collection(db, 'songs'), cleanPayload(payload));
+              setSongs([{ id: docRef.id, ...payload }, ...songs]);
             } catch (err) {
               handleFirestoreError(err, OperationType.CREATE, 'songs');
             }
@@ -1552,7 +1554,7 @@ export default function Admin() {
         } else if (musicSubTab === 'albums') {
           const payload = {
             title: formData.title || '',
-            artist: formData.artist || '',
+            artist: formData.artist || 'الاتحاد السكندري',
             coverUrl: formData.coverUrl || '',
             year: formData.year || new Date().getFullYear().toString(),
             hidden: formData.hidden || false
@@ -1560,12 +1562,14 @@ export default function Admin() {
           if (isEditing && editingId) {
             try {
               await updateDoc(doc(db, 'albums', editingId), cleanPayload(payload));
+              setAlbums(albums.map(a => a.id === editingId ? { id: editingId, ...payload } : a));
             } catch (err) {
               handleFirestoreError(err, OperationType.UPDATE, `albums/${editingId}`);
             }
           } else {
             try {
-              await addDoc(collection(db, 'albums'), cleanPayload(payload));
+              const docRef = await addDoc(collection(db, 'albums'), cleanPayload(payload));
+              setAlbums([{ id: docRef.id, ...payload }, ...albums]);
             } catch (err) {
               handleFirestoreError(err, OperationType.CREATE, 'albums');
             }
@@ -1580,12 +1584,14 @@ export default function Admin() {
           if (isEditing && editingId) {
             try {
               await updateDoc(doc(db, 'playlists', editingId), cleanPayload(payload));
+              setPlaylists(playlists.map(p => p.id === editingId ? { id: editingId, ...payload } : p));
             } catch (err) {
               handleFirestoreError(err, OperationType.UPDATE, `playlists/${editingId}`);
             }
           } else {
             try {
-              await addDoc(collection(db, 'playlists'), cleanPayload(payload));
+              const docRef = await addDoc(collection(db, 'playlists'), cleanPayload(payload));
+              setPlaylists([{ id: docRef.id, ...payload }, ...playlists]);
             } catch (err) {
               handleFirestoreError(err, OperationType.CREATE, 'playlists');
             }
@@ -2243,6 +2249,16 @@ export default function Admin() {
       initialData = { options: ['', ''], active: true };
     } else if (activeTab === 'media') {
       initialData = { type: 'video', source: 'youtube', url: '', videoUrl: '', date: new Date().toISOString() };
+    } else if (activeTab === 'music') {
+      if (musicSubTab === 'songs') {
+        initialData = { title: '', artist: 'نادي الاتحاد السكندري', category: 'chant', audioUrl: '', coverUrl: '', duration: '03:30', hidden: false };
+      } else if (musicSubTab === 'albums') {
+        initialData = { title: '', artist: 'نادي الاتحاد السكندري', year: new Date().getFullYear().toString(), coverUrl: '', hidden: false };
+      } else if (musicSubTab === 'playlists') {
+        initialData = { title: '', coverUrl: '', songIds: [], hidden: false };
+      }
+    } else if (activeTab === 'books') {
+      initialData = { title: '', author: 'نادي الاتحاد السكندري', coverUrl: '', pdfUrl: '', desc: '', hidden: false };
     }
     setFormData(initialData);
     setBaseData(initialData);
@@ -5862,76 +5878,132 @@ export default function Admin() {
 
           {activeTab === 'music' && (
              <div className="flex flex-col gap-6">
-                <div className="flex bg-slate-100 dark:bg-surface-dark p-1 rounded-xl w-fit">
-                   <button onClick={() => setMusicSubTab('songs')} className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${musicSubTab === 'songs' ? 'bg-white dark:bg-card-dark text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>الأغاني</button>
-                   <button onClick={() => setMusicSubTab('albums')} className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${musicSubTab === 'albums' ? 'bg-white dark:bg-card-dark text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>الألبومات</button>
-                   <button onClick={() => setMusicSubTab('playlists')} className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${musicSubTab === 'playlists' ? 'bg-white dark:bg-card-dark text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>القوائم</button>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                   <div className="flex bg-slate-100 dark:bg-surface-dark p-1 rounded-xl w-fit">
+                      <button onClick={() => setMusicSubTab('songs')} className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${musicSubTab === 'songs' ? 'bg-white dark:bg-card-dark text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>الأغاني ({songs.length})</button>
+                      <button onClick={() => setMusicSubTab('albums')} className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${musicSubTab === 'albums' ? 'bg-white dark:bg-card-dark text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>الألبومات ({albums.length})</button>
+                      <button onClick={() => setMusicSubTab('playlists')} className={`px-4 py-2 rounded-lg text-xs font-black transition-all ${musicSubTab === 'playlists' ? 'bg-white dark:bg-card-dark text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>القوائم ({playlists.length})</button>
+                   </div>
+                   <button 
+                     onClick={openAddModal}
+                     className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl text-xs font-black shadow-sm flex items-center gap-2 transition-all cursor-pointer"
+                   >
+                     <Plus size={16} />
+                     <span>{musicSubTab === 'songs' ? 'إضافة أغنية/تسجيل' : musicSubTab === 'albums' ? 'إضافة ألبوم جديد' : 'إضافة قائمة تشغيل'}</span>
+                   </button>
                 </div>
                 
                 <div className="flex flex-col gap-3">
-                   {musicSubTab === 'songs' && songs.map(song => (
-                     <div key={song.id} className="bg-white dark:bg-card-dark p-3 rounded-xl border border-border-light dark:border-border-dark flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            {song.coverUrl && song.coverUrl.trim() !== '' ? (
-                              <img src={song.coverUrl} className="w-12 h-12 rounded-xl object-cover" referrerPolicy="no-referrer" />
-                            ) : (
-                              <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-surface-dark flex items-center justify-center">
-                                 <Music size={20} className="text-slate-300" />
-                              </div>
-                            )}
-                           <div>
-                              <p className="text-xs font-black">{song.title}</p>
-                              <p className="text-[10px] text-slate-400 font-bold">{song.artist} • {song.category}</p>
+                   {musicSubTab === 'songs' && (
+                     <>
+                       {songs.map(song => (
+                         <div key={song.id} className="bg-white dark:bg-card-dark p-3 rounded-xl border border-border-light dark:border-border-dark flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                {song.coverUrl && song.coverUrl.trim() !== '' ? (
+                                  <img src={song.coverUrl} className="w-12 h-12 rounded-xl object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-surface-dark flex items-center justify-center">
+                                     <Music size={20} className="text-slate-300" />
+                                  </div>
+                                )}
+                               <div>
+                                  <p className="text-xs font-black">{song.title}</p>
+                                  <p className="text-[10px] text-slate-400 font-bold">{song.artist} • {song.category}</p>
+                               </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => handleEditItem(song)} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-all"><Edit2 size={16} /></button>
+                               <button onClick={() => handleDelete('songs', song.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={16} /></button>
+                            </div>
+                         </div>
+                       ))}
+                       {songs.length === 0 && (
+                         <div className="py-12 text-center bg-white dark:bg-card-dark rounded-2xl border border-dashed border-slate-200 dark:border-border-dark flex flex-col items-center justify-center gap-3">
+                           <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-surface-dark flex items-center justify-center text-slate-400">
+                             <Music size={24} />
                            </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => handleEditItem(song)} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-all"><Edit2 size={16} /></button>
-                           <button onClick={() => handleDelete('songs', song.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={16} /></button>
-                        </div>
-                     </div>
-                   ))}
-                   {musicSubTab === 'albums' && albums.map(album => (
-                     <div key={album.id} className="bg-white dark:bg-card-dark p-3 rounded-xl border border-border-light dark:border-border-dark flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            {album.coverUrl && album.coverUrl.trim() !== '' ? (
-                              <img src={album.coverUrl} className="w-12 h-12 rounded-xl object-cover" referrerPolicy="no-referrer" />
-                            ) : (
-                              <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-surface-dark flex items-center justify-center">
-                                 <Disc size={20} className="text-slate-300" />
-                              </div>
-                            )}
-                           <div>
-                              <p className="text-xs font-black">{album.title}</p>
-                              <p className="text-[10px] text-slate-400 font-bold">{album.artist} • {album.year}</p>
+                           <p className="text-sm font-bold text-slate-500">لا توجد أغانٍ أو تسجيلات صوتية حالياً</p>
+                           <button onClick={openAddModal} className="text-xs font-black text-primary hover:underline cursor-pointer">
+                             + إضافة أول أغنية
+                           </button>
+                         </div>
+                       )}
+                     </>
+                   )}
+                   
+                   {musicSubTab === 'albums' && (
+                     <>
+                       {albums.map(album => (
+                         <div key={album.id} className="bg-white dark:bg-card-dark p-3 rounded-xl border border-border-light dark:border-border-dark flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                {album.coverUrl && album.coverUrl.trim() !== '' ? (
+                                  <img src={album.coverUrl} className="w-12 h-12 rounded-xl object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-surface-dark flex items-center justify-center">
+                                     <Disc size={20} className="text-slate-300" />
+                                  </div>
+                                )}
+                               <div>
+                                  <p className="text-xs font-black">{album.title}</p>
+                                  <p className="text-[10px] text-slate-400 font-bold">{album.artist} • {album.year}</p>
+                               </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => handleEditItem(album)} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-all"><Edit2 size={16} /></button>
+                               <button onClick={() => handleDelete('albums', album.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={16} /></button>
+                            </div>
+                         </div>
+                       ))}
+                       {albums.length === 0 && (
+                         <div className="py-12 text-center bg-white dark:bg-card-dark rounded-2xl border border-dashed border-slate-200 dark:border-border-dark flex flex-col items-center justify-center gap-3">
+                           <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-surface-dark flex items-center justify-center text-slate-400">
+                             <Disc size={24} />
                            </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => handleEditItem(album)} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-all"><Edit2 size={16} /></button>
-                           <button onClick={() => handleDelete('albums', album.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={16} /></button>
-                        </div>
-                     </div>
-                   ))}
-                   {musicSubTab === 'playlists' && playlists.map(playlist => (
-                     <div key={playlist.id} className="bg-white dark:bg-card-dark p-3 rounded-xl border border-border-light dark:border-border-dark flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            {playlist.coverUrl && playlist.coverUrl.trim() !== '' ? (
-                              <img src={playlist.coverUrl} className="w-12 h-12 rounded-xl object-cover" referrerPolicy="no-referrer" />
-                            ) : (
-                              <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-surface-dark flex items-center justify-center">
-                                 <ListMusic size={20} className="text-slate-300" />
-                              </div>
-                            )}
-                           <div>
-                              <p className="text-xs font-black">{playlist.title}</p>
-                              <p className="text-[10px] text-slate-400 font-bold">{playlist.songIds?.length || 0} أغنية</p>
+                           <p className="text-sm font-bold text-slate-500">لا توجد ألبومات مضافة حالياً</p>
+                           <button onClick={openAddModal} className="text-xs font-black text-primary hover:underline cursor-pointer">
+                             + إضافة أول ألبوم
+                           </button>
+                         </div>
+                       )}
+                     </>
+                   )}
+
+                   {musicSubTab === 'playlists' && (
+                     <>
+                       {playlists.map(playlist => (
+                         <div key={playlist.id} className="bg-white dark:bg-card-dark p-3 rounded-xl border border-border-light dark:border-border-dark flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                {playlist.coverUrl && playlist.coverUrl.trim() !== '' ? (
+                                  <img src={playlist.coverUrl} className="w-12 h-12 rounded-xl object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-surface-dark flex items-center justify-center">
+                                     <ListMusic size={20} className="text-slate-300" />
+                                  </div>
+                                )}
+                               <div>
+                                  <p className="text-xs font-black">{playlist.title}</p>
+                                  <p className="text-[10px] text-slate-400 font-bold">{playlist.songIds?.length || 0} أغنية</p>
+                               </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => handleEditItem(playlist)} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-all"><Edit2 size={16} /></button>
+                               <button onClick={() => handleDelete('playlists', playlist.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={16} /></button>
+                            </div>
+                         </div>
+                       ))}
+                       {playlists.length === 0 && (
+                         <div className="py-12 text-center bg-white dark:bg-card-dark rounded-2xl border border-dashed border-slate-200 dark:border-border-dark flex flex-col items-center justify-center gap-3">
+                           <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-surface-dark flex items-center justify-center text-slate-400">
+                             <ListMusic size={24} />
                            </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => handleEditItem(playlist)} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-all"><Edit2 size={16} /></button>
-                           <button onClick={() => handleDelete('playlists', playlist.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={16} /></button>
-                        </div>
-                     </div>
-                   ))}
+                           <p className="text-sm font-bold text-slate-500">لا توجد قوائم تشغيل مضافة حالياً</p>
+                           <button onClick={openAddModal} className="text-xs font-black text-primary hover:underline cursor-pointer">
+                             + إضافة أول قائمة تشغيل
+                           </button>
+                         </div>
+                       )}
+                     </>
+                   )}
                 </div>
              </div>
            )}

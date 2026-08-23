@@ -617,6 +617,62 @@
         "details": { "type": "string" }
       },
       "required": ["id", "action", "collectionName", "itemId", "timestamp"]
+    },
+    "Song": {
+      "title": "Song / Audio Chant",
+      "description": "Songs and chants in the club audio library",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "artist": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "coverUrl": { "type": "string" },
+        "duration": { "type": "string" },
+        "category": { "type": "string" },
+        "hidden": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      }
+    },
+    "Album": {
+      "title": "Music Album",
+      "description": "Music albums in the club library",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "artist": { "type": "string" },
+        "coverUrl": { "type": "string" },
+        "year": { "type": "string" },
+        "hidden": { "type": "boolean" }
+      }
+    },
+    "Playlist": {
+      "title": "Audio Playlist",
+      "description": "Custom playlists of songs and chants",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "coverUrl": { "type": "string" },
+        "songIds": { "type": "array", "items": { "type": "string" } },
+        "hidden": { "type": "boolean" }
+      }
+    },
+    "Book": {
+      "title": "Club Book / Document",
+      "description": "Books and historical documents in the library",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "author": { "type": "string" },
+        "coverUrl": { "type": "string" },
+        "pdfUrl": { "type": "string" },
+        "desc": { "type": "string" },
+        "category": { "type": "string" },
+        "hidden": { "type": "boolean" }
+      }
     }
   },
   "firestore": {
@@ -629,6 +685,10 @@
     "fan_posts": { "schema": "FanPost", "description": "Community posts" },
     "media": { "schema": "Media", "description": "Collection of media items" },
     "media_playlists": { "schema": "MediaPlaylist", "description": "Collection of media playlists" },
+    "songs": { "schema": "Song", "description": "Collection of songs and audio recordings" },
+    "albums": { "schema": "Album", "description": "Collection of music albums" },
+    "playlists": { "schema": "Playlist", "description": "Collection of audio playlists" },
+    "books": { "schema": "Book", "description": "Collection of books and documents" },
     "live_comments": { "schema": "LiveComment", "description": "Live match comments" },
     "city_info": { "schema": "CityInfo", "description": "Alexandria city and weather info" },
     "settings": { "schema": "AppSetting", "description": "Global settings" },

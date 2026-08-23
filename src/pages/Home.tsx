@@ -1984,17 +1984,14 @@ export default function Home() {
 
   if (!dataLoaded && news.length === 0 && matches.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] gap-6 px-8 text-center bg-background-light dark:bg-background-dark">
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] gap-4 px-8 text-center bg-background-light dark:bg-background-dark">
         <div className="relative">
-          <div className="h-16 w-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+          <div className="h-12 w-12 border-3 border-primary/20 border-t-primary rounded-full animate-spin"></div>
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="h-2 w-2 bg-primary rounded-full animate-ping"></div>
           </div>
         </div>
-        <div className="flex flex-col gap-2">
-          <h2 className="text-xl font-black text-slate-800 dark:text-white">جاري الاتصال بالقاعدة...</h2>
-          <p className="text-xs text-slate-400 font-bold max-w-[200px]">يتم الآن مزامنة بيانات نادي الاتحاد السكندري</p>
-        </div>
+        <span className="text-xs text-slate-400 dark:text-slate-500 font-bold animate-pulse">جاري التحميل...</span>
       </div>
     );
   }

@@ -128,6 +128,13 @@ export function useFirestoreSync() {
       unsubs.push(subscribeSnapshot(query(collection(db, 'polls'), orderBy('createdAt', 'desc'), limit(15)), s => setPolls(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'polls'));
       unsubs.push(subscribeSnapshot(query(collection(db, 'predictions'), orderBy('createdAt', 'desc'), limit(50)), s => setPredictions(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'predictions'));
       
+      // Music, Audio, Albums, Playlists & Books Realtime Sync
+      unsubs.push(subscribeSnapshot(collection(db, 'songs'), s => setSongs(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'songs'));
+      unsubs.push(subscribeSnapshot(collection(db, 'albums'), s => setAlbums(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'albums'));
+      unsubs.push(subscribeSnapshot(collection(db, 'playlists'), s => setPlaylists(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'playlists'));
+      unsubs.push(subscribeSnapshot(collection(db, 'books'), s => setBooks(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'books'));
+      unsubs.push(subscribeSnapshot(collection(db, 'media_playlists'), s => setMediaPlaylists(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'media_playlists'));
+
       unsubs.push(unsubLiveFootball, unsubLiveBasketball, unsubMatches, unsubNews, unsubMedia, unsubLayout);
 
       const unsubNewsCategories = subscribeSnapshot(doc(db, 'settings', 'newsCategories'), (snap) => {
@@ -402,6 +409,8 @@ export function useFirestoreSync() {
         fetchCol('products', setProducts),
         fetchCol('ads', setAds, query(collection(db, 'ads'), where('active', '==', true), orderBy('order', 'asc'))),
         fetchCol('songs', setSongs),
+        fetchCol('albums', setAlbums),
+        fetchCol('playlists', setPlaylists),
         fetchCol('books', setBooks),
         fetchCol('media_playlists', setMediaPlaylists)
       ]);
