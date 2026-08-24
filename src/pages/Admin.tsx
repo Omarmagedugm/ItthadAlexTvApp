@@ -915,6 +915,21 @@ export default function Admin() {
           videoUrl: vUrl
         };
       }
+    } else if (activeTab === 'music') {
+      if (musicSubTab === 'albums') {
+        const albumSongIds = Array.from(new Set([
+          ...(item.songIds || []),
+          ...songs.filter(s => s.albumId === item.id).map(s => s.id)
+        ]));
+        extraData = { songIds: albumSongIds };
+      } else if (musicSubTab === 'songs') {
+        let albumId = item.albumId || '';
+        if (!albumId) {
+          const foundAlbum = albums.find(a => a.songIds?.includes(item.id));
+          if (foundAlbum) albumId = foundAlbum.id;
+        }
+        extraData = { albumId };
+      }
     }
     setFormData({ ...item, ...extraData });
     setBaseData({ ...item, ...extraData });
@@ -1526,9 +1541,11 @@ export default function Admin() {
         }
       } else if (activeTab === 'music') {
         if (musicSubTab === 'songs') {
+          const songAlbumId = formData.albumId || '';
           const payload = {
             title: formData.title || '',
             artist: formData.artist || '',
+            albumId: songAlbumId,
             audioUrl: formData.audioUrl || '',
             coverUrl: formData.coverUrl || '',
             category: formData.category || 'chant',
@@ -1536,6 +1553,7 @@ export default function Admin() {
             hidden: formData.hidden || false,
             createdAt: isEditing ? (formData.createdAt || new Date().toISOString()) : new Date().toISOString()
           };
+          let songId = editingId;
           if (isEditing && editingId) {
             try {
               await updateDoc(doc(db, 'songs', editingId), cleanPayload(payload));
@@ -1546,19 +1564,45 @@ export default function Admin() {
           } else {
             try {
               const docRef = await addDoc(collection(db, 'songs'), cleanPayload(payload));
-              setSongs([{ id: docRef.id, ...payload }, ...songs]);
+              songId = docRef.id;
+              setSongs([{ id: songId, ...payload }, ...songs]);
             } catch (err) {
               handleFirestoreError(err, OperationType.CREATE, 'songs');
             }
           }
+
+          // Sync Album songIds
+          if (songId) {
+            const updatedAlbums = albums.map(alb => {
+              const currentSongIds = alb.songIds || [];
+              if (alb.id === songAlbumId) {
+                if (!currentSongIds.includes(songId)) {
+                  const newIds = [...currentSongIds, songId];
+                  updateDoc(doc(db, 'albums', alb.id), { songIds: newIds }).catch(() => {});
+                  return { ...alb, songIds: newIds };
+                }
+              } else {
+                if (currentSongIds.includes(songId)) {
+                  const newIds = currentSongIds.filter(id => id !== songId);
+                  updateDoc(doc(db, 'albums', alb.id), { songIds: newIds }).catch(() => {});
+                  return { ...alb, songIds: newIds };
+                }
+              }
+              return alb;
+            });
+            setAlbums(updatedAlbums);
+          }
         } else if (musicSubTab === 'albums') {
+          const selectedSongIds: string[] = Array.isArray(formData.songIds) ? formData.songIds : [];
           const payload = {
             title: formData.title || '',
             artist: formData.artist || 'الاتحاد السكندري',
             coverUrl: formData.coverUrl || '',
             year: formData.year || new Date().getFullYear().toString(),
+            songIds: selectedSongIds,
             hidden: formData.hidden || false
           };
+          let currentAlbumId = editingId;
           if (isEditing && editingId) {
             try {
               await updateDoc(doc(db, 'albums', editingId), cleanPayload(payload));
@@ -1569,10 +1613,28 @@ export default function Admin() {
           } else {
             try {
               const docRef = await addDoc(collection(db, 'albums'), cleanPayload(payload));
-              setAlbums([{ id: docRef.id, ...payload }, ...albums]);
+              currentAlbumId = docRef.id;
+              setAlbums([{ id: currentAlbumId, ...payload }, ...albums]);
             } catch (err) {
               handleFirestoreError(err, OperationType.CREATE, 'albums');
             }
+          }
+
+          // Sync Songs albumId
+          if (currentAlbumId) {
+            const updatedSongs = songs.map(s => {
+              if (selectedSongIds.includes(s.id)) {
+                if (s.albumId !== currentAlbumId) {
+                  updateDoc(doc(db, 'songs', s.id), { albumId: currentAlbumId }).catch(() => {});
+                  return { ...s, albumId: currentAlbumId };
+                }
+              } else if (s.albumId === currentAlbumId) {
+                updateDoc(doc(db, 'songs', s.id), { albumId: '' }).catch(() => {});
+                return { ...s, albumId: '' };
+              }
+              return s;
+            });
+            setSongs(updatedSongs);
           }
         } else if (musicSubTab === 'playlists') {
           const payload = {
@@ -2251,9 +2313,9 @@ export default function Admin() {
       initialData = { type: 'video', source: 'youtube', url: '', videoUrl: '', date: new Date().toISOString() };
     } else if (activeTab === 'music') {
       if (musicSubTab === 'songs') {
-        initialData = { title: '', artist: 'نادي الاتحاد السكندري', category: 'chant', audioUrl: '', coverUrl: '', duration: '03:30', hidden: false };
+        initialData = { title: '', artist: 'نادي الاتحاد السكندري', category: 'chant', audioUrl: '', coverUrl: '', duration: '03:30', albumId: '', hidden: false };
       } else if (musicSubTab === 'albums') {
-        initialData = { title: '', artist: 'نادي الاتحاد السكندري', year: new Date().getFullYear().toString(), coverUrl: '', hidden: false };
+        initialData = { title: '', artist: 'نادي الاتحاد السكندري', year: new Date().getFullYear().toString(), coverUrl: '', songIds: [], hidden: false };
       } else if (musicSubTab === 'playlists') {
         initialData = { title: '', coverUrl: '', songIds: [], hidden: false };
       }
@@ -5907,8 +5969,18 @@ export default function Admin() {
                                   </div>
                                 )}
                                <div>
-                                  <p className="text-xs font-black">{song.title}</p>
-                                  <p className="text-[10px] text-slate-400 font-bold">{song.artist} • {song.category}</p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-xs font-black">{song.title}</p>
+                                    {(() => {
+                                      const songAlbum = albums.find(a => a.id === song.albumId || a.songIds?.includes(song.id));
+                                      return songAlbum ? (
+                                        <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded text-[9px] font-black">
+                                          ألبوم: {songAlbum.title}
+                                        </span>
+                                      ) : null;
+                                    })()}
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 font-bold">{song.artist} • {song.category === 'song' ? 'أغنية' : 'تسجيل صوتي'} {song.duration ? `• ${song.duration}` : ''}</p>
                                </div>
                             </div>
                             <div className="flex items-center gap-1">
@@ -5945,7 +6017,9 @@ export default function Admin() {
                                 )}
                                <div>
                                   <p className="text-xs font-black">{album.title}</p>
-                                  <p className="text-[10px] text-slate-400 font-bold">{album.artist} • {album.year}</p>
+                                  <p className="text-[10px] text-slate-400 font-bold">
+                                    {album.artist} {album.year ? `• ${album.year}` : ''} • <span className="text-primary font-black">{(album.songIds?.length || songs.filter(s => s.albumId === album.id).length)} أغنية</span>
+                                  </p>
                                </div>
                             </div>
                             <div className="flex items-center gap-1">
@@ -6303,12 +6377,29 @@ export default function Admin() {
                           <label className="text-[10px] font-black text-slate-500 mb-1 block">الفنان / المؤدي</label>
                           <input type="text" className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm" value={formData.artist || ''} onChange={(e) => setFormData({...formData, artist: e.target.value})} />
                         </div>
-                        <div>
-                          <label className="text-[10px] font-black text-slate-500 mb-1 block">التصنيف</label>
-                          <select className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm font-bold" value={formData.category || 'chant'} onChange={(e) => setFormData({...formData, category: e.target.value})}>
-                             <option value="song">أغاني</option>
-                             <option value="chant">تسجيلات صوتية</option>
-                          </select>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[10px] font-black text-slate-500 mb-1 block">التصنيف</label>
+                            <select className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm font-bold" value={formData.category || 'chant'} onChange={(e) => setFormData({...formData, category: e.target.value})}>
+                               <option value="song">أغاني</option>
+                               <option value="chant">تسجيلات صوتية</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black text-slate-500 mb-1 block">الألبوم التابع له (اختياري)</label>
+                            <select 
+                              className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm font-bold" 
+                              value={formData.albumId || ''} 
+                              onChange={(e) => setFormData({...formData, albumId: e.target.value})}
+                            >
+                              <option value="">-- بدون ألبوم (أغنية منفردة) --</option>
+                              {albums.map(alb => (
+                                <option key={alb.id} value={alb.id}>
+                                  {alb.title} {alb.year ? `(${alb.year})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
                         <UploadOrUrlField label="رابط الملف الصوتي (MP3)" fieldName="audioUrl" currentUrl={formData.audioUrl} type="audio" formData={formData} setFormData={setFormData} uploading={uploading} handleFileUpload={handleFileUpload} />
                         <UploadOrUrlField label="صورة الغلاف" fieldName="coverUrl" currentUrl={formData.coverUrl} formData={formData} setFormData={setFormData} uploading={uploading} handleFileUpload={handleFileUpload} />
@@ -6319,15 +6410,90 @@ export default function Admin() {
                           <label className="text-[10px] font-black text-slate-500 mb-1 block">عنوان الألبوم</label>
                           <input type="text" className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm font-bold" value={formData.title || ''} onChange={(e) => setFormData({...formData, title: e.target.value})} />
                         </div>
-                        <div>
-                          <label className="text-[10px] font-black text-slate-500 mb-1 block">الفنان</label>
-                          <input type="text" className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm" value={formData.artist || ''} onChange={(e) => setFormData({...formData, artist: e.target.value})} />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-black text-slate-500 mb-1 block">سنة الإصدار</label>
-                          <input type="text" className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm" value={formData.year || ''} onChange={(e) => setFormData({...formData, year: e.target.value})} />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[10px] font-black text-slate-500 mb-1 block">الفنان / المصدر</label>
+                            <input type="text" className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm" value={formData.artist || ''} onChange={(e) => setFormData({...formData, artist: e.target.value})} placeholder="الاتحاد السكندري" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black text-slate-500 mb-1 block">سنة الإصدار</label>
+                            <input type="text" className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm" value={formData.year || ''} onChange={(e) => setFormData({...formData, year: e.target.value})} placeholder="2025" />
+                          </div>
                         </div>
                         <UploadOrUrlField label="صورة الغلاف" fieldName="coverUrl" currentUrl={formData.coverUrl} formData={formData} setFormData={setFormData} uploading={uploading} handleFileUpload={handleFileUpload} />
+                        
+                        <div className="space-y-2 pt-2 border-t border-border-light dark:border-border-dark">
+                           <div className="flex items-center justify-between flex-wrap gap-2">
+                              <label className="text-[11px] font-black text-slate-700 dark:text-slate-200 block text-right">
+                                اختر الأغاني التابعة لهذا الألبوم ({formData.songIds?.length || 0} أغنية محددة)
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setFormData({ ...formData, songIds: songs.map(s => s.id) })}
+                                  className="text-[10px] text-primary font-black hover:underline cursor-pointer"
+                                >
+                                  تحديد الكل
+                                </button>
+                                <span className="text-slate-300">|</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setFormData({ ...formData, songIds: [] })}
+                                  className="text-[10px] text-slate-400 font-black hover:underline cursor-pointer"
+                                >
+                                  إلغاء التحديد
+                                </button>
+                              </div>
+                           </div>
+                           
+                           <div className="max-h-[220px] overflow-y-auto border border-border-light dark:border-border-dark rounded-xl p-2 space-y-1 bg-slate-50/50 dark:bg-surface-dark/50">
+                              {songs.map(song => {
+                                const isChecked = (formData.songIds || []).includes(song.id);
+                                return (
+                                  <label 
+                                    key={song.id} 
+                                    className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition-all border ${
+                                      isChecked 
+                                        ? 'bg-primary/10 border-primary/30 text-primary-dark dark:text-emerald-300' 
+                                        : 'bg-white dark:bg-card-dark border-transparent hover:bg-slate-100 dark:hover:bg-card-dark/80'
+                                    }`}
+                                  >
+                                     <div className="flex items-center gap-3 min-w-0">
+                                        <input 
+                                         type="checkbox" 
+                                         className="w-4 h-4 accent-primary rounded cursor-pointer shrink-0"
+                                         checked={isChecked} 
+                                         onChange={(e) => {
+                                           const ids = formData.songIds || [];
+                                           if (e.target.checked) setFormData({...formData, songIds: [...ids, song.id]});
+                                           else setFormData({...formData, songIds: ids.filter((id: string) => id !== song.id)});
+                                         }}
+                                        />
+                                        <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-surface-dark flex items-center justify-center shrink-0 overflow-hidden">
+                                           {song.coverUrl && song.coverUrl.trim() !== '' ? (
+                                             <img src={song.coverUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                           ) : (
+                                             <Music size={14} className="text-slate-400" />
+                                           )}
+                                        </div>
+                                        <div className="min-w-0">
+                                           <p className="text-xs font-black truncate text-slate-800 dark:text-white">{song.title}</p>
+                                           <p className="text-[10px] text-slate-400 font-bold truncate">{song.artist} • {song.duration || '03:30'}</p>
+                                        </div>
+                                     </div>
+                                     {isChecked && (
+                                       <span className="text-[10px] font-black text-primary px-2 py-0.5 bg-white dark:bg-surface-dark rounded-md shrink-0 shadow-xs">
+                                         ✓ في الألبوم
+                                       </span>
+                                     )}
+                                  </label>
+                                );
+                              })}
+                              {songs.length === 0 && (
+                                <p className="text-[10px] text-slate-400 text-center py-4">لا توجد أغانٍ مسجلة حالياً لاختيارها</p>
+                               )}
+                           </div>
+                        </div>
                      </>
                    ) : (
                      <>

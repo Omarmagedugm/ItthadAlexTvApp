@@ -326,6 +326,7 @@ export interface Album {
   artist: string;
   coverUrl: string;
   year: string;
+  songIds?: string[];
   hidden?: boolean;
 }
 

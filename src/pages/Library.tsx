@@ -154,6 +154,7 @@ export default function Library() {
 
   // Filters
   const [songFilterCategory, setSongFilterCategory] = useState<string>('all');
+  const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
 
   // Scroll refs for horizontal scroll bars
   const mainTabsRef = React.useRef<HTMLDivElement>(null);
@@ -277,10 +278,12 @@ export default function Library() {
     ? (photos.find(p => p.isFeatured) || null) 
     : null;
 
-  const filteredSongs = songs.filter(s => 
-    (s.title?.toLowerCase().includes(searchQuery.toLowerCase()) || s.artist?.toLowerCase().includes(searchQuery.toLowerCase())) &&
-    (songFilterCategory === 'all' || s.category === songFilterCategory)
-  );
+  const filteredSongs = songs.filter(s => {
+    const matchesSearch = (s.title?.toLowerCase().includes(searchQuery.toLowerCase()) || s.artist?.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesCategory = songFilterCategory === 'all' || s.category === songFilterCategory;
+    const matchesAlbum = !selectedAlbumId || s.albumId === selectedAlbumId || albums.find(a => a.id === selectedAlbumId)?.songIds?.includes(s.id);
+    return matchesSearch && matchesCategory && matchesAlbum;
+  });
 
   const filteredBooks = books.filter(b => 
     (b.title?.toLowerCase().includes(searchQuery.toLowerCase()) || b.author?.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -296,6 +299,19 @@ export default function Library() {
       setActivePlaylist(filteredSongs);
       setCurrentSong(song);
       setIsPlaying(true);
+    }
+  };
+
+  const handlePlayAlbum = (e: React.MouseEvent, album: any) => {
+    e.stopPropagation();
+    const albumSongs = songs.filter(s => s.albumId === album.id || album.songIds?.includes(s.id));
+    if (albumSongs.length > 0) {
+      setActivePlaylist(albumSongs);
+      setCurrentSong(albumSongs[0]);
+      setIsPlaying(true);
+      toast.success(`جاري تشغيل ألبوم "${album.title}"`);
+    } else {
+      toast('لا توجد أغانٍ مسجلة في هذا الألبوم بعد');
     }
   };
 
@@ -945,35 +961,46 @@ export default function Library() {
                         ref={albumsRef} 
                         className="flex items-center gap-4 overflow-x-auto no-scrollbar pb-2 px-2 scroll-smooth w-full"
                       >
-                        {albums.map((album) => (
-                          <motion.div 
-                            key={album.id}
-                            whileHover={{ y: -4 }}
-                            className="group bg-white dark:bg-card-dark p-3.5 rounded-3xl border border-border-light dark:border-border-dark shadow-sm hover:shadow-xl transition-all shrink-0 w-44 sm:w-52"
-                          >
-                            <div className="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-slate-100 dark:bg-surface-dark">
-                              {album.coverUrl && album.coverUrl.trim() !== '' ? (
-                                <img 
-                                  src={album.coverUrl} 
-                                  alt={album.title}
-                                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                                  referrerPolicy="no-referrer" 
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <Disc size={40} className="text-slate-300" />
+                        {albums.map((album) => {
+                          const isSelected = selectedAlbumId === album.id;
+                          const albumSongCount = album.songIds?.length || songs.filter(s => s.albumId === album.id).length;
+                          return (
+                            <motion.div 
+                              key={album.id}
+                              whileHover={{ y: -4 }}
+                              onClick={() => setSelectedAlbumId(isSelected ? null : album.id)}
+                              className={`group bg-white dark:bg-card-dark p-3.5 rounded-3xl border shadow-sm hover:shadow-xl transition-all shrink-0 w-44 sm:w-52 cursor-pointer ${
+                                isSelected ? 'border-primary ring-2 ring-primary/30 bg-primary/5 dark:bg-primary/10' : 'border-border-light dark:border-border-dark'
+                              }`}
+                            >
+                              <div className="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-slate-100 dark:bg-surface-dark">
+                                {album.coverUrl && album.coverUrl.trim() !== '' ? (
+                                  <img 
+                                    src={album.coverUrl} 
+                                    alt={album.title}
+                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                    referrerPolicy="no-referrer" 
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Disc size={40} className="text-slate-300" />
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <button 
+                                    onClick={(e) => handlePlayAlbum(e, album)}
+                                    className="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-all hover:scale-105"
+                                    title="تشغيل الألبوم"
+                                  >
+                                    <Play fill="currentColor" size={20} className="mr-0.5" />
+                                  </button>
                                 </div>
-                              )}
-                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <button className="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-all">
-                                  <Play fill="currentColor" size={20} className="mr-0.5" />
-                                </button>
                               </div>
-                            </div>
-                            <h3 className="font-black text-xs md:text-sm truncate text-slate-800 dark:text-white">{album.title}</h3>
-                            <p className="text-[10px] text-slate-400 font-bold">{album.artist} {album.year ? `• ${album.year}` : ''}</p>
-                          </motion.div>
-                        ))}
+                              <h3 className="font-black text-xs md:text-sm truncate text-slate-800 dark:text-white">{album.title}</h3>
+                              <p className="text-[10px] text-slate-400 font-bold">{album.artist} {album.year ? `• ${album.year}` : ''} • {albumSongCount} أغنية</p>
+                            </motion.div>
+                          );
+                        })}
                       </div>
 
                       <button
@@ -989,6 +1016,37 @@ export default function Library() {
 
                 {/* Songs List */}
                 <section>
+                  {/* Selected Album Filter Banner */}
+                  {selectedAlbumId && (
+                    <div className="flex items-center justify-between p-3.5 bg-primary/10 border border-primary/20 rounded-2xl mb-4 animate-in fade-in duration-200">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Disc size={18} className="text-primary shrink-0" />
+                        <span className="text-xs font-black text-slate-800 dark:text-white truncate">
+                          ألبوم: {albums.find(a => a.id === selectedAlbumId)?.title} ({filteredSongs.length} أغنية)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button 
+                          onClick={(e) => {
+                            const alb = albums.find(a => a.id === selectedAlbumId);
+                            if (alb) handlePlayAlbum(e, alb);
+                          }}
+                          className="px-3 py-1 bg-primary text-white rounded-xl text-xs font-black flex items-center gap-1 hover:bg-primary-dark cursor-pointer transition-all"
+                        >
+                          <Play size={12} fill="white" />
+                          <span>تشغيل الألبوم</span>
+                        </button>
+                        <button 
+                          onClick={() => setSelectedAlbumId(null)}
+                          className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg cursor-pointer transition-all"
+                          title="إلغاء التصفية"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                     <h2 className="text-lg font-black flex items-center gap-2 text-slate-800 dark:text-white">
                       <Headphones className="text-primary" size={20} />
@@ -1020,6 +1078,7 @@ export default function Library() {
                     {filteredSongs.map((song, index) => {
                       const isCurrentSong = currentSong?.id === song.id;
                       const isPlayingThis = isCurrentSong && isPlaying;
+                      const songAlbum = albums.find(a => a.id === song.albumId || a.songIds?.includes(song.id));
 
                       return (
                         <motion.div 
@@ -1052,8 +1111,22 @@ export default function Library() {
                           </div>
                           
                           <div className="flex-1 min-w-0">
-                            <h4 className="text-xs md:text-sm font-black truncate text-slate-800 dark:text-white">{song.title}</h4>
-                            <p className="text-[10px] text-slate-400 font-bold truncate mt-0.5">{song.artist}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="text-xs md:text-sm font-black truncate text-slate-800 dark:text-white">{song.title}</h4>
+                              {songAlbum && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedAlbumId(songAlbum.id);
+                                  }}
+                                  className="text-[9px] font-black px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:underline shrink-0"
+                                  title="تصفية حسب الألبوم"
+                                >
+                                  ألبوم: {songAlbum.title}
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-bold truncate mt-0.5">{song.artist} • {song.category === 'song' ? 'أغنية' : 'تسجيل صوتي'}</p>
                           </div>
 
                           <div className="flex items-center gap-2 md:gap-4 px-2">

@@ -626,6 +626,7 @@
         "id": { "type": "string" },
         "title": { "type": "string" },
         "artist": { "type": "string" },
+        "albumId": { "type": "string" },
         "audioUrl": { "type": "string" },
         "coverUrl": { "type": "string" },
         "duration": { "type": "string" },
@@ -644,6 +645,7 @@
         "artist": { "type": "string" },
         "coverUrl": { "type": "string" },
         "year": { "type": "string" },
+        "songIds": { "type": "array", "items": { "type": "string" } },
         "hidden": { "type": "boolean" }
       }
     },
