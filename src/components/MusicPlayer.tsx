@@ -128,8 +128,8 @@ export default function MusicPlayer() {
         exit={{ y: 100, opacity: 0 }}
         className={`fixed z-[100] transition-all duration-300 ${
           expanded 
-            ? 'inset-0 bg-background-light dark:bg-background-dark md:inset-auto md:bottom-6 md:left-6 md:right-auto md:w-[350px] md:h-[500px] md:rounded-[32px] md:border md:border-border-light md:dark:border-border-dark md:shadow-2xl' 
-            : 'bottom-[120px] left-4 right-4 md:left-auto md:right-6 md:bottom-6 md:w-[350px] h-[72px]'
+            ? 'inset-0 bg-background-light dark:bg-background-dark md:inset-auto md:bottom-6 md:left-6 md:right-auto md:w-[380px] md:h-[560px] md:rounded-[32px] md:border md:border-emerald-500/20 md:shadow-2xl' 
+            : 'bottom-[110px] left-3.5 right-3.5 md:left-auto md:right-6 md:bottom-6 md:w-[370px] h-[78px]'
         }`}
       >
         <audio 
@@ -153,48 +153,90 @@ export default function MusicPlayer() {
           }}
         />
 
-        {/* Minimized View */}
+        {/* Minimized Floating Widget */}
         {!expanded && (
           <div 
             onClick={() => setExpanded(true)}
-            className="w-full h-full bg-white/95 dark:bg-card-dark/95 backdrop-blur-md rounded-3xl border border-border-light dark:border-border-dark shadow-xl shadow-primary/10 overflow-hidden flex flex-col cursor-pointer hover:border-primary/30 transition-colors"
+            className="w-full h-full bg-slate-900 text-white border-slate-700 shadow-[0_12px_32px_rgba(0,0,0,0.35)] dark:bg-white dark:text-slate-900 dark:border-emerald-500/30 dark:shadow-[0_12px_32px_rgba(0,0,0,0.25),0_0_20px_rgba(16,185,129,0.2)] rounded-2xl md:rounded-3xl border-2 backdrop-blur-xl overflow-hidden flex flex-col cursor-pointer transition-all group"
           >
-            <div className="flex-1 flex items-center px-3 gap-3">
-              <div className="relative w-12 h-12 rounded-[14px] overflow-hidden shrink-0 shadow-md">
+            <div className="flex-1 flex items-center px-3 gap-2 sm:gap-3">
+              {/* Cover Art with subtle animation */}
+              <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden shrink-0 shadow-md border border-emerald-500/40">
                 {currentSong.coverUrl && currentSong.coverUrl.trim() !== '' ? (
-                  <img src={currentSong.coverUrl} className={`w-full h-full object-cover ${isPlaying ? 'animate-spin-slow' : ''}`} referrerPolicy="no-referrer" />
+                  <img 
+                    src={currentSong.coverUrl} 
+                    className={`w-full h-full object-cover ${isPlaying ? 'animate-spin-slow scale-105' : ''}`} 
+                    referrerPolicy="no-referrer" 
+                    alt={currentSong.title}
+                  />
                 ) : (
-                  <div className="w-full h-full bg-slate-100 dark:bg-surface-dark flex items-center justify-center">
-                    <Music className="text-slate-400" size={20} />
+                  <div className="w-full h-full bg-emerald-900 dark:bg-emerald-100 flex items-center justify-center text-emerald-300 dark:text-primary">
+                    <Music size={20} />
+                  </div>
+                )}
+                {isPlaying && (
+                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                   </div>
                 )}
               </div>
               
+              {/* Song Title & Artist */}
               <div className="min-w-0 flex-1">
-                <h4 className="text-xs font-black truncate text-primary-dark dark:text-white">{error || currentSong.title}</h4>
-                <p className={`text-[10px] font-bold truncate ${error ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'}`}>
+                <h4 className="text-xs font-black truncate text-white dark:text-emerald-700 transition-colors">
+                  {error || currentSong.title}
+                </h4>
+                <p className={`text-[11px] font-bold truncate mt-0.5 ${error ? 'text-red-400 dark:text-red-600' : 'text-emerald-300 dark:text-emerald-600'}`}>
                   {error ? 'خطأ التشغيل' : currentSong.artist}
                 </p>
               </div>
 
+              {/* Controls */}
               <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                {/* Previous Button */}
+                <button 
+                  onClick={handlePrevious}
+                  className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 dark:text-slate-600 dark:hover:text-emerald-700 dark:hover:bg-emerald-50 rounded-lg transition-all cursor-pointer"
+                  title="السابق"
+                >
+                  <SkipBack size={16} fill="currentColor" />
+                </button>
+
+                {/* Play / Pause Button */}
                 <button 
                   onClick={() => setIsPlaying(!isPlaying)}
-                  className="w-10 h-10 bg-primary/10 text-primary dark:bg-primary/20 hover:bg-primary hover:text-white rounded-xl flex items-center justify-center transition-all"
+                  className="w-9 h-9 sm:w-10 sm:h-10 bg-emerald-500 hover:bg-emerald-400 text-slate-950 dark:bg-emerald-600 dark:hover:bg-emerald-500 dark:text-white hover:scale-105 active:scale-95 rounded-xl flex items-center justify-center shadow-md shadow-emerald-500/30 transition-all cursor-pointer font-black"
+                  title={isPlaying ? "إيقاف مؤقت" : "تشغيل"}
                 >
                   {isPlaying ? <Pause fill="currentColor" size={16} /> : <Play fill="currentColor" size={16} className="ml-0.5" />}
                 </button>
+
+                {/* Next Button */}
+                <button 
+                  onClick={handleNext}
+                  className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 dark:text-slate-600 dark:hover:text-emerald-700 dark:hover:bg-emerald-50 rounded-lg transition-all cursor-pointer"
+                  title="التالي"
+                >
+                  <SkipForward size={16} fill="currentColor" />
+                </button>
+
+                {/* Close Button */}
                 <button 
                   onClick={(e) => { e.stopPropagation(); setCurrentSong(null); }}
-                  className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 rounded-lg"
+                  className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-400 hover:bg-white/10 dark:text-slate-400 dark:hover:text-red-500 dark:hover:bg-slate-100 rounded-lg transition-all cursor-pointer mr-0.5"
+                  title="إغلاق"
                 >
-                  <X size={18} />
+                  <X size={16} />
                 </button>
               </div>
             </div>
+
             {/* Miniature Progress Bar */}
-            <div className="h-1 bg-slate-100 dark:bg-surface-dark w-full">
-               <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
+            <div className="h-1 bg-black/40 dark:bg-slate-100 w-full overflow-hidden">
+               <div 
+                 className="h-full bg-gradient-to-r from-emerald-500 to-green-400 dark:from-emerald-600 dark:to-emerald-400 transition-all duration-300" 
+                 style={{ width: `${progress}%` }} 
+               />
             </div>
           </div>
         )}
@@ -202,39 +244,52 @@ export default function MusicPlayer() {
         {/* Expanded View */}
         {expanded && (
           <div className="w-full h-full flex flex-col bg-white dark:bg-card-dark md:rounded-[32px] overflow-hidden relative">
-            {/* Header */}
-            <div className="flex flex-row items-center justify-between p-6">
-              <button onClick={() => setExpanded(false)} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
-                <ChevronDown size={24} />
+            {/* Header: Safe padding on mobile to clear the camera notch and dynamic island */}
+            <div className="flex flex-row items-center justify-between pt-14 sm:pt-16 md:pt-6 px-6 pb-4 border-b border-border-light/60 dark:border-border-dark/60">
+              <button 
+                onClick={() => setExpanded(false)} 
+                className="w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-200 bg-slate-100 dark:bg-surface-dark hover:bg-slate-200 dark:hover:bg-emerald-950/80 rounded-full active:scale-90 transition-all shadow-xs cursor-pointer"
+                title="تصغير"
+              >
+                <ChevronDown size={22} />
               </button>
-              <span className="text-xs font-black text-slate-500 uppercase tracking-widest text-center">مشغل الموسيقى</span>
-              <button onClick={() => setCurrentSong(null)} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
-                <X size={24} />
+
+              <div className="flex flex-col items-center">
+                <span className="text-[11px] font-black text-primary uppercase tracking-wider">مشغل الصوت</span>
+                <span className="text-[9px] text-slate-400 font-bold">قناة الاتحاد</span>
+              </div>
+
+              <button 
+                onClick={() => { setExpanded(false); setCurrentSong(null); }} 
+                className="w-10 h-10 flex items-center justify-center text-slate-600 dark:text-slate-200 bg-slate-100 dark:bg-surface-dark hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-500 rounded-full active:scale-90 transition-all shadow-xs cursor-pointer"
+                title="إغلاق المشغل"
+              >
+                <X size={22} />
               </button>
             </div>
 
             {/* Artwork */}
-            <div className="flex-1 flex items-center justify-center px-8 relative">
-               <div className={`relative w-full max-w-[300px] aspect-square rounded-[40px] overflow-hidden shadow-2xl shadow-primary/20 transition-all duration-700 ${isPlaying ? 'scale-100' : 'scale-90 opacity-90'}`}>
+            <div className="flex-1 flex items-center justify-center px-8 py-4 relative">
+               <div className={`relative w-full max-w-[280px] aspect-square rounded-[36px] overflow-hidden shadow-2xl shadow-primary/20 border-2 border-primary/20 transition-all duration-700 ${isPlaying ? 'scale-100' : 'scale-90 opacity-90'}`}>
                  {currentSong.coverUrl && currentSong.coverUrl.trim() !== '' ? (
-                    <img src={currentSong.coverUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <img src={currentSong.coverUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" alt={currentSong.title} />
                   ) : (
-                    <div className="w-full h-full bg-slate-100 dark:bg-surface-dark flex items-center justify-center">
-                      <Music className="text-slate-300" size={64} />
+                    <div className="w-full h-full bg-gradient-to-br from-emerald-900 to-emerald-950 flex items-center justify-center">
+                      <Music className="text-emerald-400" size={64} />
                     </div>
                   )}
                </div>
             </div>
 
             {/* Info & Controls */}
-            <div className="p-8 pb-10">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-black text-primary-dark dark:text-white truncate mb-1">{error || currentSong.title}</h2>
-                <p className={`text-sm font-bold ${error ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'}`}>{currentSong.artist}</p>
+            <div className="p-6 md:p-8 pb-10">
+              <div className="text-center mb-6">
+                <h2 className="text-xl md:text-2xl font-black text-slate-800 dark:text-white truncate mb-1">{error || currentSong.title}</h2>
+                <p className={`text-xs md:text-sm font-bold ${error ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'}`}>{currentSong.artist}</p>
               </div>
 
               {/* Progress */}
-              <div className="mb-8">
+              <div className="mb-6">
                 <div className="relative h-2 group w-full flex items-center">
                   <input 
                     type="range" 
@@ -244,13 +299,13 @@ export default function MusicPlayer() {
                     onChange={handleProgressChange}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
-                  <div className="w-full h-1.5 bg-slate-100 dark:bg-surface-dark rounded-full overflow-hidden">
-                    <div className="h-full bg-primary relative" style={{ width: `${progress}%` }} />
+                  <div className="w-full h-2 bg-slate-100 dark:bg-surface-dark rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-primary to-emerald-400 relative rounded-full" style={{ width: `${progress}%` }} />
                   </div>
                   {/* Thumb */}
                   <div 
-                    className="absolute h-3 w-3 bg-white border-2 border-primary rounded-full shadow pointer-events-none group-hover:scale-125 transition-transform"
-                    style={{ left: `${progress}%`, marginLeft: '-6px' }}
+                    className="absolute h-3.5 w-3.5 bg-white border-2 border-primary rounded-full shadow-md pointer-events-none group-hover:scale-125 transition-transform"
+                    style={{ left: `${progress}%`, marginLeft: '-7px' }}
                   />
                 </div>
                 <div className="flex justify-between items-center mt-2 px-1">
@@ -260,36 +315,36 @@ export default function MusicPlayer() {
               </div>
 
               {/* Main Buttons */}
-              <div className="flex items-center justify-between mb-6">
-                <button onClick={() => setShuffle(!shuffle)} className={`p-3 rounded-full transition-colors ${shuffle ? 'text-primary bg-primary/10' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+              <div className="flex items-center justify-between mb-4">
+                <button onClick={() => setShuffle(!shuffle)} className={`p-3 rounded-full transition-colors cursor-pointer ${shuffle ? 'text-primary bg-primary/10' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                   <Shuffle size={20} />
                 </button>
                 
                 <div className="flex items-center gap-4">
-                  <button onClick={handlePrevious} className="p-4 text-primary-dark dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                  <button onClick={handlePrevious} className="p-4 text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors cursor-pointer">
                     <SkipBack size={24} fill="currentColor" />
                   </button>
                   
                   <button 
                     onClick={() => setIsPlaying(!isPlaying)}
-                    className="w-20 h-20 bg-primary text-white rounded-[28px] flex items-center justify-center shadow-xl shadow-primary/30 transform active:scale-95 transition-all hover:scale-105"
+                    className="w-18 h-18 bg-primary hover:bg-primary-dark text-white rounded-3xl flex items-center justify-center shadow-xl shadow-primary/30 transform active:scale-95 transition-all hover:scale-105 cursor-pointer"
                   >
-                    {isPlaying ? <Pause fill="white" size={32} /> : <Play fill="white" size={32} className="ml-1" />}
+                    {isPlaying ? <Pause fill="white" size={30} /> : <Play fill="white" size={30} className="ml-1" />}
                   </button>
                   
-                  <button onClick={handleNext} className="p-4 text-primary-dark dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                  <button onClick={handleNext} className="p-4 text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors cursor-pointer">
                     <SkipForward size={24} fill="currentColor" />
                   </button>
                 </div>
 
-                <button onClick={() => setRepeat(!repeat)} className={`p-3 rounded-full transition-colors ${repeat ? 'text-primary bg-primary/10' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                <button onClick={() => setRepeat(!repeat)} className={`p-3 rounded-full transition-colors cursor-pointer ${repeat ? 'text-primary bg-primary/10' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                   <Repeat size={20} />
                 </button>
               </div>
               
               {/* Volume (Desktop Only) */}
               <div className="hidden md:flex items-center gap-3 max-w-[200px] mx-auto opacity-70 hover:opacity-100 transition-opacity">
-                 <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-primary transition-colors">
+                 <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-primary transition-colors cursor-pointer">
                    {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
                  </button>
                  <input 
