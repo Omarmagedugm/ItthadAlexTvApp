@@ -349,7 +349,7 @@ export default function Library() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-background-dark pb-32">
+    <div className="min-h-screen bg-slate-50 dark:bg-background-dark pb-32 overflow-x-hidden w-full max-w-full touch-pan-y">
       {/* Header Banner */}
       <div className="relative h-[260px] md:h-[300px] overflow-hidden bg-primary">
         {appSettings?.libraryBanner ? (
@@ -459,7 +459,7 @@ export default function Library() {
               },
               { 
                 id: 'songs', 
-                label: 'الأغاني والأناشيد', 
+                label: 'الأغاني', 
                 desc: 'الأغاني والتسجيلات الصوتية', 
                 icon: Music, 
                 badge: `${songs.length} صوتيات`,
@@ -929,14 +929,14 @@ export default function Library() {
               </motion.div>
             )}
 
-            {/* ---------------- 3. SONGS & ANTHEMS TAB ---------------- */}
+            {/* ---------------- 3. SONGS TAB ---------------- */}
             {activeTab === 'songs' && (
               <motion.div
                 key="songs-tab"
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -15 }}
-                className="space-y-10"
+                className="space-y-10 overflow-x-hidden w-full max-w-full touch-pan-y"
               >
                 {/* Official Albums */}
                 {albums.length > 0 && (
@@ -1050,7 +1050,7 @@ export default function Library() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                     <h2 className="text-lg font-black flex items-center gap-2 text-slate-800 dark:text-white">
                       <Headphones className="text-primary" size={20} />
-                      <span>قائمة الأغاني والأناشيد</span>
+                      <span>قائمة الأغاني</span>
                     </h2>
 
                     <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
@@ -1074,11 +1074,16 @@ export default function Library() {
                     </div>
                   </div>
                   
-                  <div className="grid gap-3">
+                  <div className="grid gap-3 overflow-x-hidden w-full">
                     {filteredSongs.map((song, index) => {
                       const isCurrentSong = currentSong?.id === song.id;
                       const isPlayingThis = isCurrentSong && isPlaying;
-                      const songAlbum = albums.find(a => a.id === song.albumId || a.songIds?.includes(song.id));
+                      const songAlbum = albums.find(a => 
+                        (song.albumId && String(a.id) === String(song.albumId)) || 
+                        (Array.isArray(a.songIds) && a.songIds.map(String).includes(String(song.id))) ||
+                        ((song as any).album && a.title === (song as any).album)
+                      );
+                      const songAlbumTitle = songAlbum?.title || (song as any).album || (song as any).albumTitle;
 
                       return (
                         <motion.div 
@@ -1113,16 +1118,17 @@ export default function Library() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <h4 className="text-xs md:text-sm font-black truncate text-slate-800 dark:text-white">{song.title}</h4>
-                              {songAlbum && (
+                              {songAlbumTitle && (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setSelectedAlbumId(songAlbum.id);
+                                    if (songAlbum) setSelectedAlbumId(songAlbum.id);
                                   }}
-                                  className="text-[9px] font-black px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:underline shrink-0"
+                                  className="text-[9px] font-black px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:underline shrink-0 flex items-center gap-1"
                                   title="تصفية حسب الألبوم"
                                 >
-                                  ألبوم: {songAlbum.title}
+                                  <Disc size={10} />
+                                  <span>ألبوم: {songAlbumTitle}</span>
                                 </button>
                               )}
                             </div>
@@ -1147,15 +1153,6 @@ export default function Library() {
                               {isPlayingThis ? <Pause size={14} /> : <Play size={14} />}
                               <span className="hidden sm:inline">{isPlayingThis ? 'إيقاف' : 'تشغيل'}</span>
                             </button>
-                            {song.audioUrl && (
-                              <button 
-                                onClick={() => handleDownload(song.audioUrl, `${song.title}.mp3`)}
-                                className="p-2 text-slate-400 hover:text-primary transition-all rounded-lg hover:bg-slate-100 dark:hover:bg-surface-dark"
-                                title="تحميل Song"
-                              >
-                                <Download size={16} />
-                              </button>
-                            )}
                           </div>
                         </motion.div>
                       );

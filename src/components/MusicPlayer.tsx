@@ -12,7 +12,8 @@ import {
   ChevronUp,
   Repeat,
   Shuffle,
-  Music
+  Music,
+  Disc
 } from 'lucide-react';
 import { useAppStore } from '../store';
 
@@ -24,7 +25,7 @@ const formatTime = (time: number) => {
 };
 
 export default function MusicPlayer() {
-  const { currentSong, isPlaying, setIsPlaying, setCurrentSong, activePlaylist } = useAppStore();
+  const { currentSong, isPlaying, setIsPlaying, setCurrentSong, activePlaylist, albums } = useAppStore();
   const [volume, setVolume] = useState(0.5);
   const [isMuted, setIsMuted] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -60,6 +61,144 @@ export default function MusicPlayer() {
     setCurrentSong(activePlaylist[prevIndex]);
     setIsPlaying(true);
   };
+
+  // Find album title for the current song
+  const specificAlbumName = React.useMemo(() => {
+    if (!currentSong) return '';
+    if (currentSong.albumId && Array.isArray(albums)) {
+      const found = albums.find(a => String(a.id) === String(currentSong.albumId));
+      if (found?.title) return found.title;
+    }
+    if (Array.isArray(albums)) {
+      const foundBySong = albums.find(a => a.songIds?.map(String).includes(String(currentSong.id)));
+      if (foundBySong?.title) return foundBySong.title;
+    }
+    if ((currentSong as any).album && typeof (currentSong as any).album === 'string') {
+      return (currentSong as any).album;
+    }
+    if ((currentSong as any).albumTitle && typeof (currentSong as any).albumTitle === 'string') {
+      return (currentSong as any).albumTitle;
+    }
+    return '';
+  }, [currentSong, albums]);
+
+  const currentAlbumTitle = specificAlbumName || 'أغاني الاتحاد السكندري';
+
+  // Keep refs for actions to avoid stale closures in mediaSession action handlers
+  const handleNextRef = useRef(handleNext);
+  handleNextRef.current = handleNext;
+  const handlePreviousRef = useRef(handlePrevious);
+  handlePreviousRef.current = handlePrevious;
+
+  // Media Session Metadata updates
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !currentSong) return;
+
+    try {
+      const artworkSrc = (currentSong.coverUrl && currentSong.coverUrl.trim() !== '')
+        ? currentSong.coverUrl
+        : `${window.location.origin}/icon.png`;
+
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentSong.title || 'أغنية الاتحاد',
+        artist: currentSong.artist || 'نادي الاتحاد السكندري',
+        album: currentAlbumTitle,
+        artwork: [
+          { src: artworkSrc, sizes: '96x96' },
+          { src: artworkSrc, sizes: '128x128' },
+          { src: artworkSrc, sizes: '192x192' },
+          { src: artworkSrc, sizes: '256x256' },
+          { src: artworkSrc, sizes: '384x384' },
+          { src: artworkSrc, sizes: '512x512' },
+        ]
+      });
+    } catch (err) {
+      console.warn('Error setting MediaMetadata:', err);
+    }
+  }, [currentSong, currentAlbumTitle]);
+
+  // Handle Playback state in Media Session
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    try {
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+    } catch (e) {}
+  }, [isPlaying]);
+
+  // Handle Position state in Media Session for lock screen scrub bar
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !audioRef.current) return;
+    if (typeof navigator.mediaSession.setPositionState === 'function') {
+      try {
+        if (duration && !isNaN(duration) && isFinite(duration) && duration > 0) {
+          navigator.mediaSession.setPositionState({
+            duration: duration,
+            playbackRate: audioRef.current.playbackRate || 1,
+            position: Math.min(Math.max(currentTime, 0), duration)
+          });
+        }
+      } catch (e) {}
+    }
+  }, [currentTime, duration]);
+
+  // Register Media Session Action Handlers
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+
+    const actionHandlers: [MediaSessionAction, MediaSessionActionHandler][] = [
+      ['play', () => {
+        setIsPlaying(true);
+        audioRef.current?.play().catch(() => {});
+      }],
+      ['pause', () => {
+        setIsPlaying(false);
+        audioRef.current?.pause();
+      }],
+      ['previoustrack', () => {
+        handlePreviousRef.current();
+      }],
+      ['nexttrack', () => {
+        handleNextRef.current();
+      }],
+      ['seekbackward', (details) => {
+        if (audioRef.current) {
+          const skipTime = details.seekOffset || 10;
+          audioRef.current.currentTime = Math.max(audioRef.current.currentTime - skipTime, 0);
+        }
+      }],
+      ['seekforward', (details) => {
+        if (audioRef.current) {
+          const skipTime = details.seekOffset || 10;
+          audioRef.current.currentTime = Math.min(audioRef.current.currentTime + skipTime, audioRef.current.duration || 0);
+        }
+      }],
+      ['seekto', (details) => {
+        if (audioRef.current && details.seekTime !== undefined && !details.fastSeek) {
+          audioRef.current.currentTime = details.seekTime;
+        }
+      }],
+      ['stop', () => {
+        setIsPlaying(false);
+        audioRef.current?.pause();
+      }]
+    ];
+
+    actionHandlers.forEach(([action, handler]) => {
+      try {
+        navigator.mediaSession.setActionHandler(action, handler);
+      } catch (e) {
+        // Some browsers may not support specific actions like seekto
+      }
+    });
+
+    return () => {
+      actionHandlers.forEach(([action]) => {
+        try {
+          navigator.mediaSession.setActionHandler(action, null);
+        } catch (e) {}
+      });
+    };
+  }, [setIsPlaying]);
 
   useEffect(() => {
     if (audioRef.current && currentSong?.audioUrl) {
@@ -187,7 +326,7 @@ export default function MusicPlayer() {
                   {error || currentSong.title}
                 </h4>
                 <p className={`text-[11px] font-bold truncate mt-0.5 ${error ? 'text-red-400 dark:text-red-600' : 'text-emerald-300 dark:text-emerald-600'}`}>
-                  {error ? 'خطأ التشغيل' : currentSong.artist}
+                  {error ? 'خطأ التشغيل' : `${currentSong.artist}${specificAlbumName ? ` • ${specificAlbumName}` : ''}`}
                 </p>
               </div>
 
@@ -284,8 +423,16 @@ export default function MusicPlayer() {
             {/* Info & Controls */}
             <div className="p-6 md:p-8 pb-10">
               <div className="text-center mb-6">
-                <h2 className="text-xl md:text-2xl font-black text-slate-800 dark:text-white truncate mb-1">{error || currentSong.title}</h2>
-                <p className={`text-xs md:text-sm font-bold ${error ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'}`}>{currentSong.artist}</p>
+                <h2 className="text-xl md:text-2xl font-black text-slate-800 dark:text-white truncate mb-1.5">{error || currentSong.title}</h2>
+                <div className="flex items-center justify-center gap-2 flex-wrap">
+                  <p className={`text-xs md:text-sm font-bold ${error ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'}`}>{currentSong.artist}</p>
+                  {specificAlbumName && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-black border border-emerald-500/20">
+                      <Disc size={12} />
+                      <span>ألبوم: {specificAlbumName}</span>
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Progress */}
