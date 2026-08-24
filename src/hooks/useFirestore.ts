@@ -1,14 +1,13 @@
 import { useEffect, useRef } from 'react';
-import { collection, onSnapshot, query, orderBy, doc, limit, updateDoc, where, getDocs, getDoc, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, limit, updateDoc, where, getDocs, getDoc } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAppStore } from '../store';
 import { defaultWorldCountries } from '../data/defaultWorldFansData';
-import { DEFAULT_MEDIA_ITEMS, DEFAULT_MEDIA_PLAYLISTS } from '../data/defaultMediaData';
 
 export function useFirestoreSync() {
   const { 
     setNews, setMedia, setMatches, setClubs, setPolls, setPredictions, setFanPosts,
-    setUsers, setSettings, setAiConfig, updateLiveStream, updateLiveStreams, updateProfile, setCityInfo, setAds, setCustomPages,
+    setUsers, setSettings, setAiConfig, updateLiveStreams, updateProfile, setCityInfo, setAds, setCustomPages,
     setNewsCategories, setNewsTags, setHomeSections, setSidebarMenuItems, setProducts, setSongs, setAlbums, setPlaylists, setMediaPlaylists, setBooks,
     setClubStats, setClubTitles, setHistoryEvents, setStadiums, setDataLoaded, setOrders,
     setClubCommittees, setClubAnnouncements, setClubServices, setClubTrips, setClubMembersSettings, setMemberDiscounts,
@@ -17,10 +16,11 @@ export function useFirestoreSync() {
     setAuditLogs
   } = useAppStore();
 
-  const isFetchedRef = useRef(false);
+  const isInitialFetchDoneRef = useRef(false);
 
   useEffect(() => {
-    let unsubs: (() => void)[] = [];
+    let isMounted = true;
+    const unsubs: (() => void)[] = [];
 
     const subscribeSnapshot = (
       docOrQuery: any, 
@@ -32,6 +32,7 @@ export function useFirestoreSync() {
         const unsub = onSnapshot(
           docOrQuery, 
           (snap) => {
+            if (!isMounted) return;
             try {
               onNext(snap);
             } catch (e) {
@@ -39,7 +40,9 @@ export function useFirestoreSync() {
             }
           }, 
           (err) => {
-            handleFirestoreError(err, op, path);
+            if (err?.code !== 'permission-denied') {
+              handleFirestoreError(err, op, path);
+            }
             setDataLoaded(true);
           }
         );
@@ -51,20 +54,10 @@ export function useFirestoreSync() {
       }
     };
 
-    // Optimized Real-time Sync: Strictly limit to dynamic & live content
+    // 1. Essential Dynamic Listeners ONLY (Matches, News, Live Settings, Interactive Posts)
+    // Avoid blanket listeners on static collections to protect Firestore read quota
     const setupRealtimeSync = () => {
-      const unsubProfile = (uid: string) => subscribeSnapshot(doc(db, 'users', uid), (docSnap) => {
-        if (docSnap.exists()) {
-          const userData = docSnap.data() as any;
-          updateProfile({ ...userData, uid });
-          
-          const email = auth.currentUser?.email?.toLowerCase();
-          if ((email === 'copyrightofficialco@gmail.com' || email === 'omarmagedugm@ittihad.club') && userData.role !== 'admin') {
-            updateDoc(doc(db, 'users', uid), { role: 'admin' }).catch(() => {});
-          }
-        }
-      }, `users/${uid}`, OperationType.GET);
-
+      // Live Stream Configs (Single Document reads)
       const unsubLiveFootball = subscribeSnapshot(doc(db, 'settings', 'liveStream'), (snap) => {
         if (snap.exists()) updateLiveStreams({ football: snap.data() as any });
       }, 'settings/liveStream', OperationType.GET);
@@ -77,38 +70,7 @@ export function useFirestoreSync() {
         if (snap.exists()) updateLiveStreams({ programs: snap.data() as any });
       }, 'settings/liveStream_programs', OperationType.GET);
 
-      // Real-time synchronization for Matches and News from Firestore
-      const unsubMatches = subscribeSnapshot(query(collection(db, 'matches'), orderBy('date', 'desc'), limit(50)), (snap) => {
-        const data = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        setMatches(data as any);
-      }, 'matches');
-
-      const unsubNews = subscribeSnapshot(query(collection(db, 'news'), orderBy('date', 'desc'), limit(50)), (snap) => {
-        const data = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        setNews(data as any);
-      }, 'news');
-
-      const unsubMedia = subscribeSnapshot(query(collection(db, 'media'), orderBy('date', 'desc'), limit(150)), (snap) => {
-        const data = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        if (data.length > 0) {
-          setMedia(data as any);
-        } else {
-          // If media collection is empty or deleted, restore default media photos and videos
-          setMedia(DEFAULT_MEDIA_ITEMS);
-          import('firebase/firestore').then(({ setDoc, doc }) => {
-            DEFAULT_MEDIA_ITEMS.forEach(item => {
-              setDoc(doc(db, 'media', item.id), item, { merge: true }).catch(() => {});
-            });
-          });
-        }
-      }, 'media');
-
-      // Audit Logs & Recycle Bin (سجل نشاط المشرفين وسلة المحذوفات)
-      const unsubAuditLogs = subscribeSnapshot(query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'), limit(150)), (snap) => {
-        const data = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        setAuditLogs(data as any);
-      }, 'audit_logs');
-
+      // Home layout & settings
       const unsubLayout = subscribeSnapshot(doc(db, 'settings', 'homeLayout'), (snap) => {
         if (snap.exists()) {
           const data = snap.data();
@@ -123,204 +85,92 @@ export function useFirestoreSync() {
         }
       }, 'settings/homeLayout', OperationType.GET);
 
-      // Realtime listeners strictly for frequently changing social/interactive and core member data
-      unsubs.push(subscribeSnapshot(query(collection(db, 'fan_posts'), orderBy('createdAt', 'desc'), limit(50)), s => setFanPosts(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'fan_posts'));
-      unsubs.push(subscribeSnapshot(query(collection(db, 'polls'), orderBy('createdAt', 'desc'), limit(15)), s => setPolls(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'polls'));
-      unsubs.push(subscribeSnapshot(query(collection(db, 'predictions'), orderBy('createdAt', 'desc'), limit(50)), s => setPredictions(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'predictions'));
-      
-      // Music, Audio, Albums, Playlists & Books Realtime Sync
-      unsubs.push(subscribeSnapshot(collection(db, 'songs'), s => setSongs(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'songs'));
-      unsubs.push(subscribeSnapshot(collection(db, 'albums'), s => setAlbums(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'albums'));
-      unsubs.push(subscribeSnapshot(collection(db, 'playlists'), s => setPlaylists(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'playlists'));
-      unsubs.push(subscribeSnapshot(collection(db, 'books'), s => setBooks(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'books'));
-      unsubs.push(subscribeSnapshot(collection(db, 'media_playlists'), s => setMediaPlaylists(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'media_playlists'));
-
-      unsubs.push(unsubLiveFootball, unsubLiveBasketball, unsubMatches, unsubNews, unsubMedia, unsubLayout);
-
-      const unsubNewsCategories = subscribeSnapshot(doc(db, 'settings', 'newsCategories'), (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          if (data && Array.isArray(data.list)) {
-            setNewsCategories(data.list);
-          }
-        }
-      }, 'settings/newsCategories', OperationType.GET);
-
-      const unsubNewsTags = subscribeSnapshot(doc(db, 'settings', 'newsTags'), (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          if (data && Array.isArray(data.tags)) {
-            setNewsTags(data.tags);
-          }
-        }
-      }, 'settings/newsTags', OperationType.GET);
-
-      const unsubSidebarLayout = subscribeSnapshot(doc(db, 'settings', 'sidebar_layout'), (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          if (data && Array.isArray(data.items)) {
-            setSidebarMenuItems(data.items);
-          }
-        }
-      }, 'settings/sidebar_layout', OperationType.GET);
-
       const unsubGlobalSettings = subscribeSnapshot(doc(db, 'settings', 'global'), (snap) => {
         if (snap.exists()) {
           const data = snap.data();
-          if (data) {
-            setSettings({ id: snap.id, ...data });
-          }
+          if (data) setSettings({ id: snap.id, ...data });
         }
       }, 'settings/global', OperationType.GET);
 
-      unsubs.push(unsubNewsCategories, unsubNewsTags, unsubSidebarLayout, unsubGlobalSettings);
+      // Dynamic collections with strict limits
+      const unsubMatches = subscribeSnapshot(
+        query(collection(db, 'matches'), orderBy('date', 'desc'), limit(30)), 
+        (snap) => {
+          setMatches(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+        }, 
+        'matches'
+      );
 
-      // Realtime listeners for Ittihad Business, updates, and reports
-      unsubs.push(subscribeSnapshot(collection(db, 'businesses'), s => {
-        setBusinesses(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
-      }, 'businesses'));
-      unsubs.push(subscribeSnapshot(collection(db, 'business_updates'), s => {
-        setBusinessUpdates(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
-      }, 'business_updates'));
-      unsubs.push(subscribeSnapshot(collection(db, 'business_reports'), s => {
-        setBusinessReports(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
-      }, 'business_reports'));
+      const unsubNews = subscribeSnapshot(
+        query(collection(db, 'news'), orderBy('date', 'desc'), limit(30)), 
+        (snap) => {
+          setNews(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+        }, 
+        'news'
+      );
 
-      // Realtime listeners for World Fans (Groups, Countries, Posts, Events, Help Requests, Applications)
-      unsubs.push(subscribeSnapshot(collection(db, 'world_countries'), s => {
-        const rawData = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        
-        // Clean up old Germany documents if they still exist in Firestore
-        const deDoc = rawData.find(c => c.id === 'de' || c.id === 'germany' || c.code === 'DE' || c.name === 'ألمانيا' || c.nameAr === 'ألمانيا');
-        if (deDoc) {
-          import('firebase/firestore').then(({ deleteDoc }) => {
-            deleteDoc(doc(db, 'world_countries', deDoc.id)).catch(() => {});
-          });
-        }
+      const unsubFanPosts = subscribeSnapshot(
+        query(collection(db, 'fan_posts'), orderBy('createdAt', 'desc'), limit(30)), 
+        (s) => setFanPosts(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any), 
+        'fan_posts'
+      );
 
-        // Use Firestore data merged with defaultWorldCountries to ensure Bahrain and all GCC countries are always present
-        const validCountries = rawData
-          .filter(c => c.id !== 'de' && c.id !== 'germany' && c.code !== 'DE' && c.name !== 'ألمانيا' && c.nameAr !== 'ألمانيا');
+      const unsubPolls = subscribeSnapshot(
+        query(collection(db, 'polls'), orderBy('createdAt', 'desc'), limit(10)), 
+        (s) => setPolls(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any), 
+        'polls'
+      );
 
-        if (validCountries.length === 0) {
-          setWorldCountries(defaultWorldCountries);
-        } else {
-          const merged = [...defaultWorldCountries];
-          validCountries.forEach(vc => {
-            const idx = merged.findIndex(m => m.id === vc.id);
-            if (idx >= 0) {
-              merged[idx] = { ...merged[idx], ...vc };
-            } else {
-              merged.push(vc);
-            }
-          });
-          merged.sort((a, b) => (a.order || 99) - (b.order || 99));
-          setWorldCountries(merged);
-        }
-      }, 'world_countries'));
+      const unsubPredictions = subscribeSnapshot(
+        query(collection(db, 'predictions'), orderBy('createdAt', 'desc'), limit(30)), 
+        (s) => setPredictions(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any), 
+        'predictions'
+      );
 
-      unsubs.push(subscribeSnapshot(collection(db, 'world_groups'), s => {
-        const rawData = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+      unsubs.push(
+        unsubLiveFootball,
+        unsubLiveBasketball,
+        unsubLivePrograms,
+        unsubLayout,
+        unsubGlobalSettings,
+        unsubMatches,
+        unsubNews,
+        unsubFanPosts,
+        unsubPolls,
+        unsubPredictions
+      );
 
-        // Clean up dummy/sample groups if any exist from earlier test seeds
-        const dummyGroupIds = ['group_uae_dubai', 'group_sa_riyadh', 'group_kw_kuwait', 'group_uk_london', 'group_eu_frankfurt', 'group_east_asia_tokyo', 'group_de_berlin', 'group_germany'];
-        const dummyFound = rawData.filter(g => dummyGroupIds.includes(g.id) || g.countryId === 'de' || g.countryName === 'ألمانيا');
-        if (dummyFound.length > 0) {
-          import('firebase/firestore').then(({ deleteDoc }) => {
-            dummyFound.forEach(dg => {
-              deleteDoc(doc(db, 'world_groups', dg.id)).catch(() => {});
-            });
-          });
-        }
-
-        const validGroups = rawData.filter(g => 
-          !dummyGroupIds.includes(g.id) &&
-          g.countryId !== 'de' && 
-          g.countryId !== 'germany' && 
-          g.countryName !== 'ألمانيا'
-        );
-
-        setWorldGroups(validGroups);
-      }, 'world_groups'));
-
-      unsubs.push(subscribeSnapshot(query(collection(db, 'world_posts'), orderBy('createdAt', 'desc'), limit(100)), s => {
-        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        setWorldPosts(data as any);
-      }, 'world_posts'));
-
-      unsubs.push(subscribeSnapshot(query(collection(db, 'world_events'), orderBy('date', 'asc'), limit(50)), s => {
-        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        setWorldEvents(data as any);
-      }, 'world_events'));
-
-      unsubs.push(subscribeSnapshot(query(collection(db, 'world_help_requests'), orderBy('createdAt', 'desc'), limit(50)), s => {
-        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        setWorldHelpRequests(data as any);
-      }, 'world_help_requests'));
-
-      unsubs.push(subscribeSnapshot(collection(db, 'world_applications'), s => {
-        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        setWorldApplications(data as any);
-      }, 'world_applications'));
-
-      // Realtime listeners for Club Members, Stadiums, History and Audit Logs
-      unsubs.push(subscribeSnapshot(collection(db, 'club_services'), s => {
-        setClubServices(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
-      }, 'club_services'));
-
-      unsubs.push(subscribeSnapshot(collection(db, 'club_stadiums'), s => {
-        setStadiums(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
-      }, 'club_stadiums'));
-
-      unsubs.push(subscribeSnapshot(collection(db, 'club_timeline'), s => {
-        setHistoryEvents(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
-      }, 'club_timeline'));
-
-      unsubs.push(subscribeSnapshot(collection(db, 'club_titles'), s => {
-        setClubTitles(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
-      }, 'club_titles'));
-
-      unsubs.push(subscribeSnapshot(collection(db, 'club_stats'), s => {
-        setClubStats(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
-      }, 'club_stats'));
-
-      unsubs.push(subscribeSnapshot(collection(db, 'club_committees'), s => {
-        setClubCommittees(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
-      }, 'club_committees'));
-
-      unsubs.push(subscribeSnapshot(collection(db, 'club_announcements'), s => {
-        setClubAnnouncements(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
-      }, 'club_announcements'));
-
-      unsubs.push(subscribeSnapshot(collection(db, 'club_trips'), s => {
-        setClubTrips(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
-      }, 'club_trips'));
-
-      unsubs.push(subscribeSnapshot(collection(db, 'member_discounts'), s => {
-        setMemberDiscounts(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
-      }, 'member_discounts'));
-
-      // Realtime listener for Custom Pages (الصفحات المخصصة / الإضافية)
-      unsubs.push(subscribeSnapshot(query(collection(db, 'custom_pages'), orderBy('createdAt', 'desc')), s => {
-        const data = s.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        setCustomPages(data as any);
-        try {
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('fs_cache_custom_pages', JSON.stringify({ data, timestamp: Date.now() }));
-          }
-        } catch (e) {}
-      }, 'custom_pages'));
-
+      // User Profile listener (only if logged in)
       const currentUser = auth.currentUser;
       if (currentUser) {
-        unsubs.push(unsubProfile(currentUser.uid));
-        
-        // Activity Update: Throttled to 30 minutes (1800000ms) to cut write operations by 83%
+        const unsubProfile = subscribeSnapshot(
+          doc(db, 'users', currentUser.uid), 
+          (docSnap) => {
+            if (docSnap.exists()) {
+              const userData = docSnap.data() as any;
+              updateProfile({ ...userData, uid: currentUser.uid });
+            }
+          }, 
+          `users/${currentUser.uid}`, 
+          OperationType.GET
+        );
+        unsubs.push(unsubProfile);
+
+        // Orders listener (limited to user's orders)
+        const ordersQuery = query(
+          collection(db, 'orders'), 
+          where('userId', '==', currentUser.uid), 
+          orderBy('createdAt', 'desc'), 
+          limit(20)
+        );
+        unsubs.push(subscribeSnapshot(ordersQuery, (s) => setOrders(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any), 'orders'));
+
+        // Activity timestamp update (strictly throttled to once every 2 hours)
         const lastUpdateKey = `last_active_update_${currentUser.uid}`;
         try {
           const lastUpdate = typeof window !== 'undefined' ? localStorage.getItem(lastUpdateKey) : null;
           const now = Date.now();
-          if (!lastUpdate || now - parseInt(lastUpdate) > 1800000) {
+          if (!lastUpdate || now - parseInt(lastUpdate, 10) > 7200000) {
             updateDoc(doc(db, 'users', currentUser.uid), { lastActive: new Date().toISOString() })
               .then(() => {
                 try {
@@ -329,101 +179,113 @@ export function useFirestoreSync() {
               })
               .catch(() => {});
           }
-        } catch (e) {
-          console.warn('Activity update tracking failed', e);
-        }
-
-        // Conditional Admin / Manager syncs (prevents permission denied errors & saves client quota)
-        setTimeout(() => {
-          const profile = useAppStore.getState().profile;
-          const isOmar = currentUser.email?.toLowerCase() === 'omarmagedugm@ittihad.club';
-          const isDev = currentUser.email?.toLowerCase() === 'copyrightofficialco@gmail.com';
-          const isAdmin = profile?.role === 'admin' || profile?.role === 'moderator' || (profile?.roles && (profile.roles.includes('admin') || profile.roles.includes('moderator'))) || isOmar || isDev;
-          
-          if (isAdmin) {
-            unsubs.push(subscribeSnapshot(query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'), limit(150)), s => {
-              setAuditLogs(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
-            }, 'audit_logs'));
-            unsubs.push(subscribeSnapshot(collection(db, 'users'), s => {
-              setUsers(s.docs.map(d => ({ id: d.id, uid: d.id, ...(d.data() as any) })) as any);
-            }, 'users'));
-          }
-
-          const ordersQuery = isAdmin 
-            ? query(collection(db, 'orders'), orderBy('createdAt', 'desc'))
-            : query(collection(db, 'orders'), where('userId', '==', currentUser.uid), orderBy('createdAt', 'desc'), limit(50));
-            
-          unsubs.push(subscribeSnapshot(ordersQuery, (s) => setOrders(s.docs.map(d => ({id: d.id, ...(d.data() as any)})) as any), 'orders'));
-        }, 1500);
+        } catch (e) {}
       }
     };
 
     setupRealtimeSync();
 
-    const dataLoadTimeout = setTimeout(() => {
-      if (!isFetchedRef.current) {
-        console.warn('Initial data load taking too long (6s), forcing ready state');
-        setDataLoaded(true);
-      }
-    }, 6000);
-
-    // Static Reference Data Fetching directly from Firestore
+    // 2. Fetch Reference / Static Data ONCE (getDocs with limits, no realtime subscription loops)
     const fetchStaticData = async () => {
-      // Purge any legacy localStorage caches
-      try {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('ittihad-app-storage');
-          localStorage.removeItem('ittihad-app-storage-v2');
-          Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('fs_cache_')) {
-              localStorage.removeItem(key);
-            }
-          });
-        }
-      } catch (e) {}
+      if (isInitialFetchDoneRef.current) return;
 
       const fetchCol = async (col: string, setter: (d: any) => void, q?: any) => {
         try {
-          const s = await getDocs(q || collection(db, col));
+          const s = await getDocs(q || query(collection(db, col), limit(100)));
+          if (!isMounted) return;
           const data = s.docs.map(d => ({ id: d.id, uid: d.id, ...(d.data() as any) }));
-          if (data !== undefined && data !== null) setter(data);
-        } catch (e) { console.warn(`Fetch ${col} failed`, e); }
+          if (data) setter(data);
+        } catch (e) {
+          console.warn(`Fetch ${col} failed`, e);
+        }
       };
 
       const fetchDocItem = async (path: string, setter: (d: any) => void) => {
         try {
           const parts = path.split('/');
           const s = await getDoc(doc(db, parts[0], parts[1]));
+          if (!isMounted) return;
           if (s.exists()) {
             setter({ id: s.id, ...(s.data() as any) });
           }
-        } catch (e) { console.warn(`Fetch doc ${path} failed`, e); }
+        } catch (e) {
+          console.warn(`Fetch doc ${path} failed`, e);
+        }
       };
 
-      await Promise.allSettled([
-        fetchDocItem('settings/global', setSettings),
-        fetchDocItem('settings/ai_config', setAiConfig),
-        fetchDocItem('city_info/alexandria', setCityInfo),
-        fetchDocItem('club_members_settings/main', setClubMembersSettings),
-        fetchCol('clubs', setClubs),
-        fetchCol('products', setProducts),
-        fetchCol('ads', setAds, query(collection(db, 'ads'), where('active', '==', true), orderBy('order', 'asc'))),
-        fetchCol('songs', setSongs),
-        fetchCol('albums', setAlbums),
-        fetchCol('playlists', setPlaylists),
-        fetchCol('books', setBooks),
-        fetchCol('media_playlists', setMediaPlaylists)
-      ]);
-      
-      isFetchedRef.current = true;
-      setDataLoaded(true);
+      try {
+        await Promise.allSettled([
+          // Settings & Info
+          fetchDocItem('settings/ai_config', setAiConfig),
+          fetchDocItem('settings/newsCategories', (s) => s?.list && setNewsCategories(s.list)),
+          fetchDocItem('settings/newsTags', (s) => s?.tags && setNewsTags(s.tags)),
+          fetchDocItem('settings/sidebar_layout', (s) => s?.items && setSidebarMenuItems(s.items)),
+          fetchDocItem('city_info/alexandria', setCityInfo),
+          fetchDocItem('club_members_settings/main', setClubMembersSettings),
+          
+          // Media & Music
+          fetchCol('media', setMedia, query(collection(db, 'media'), orderBy('date', 'desc'), limit(60))),
+          fetchCol('songs', setSongs, query(collection(db, 'songs'), limit(100))),
+          fetchCol('albums', setAlbums, query(collection(db, 'albums'), limit(50))),
+          fetchCol('playlists', setPlaylists, query(collection(db, 'playlists'), limit(50))),
+          fetchCol('books', setBooks, query(collection(db, 'books'), limit(50))),
+          fetchCol('media_playlists', setMediaPlaylists, query(collection(db, 'media_playlists'), limit(50))),
+          
+          // Club & Business & Static Sections
+          fetchCol('clubs', setClubs),
+          fetchCol('products', setProducts),
+          fetchCol('ads', setAds, query(collection(db, 'ads'), where('active', '==', true), orderBy('order', 'asc'))),
+          fetchCol('custom_pages', setCustomPages, query(collection(db, 'custom_pages'), orderBy('createdAt', 'desc'), limit(30))),
+          fetchCol('businesses', setBusinesses, query(collection(db, 'businesses'), limit(50))),
+          fetchCol('business_updates', setBusinessUpdates, query(collection(db, 'business_updates'), limit(50))),
+          fetchCol('business_reports', setBusinessReports, query(collection(db, 'business_reports'), limit(50))),
+          fetchCol('world_countries', (data) => {
+            if (!data || data.length === 0) {
+              setWorldCountries(defaultWorldCountries);
+            } else {
+              const merged = [...defaultWorldCountries];
+              data.forEach((vc: any) => {
+                const idx = merged.findIndex(m => m.id === vc.id);
+                if (idx >= 0) merged[idx] = { ...merged[idx], ...vc };
+                else merged.push(vc);
+              });
+              setWorldCountries(merged);
+            }
+          }),
+          fetchCol('world_groups', setWorldGroups, query(collection(db, 'world_groups'), limit(50))),
+          fetchCol('world_posts', setWorldPosts, query(collection(db, 'world_posts'), orderBy('createdAt', 'desc'), limit(40))),
+          fetchCol('world_events', setWorldEvents, query(collection(db, 'world_events'), orderBy('date', 'asc'), limit(30))),
+          fetchCol('world_help_requests', setWorldHelpRequests, query(collection(db, 'world_help_requests'), orderBy('createdAt', 'desc'), limit(30))),
+          fetchCol('world_applications', setWorldApplications, query(collection(db, 'world_applications'), limit(30))),
+          fetchCol('club_services', setClubServices),
+          fetchCol('club_stadiums', setStadiums),
+          fetchCol('club_timeline', setHistoryEvents),
+          fetchCol('club_titles', setClubTitles),
+          fetchCol('club_stats', setClubStats),
+          fetchCol('club_committees', setClubCommittees),
+          fetchCol('club_announcements', setClubAnnouncements),
+          fetchCol('club_trips', setClubTrips),
+          fetchCol('member_discounts', setMemberDiscounts)
+        ]);
+      } catch (err) {
+        console.warn('Error fetching static data:', err);
+      } finally {
+        if (isMounted) {
+          isInitialFetchDoneRef.current = true;
+          setDataLoaded(true);
+        }
+      }
     };
 
     fetchStaticData();
 
     return () => {
-      clearTimeout(dataLoadTimeout);
-      unsubs.forEach(unsub => unsub());
+      isMounted = false;
+      unsubs.forEach(unsub => {
+        try {
+          unsub();
+        } catch (e) {}
+      });
     };
   }, [auth.currentUser?.uid]);
 }
