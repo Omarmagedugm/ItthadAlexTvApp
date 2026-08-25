@@ -3,16 +3,16 @@ import {
   Play, 
   ExternalLink, 
   Tv, 
-  Sparkles, 
-  Maximize2,
-  AlertCircle
+  AlertCircle,
+  Code
 } from 'lucide-react';
 import { 
   isYouTubeUrl, 
   getYouTubeEmbedUrl, 
   isFacebookUrl, 
   getFacebookEmbedUrl,
-  extractYouTubeId
+  extractEmbedSrc,
+  isEmbedCode
 } from '../../lib/videoUtils';
 
 interface VideoEmbedWidgetProps {
@@ -20,7 +20,7 @@ interface VideoEmbedWidgetProps {
   title?: string;
   subtitle?: string;
   videoUrl?: string;
-  videoType?: 'youtube' | 'facebook' | 'direct' | 'auto';
+  videoType?: 'youtube' | 'facebook' | 'direct' | 'iframe' | 'auto';
   aspectRatio?: '16/9' | '4/3' | '1/1' | '9/16';
   autoplay?: boolean;
 }
@@ -35,22 +35,29 @@ export default function VideoEmbedWidget({
 }: VideoEmbedWidgetProps) {
   const [hasError, setHasError] = useState(false);
 
-  if (!videoUrl) {
+  if (!videoUrl || videoUrl.trim() === '') {
     return null;
   }
 
+  const rawInput = videoUrl.trim();
+  const isHtmlEmbed = isEmbedCode(rawInput);
+  const src = extractEmbedSrc(rawInput);
+
   // Detect type
-  const isYT = videoType === 'youtube' || (videoType === 'auto' && isYouTubeUrl(videoUrl));
-  const isFB = videoType === 'facebook' || (videoType === 'auto' && isFacebookUrl(videoUrl));
-  const isDirect = videoType === 'direct' || (!isYT && !isFB && (videoUrl.endsWith('.mp4') || videoUrl.endsWith('.webm')));
+  const isYT = videoType === 'youtube' || (videoType === 'auto' && isYouTubeUrl(rawInput));
+  const isFB = videoType === 'facebook' || (videoType === 'auto' && isFacebookUrl(rawInput));
+  const isDirect = videoType === 'direct' || (!isYT && !isFB && !isHtmlEmbed && (src.endsWith('.mp4') || src.endsWith('.webm')));
 
   // Formulate embed URL
-  let embedSrc = '';
+  let embedSrc = src;
   if (isYT) {
-    embedSrc = getYouTubeEmbedUrl(videoUrl, autoplay);
+    embedSrc = getYouTubeEmbedUrl(rawInput, autoplay);
   } else if (isFB) {
-    embedSrc = getFacebookEmbedUrl(videoUrl, autoplay);
+    embedSrc = getFacebookEmbedUrl(rawInput, autoplay);
   }
+
+  // Determine watch link
+  const directLink = isHtmlEmbed ? src : rawInput;
 
   // Aspect ratio class calculation
   const getAspectRatioClass = () => {
@@ -84,6 +91,10 @@ export default function VideoEmbedWidget({
               <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0 font-black text-sm shadow-sm">
                 f
               </div>
+            ) : isHtmlEmbed ? (
+              <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0 shadow-sm">
+                <Code size={15} />
+              </div>
             ) : (
               <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 shadow-sm">
                 <Tv size={15} />
@@ -93,7 +104,7 @@ export default function VideoEmbedWidget({
             {/* Title & Subtitle */}
             <div className="truncate">
               <h3 className="text-sm font-black text-slate-900 dark:text-white truncate">
-                {title || (isYT ? 'فيديو يوتيوب مميز' : isFB ? 'فيديو فيسبوك' : 'فيديو نادي الاتحاد')}
+                {title || (isYT ? 'فيديو يوتيوب مميز' : isFB ? 'فيديو فيسبوك' : isHtmlEmbed ? 'فيديو مدمج' : 'فيديو نادي الاتحاد')}
               </h3>
               {subtitle ? (
                 <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5">
@@ -102,25 +113,29 @@ export default function VideoEmbedWidget({
               ) : (
                 <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1.5 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-                  <span>{isYT ? 'YouTube Video HD' : isFB ? 'Facebook Watch' : 'مشغل الفيديو'}</span>
+                  <span>
+                    {isYT ? 'YouTube Video HD' : isFB ? 'Facebook Watch' : isHtmlEmbed ? 'كود تضمين Embed Code' : 'مشغل الفيديو'}
+                  </span>
                 </p>
               )}
             </div>
           </div>
 
-          {/* External Link Action */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <a
-              href={videoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-surface-dark dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary transition-all text-xs font-bold flex items-center gap-1 shadow-sm"
-              title="مشاهدة على المصدر الأصلي"
-            >
-              <span className="text-[10px] hidden sm:inline">فتح الفيديو</span>
-              <ExternalLink size={13} />
-            </a>
-          </div>
+          {/* External Link Action if valid URL */}
+          {directLink && directLink.startsWith('http') && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <a
+                href={directLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-surface-dark dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-primary transition-all text-xs font-bold flex items-center gap-1 shadow-sm"
+                title="مشاهدة على المصدر الأصلي"
+              >
+                <span className="text-[10px] hidden sm:inline">فتح الفيديو</span>
+                <ExternalLink size={13} />
+              </a>
+            </div>
+          )}
         </div>
       )}
 
@@ -131,15 +146,17 @@ export default function VideoEmbedWidget({
             <AlertCircle size={32} className="text-amber-500 mb-2" />
             <p className="text-xs font-bold text-white mb-1">تعذر تحميل الفيديو داخل الصفحة</p>
             <p className="text-[10px] text-slate-400 mb-3">قد تكون إعدادات الخصوصية تمنع التضمين الخارجي.</p>
-            <a
-              href={videoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold shadow-md flex items-center gap-1.5"
-            >
-              <ExternalLink size={14} />
-              <span>مشاهدة الفيديو على {isYT ? 'YouTube' : isFB ? 'Facebook' : 'الموقع'}</span>
-            </a>
+            {directLink && directLink.startsWith('http') && (
+              <a
+                href={directLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold shadow-md flex items-center gap-1.5"
+              >
+                <ExternalLink size={14} />
+                <span>مشاهدة الفيديو على المصدر</span>
+              </a>
+            )}
           </div>
         ) : isYT ? (
           <iframe
@@ -164,7 +181,7 @@ export default function VideoEmbedWidget({
           />
         ) : isDirect ? (
           <video
-            src={videoUrl}
+            src={src}
             controls
             autoPlay={autoplay}
             playsInline
@@ -173,10 +190,10 @@ export default function VideoEmbedWidget({
           />
         ) : (
           <iframe
-            src={videoUrl}
+            src={embedSrc}
             title={title || 'Video Player'}
             className="absolute inset-0 w-full h-full border-0"
-            allow="autoplay; encrypted-media; picture-in-picture"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             loading="lazy"
             onError={() => setHasError(true)}

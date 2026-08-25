@@ -97,9 +97,10 @@ import {
   Upload,
   Youtube,
   Tv,
-  Video
+  Video,
+  Code
 } from 'lucide-react';
-import { parseLiveStreamUrl, isYouTubeUrl, isFacebookUrl } from '../lib/videoUtils';
+import { parseLiveStreamUrl, isYouTubeUrl, isFacebookUrl, isEmbedCode } from '../lib/videoUtils';
 import VideoEmbedWidget from '../components/widgets/VideoEmbedWidget';
 import { motion } from 'motion/react';
 import AdminSidebar from '../components/AdminSidebar';
@@ -6606,37 +6607,51 @@ export default function Admin() {
                    </div>
                     <UploadOrUrlField label="صورة الخبر" fieldName="image" currentUrl={formData.image} formData={formData} setFormData={setFormData} uploading={uploading} handleFileUpload={handleFileUpload} />
 
-                    {/* Video Embedding Field (YouTube / Facebook / Direct) */}
+                    {/* Video Embedding Field (YouTube / Facebook / Direct / Embed Code) */}
                     <div className="p-4 rounded-2xl bg-slate-50 dark:bg-surface-dark border border-border-light dark:border-border-dark space-y-3">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-black text-slate-800 dark:text-white flex items-center gap-1.5">
                           <Play size={15} className="text-red-500 fill-current" />
-                          <span>تضمين فيديو في الخبر (يوتيوب أو فيسبوك)</span>
+                          <span>تضمين فيديو في الخبر (رابط أو كود Embed)</span>
                         </label>
                         {formData.videoUrl && formData.videoUrl.trim() !== '' && (
                           <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
-                            isYouTubeUrl(formData.videoUrl) 
+                            isEmbedCode(formData.videoUrl)
+                              ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
+                              : isYouTubeUrl(formData.videoUrl) 
                               ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
                               : isFacebookUrl(formData.videoUrl)
                               ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
                               : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
                           }`}>
-                            {isYouTubeUrl(formData.videoUrl) ? 'YouTube مُكتشف' : isFacebookUrl(formData.videoUrl) ? 'Facebook مُكتشف' : 'فيديو مباشر'}
+                            {isEmbedCode(formData.videoUrl) ? 'كود Embed (Iframe)' : isYouTubeUrl(formData.videoUrl) ? 'YouTube مُكتشف' : isFacebookUrl(formData.videoUrl) ? 'Facebook مُكتشف' : 'فيديو مباشر'}
                           </span>
                         )}
                       </div>
 
                       <div className="space-y-1.5">
                         <div className="relative">
-                          <input 
-                            type="text" 
-                            placeholder="ألصق رابط فيديو من YouTube أو Facebook هنا..." 
-                            className="w-full p-3 pl-10 rounded-xl border border-border-light bg-white dark:bg-card-dark dark:border-border-dark text-slate-800 dark:text-white text-xs font-bold text-left dir-ltr shadow-xs" 
-                            value={formData.videoUrl || ''} 
-                            onChange={(e) => setFormData({...formData, videoUrl: e.target.value})} 
-                          />
-                          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                            {isYouTubeUrl(formData.videoUrl) ? (
+                          {isEmbedCode(formData.videoUrl) ? (
+                            <textarea 
+                              placeholder="ألصق كود التضمين <iframe> هنا أو رابط الفيديو..." 
+                              rows={3}
+                              className="w-full p-3 pl-10 rounded-xl border border-border-light bg-white dark:bg-card-dark dark:border-border-dark text-slate-800 dark:text-white text-xs font-mono text-left dir-ltr shadow-xs" 
+                              value={formData.videoUrl || ''} 
+                              onChange={(e) => setFormData({...formData, videoUrl: e.target.value})} 
+                            />
+                          ) : (
+                            <input 
+                              type="text" 
+                              placeholder="ألصق رابط فيديو (YouTube / Facebook) أو كود التضمين <iframe> هنا..." 
+                              className="w-full p-3 pl-10 rounded-xl border border-border-light bg-white dark:bg-card-dark dark:border-border-dark text-slate-800 dark:text-white text-xs font-bold text-left dir-ltr shadow-xs" 
+                              value={formData.videoUrl || ''} 
+                              onChange={(e) => setFormData({...formData, videoUrl: e.target.value})} 
+                            />
+                          )}
+                          <div className="absolute left-3 top-3.5 pointer-events-none text-slate-400">
+                            {isEmbedCode(formData.videoUrl) ? (
+                              <Code size={18} className="text-purple-500" />
+                            ) : isYouTubeUrl(formData.videoUrl) ? (
                               <Youtube size={18} className="text-red-500" />
                             ) : isFacebookUrl(formData.videoUrl) ? (
                               <span className="text-blue-600 font-black text-sm">f</span>
@@ -6646,7 +6661,7 @@ export default function Admin() {
                           </div>
                         </div>
                         <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
-                          يدعم روابط يوتيوب (العادية، Shorts، البث المباشر) وروابط فيسبوك (Watch، الفيديوهات، Reels) وملفات MP4 المباشرة.
+                          يدعم: روابط YouTube، روابط Facebook، أكواد التضمين المباشرة (مثل &lt;iframe&gt; من أي منصة أو موقع)، وملفات الفيديو MP4.
                         </p>
                       </div>
 

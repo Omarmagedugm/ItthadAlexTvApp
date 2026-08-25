@@ -7,29 +7,46 @@ export interface LiveStreamFormat {
 }
 
 /**
- * Extracts YouTube Video ID from any YouTube URL format:
+ * Extracts src URL if the string is an HTML <iframe> tag or embed code
+ */
+export function extractEmbedSrc(input?: string): string {
+  if (!input || typeof input !== 'string') return '';
+  const trimmed = input.trim();
+  if (trimmed.includes('<iframe') || trimmed.includes('<video')) {
+    const match = trimmed.match(/src=["']([^"']+)["']/i);
+    if (match && match[1]) {
+      return match[1].replace(/&amp;/g, '&');
+    }
+  }
+  return trimmed;
+}
+
+/**
+ * Checks if input is an HTML embed code (contains <iframe>, <embed>, etc.)
+ */
+export function isEmbedCode(input?: string): boolean {
+  if (!input || typeof input !== 'string') return false;
+  const trimmed = input.trim().toLowerCase();
+  return trimmed.includes('<iframe') || trimmed.includes('<embed') || trimmed.includes('<video') || trimmed.includes('<object');
+}
+
+/**
+ * Extracts YouTube Video ID from any YouTube URL or Embed format:
  * - youtube.com/watch?v=ID
  * - youtu.be/ID
  * - youtube.com/live/ID
  * - youtube.com/embed/ID
  * - youtube.com/shorts/ID
  * - Raw 11 character ID
+ * - <iframe src="https://www.youtube.com/embed/ID"...></iframe>
  */
 export function extractYouTubeId(url?: string): string | null {
   if (!url || typeof url !== 'string') return null;
-  let trimmed = url.trim();
+  let trimmed = extractEmbedSrc(url).trim();
 
   // If it's already an 11-char ID
   if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
     return trimmed;
-  }
-
-  // If it's wrapped in an iframe tag
-  if (trimmed.includes('<iframe')) {
-    const matchSrc = trimmed.match(/src=["']([^"']+)["']/i);
-    if (matchSrc && matchSrc[1]) {
-      trimmed = matchSrc[1];
-    }
   }
 
   // Match all YouTube patterns
@@ -38,11 +55,12 @@ export function extractYouTubeId(url?: string): string | null {
 }
 
 /**
- * Checks if a URL is a YouTube URL
+ * Checks if a URL / Embed code is YouTube
  */
 export function isYouTubeUrl(url?: string): boolean {
   if (!url || typeof url !== 'string') return false;
-  return /^(https?:\/\/)?(www\.|m\.)?(youtube\.com|youtu\.be)\/.+/i.test(url.trim()) || /^[a-zA-Z0-9_-]{11}$/.test(url.trim());
+  const cleaned = extractEmbedSrc(url).trim();
+  return /^(https?:\/\/)?(www\.|m\.)?(youtube\.com|youtu\.be)\/.+/i.test(cleaned) || /^[a-zA-Z0-9_-]{11}$/.test(cleaned);
 }
 
 /**
@@ -61,7 +79,7 @@ export function getYouTubeEmbedUrl(url?: string, autoplay = true): string {
     });
     return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
   }
-  return url;
+  return extractEmbedSrc(url);
 }
 
 /**
@@ -76,11 +94,12 @@ export function getYouTubeThumbnail(url?: string): string {
 }
 
 /**
- * Checks if a URL is a Facebook video URL
+ * Checks if a URL / Embed code is a Facebook video
  */
 export function isFacebookUrl(url?: string): boolean {
   if (!url || typeof url !== 'string') return false;
-  return /^(https?:\/\/)?(www\.|web\.|m\.)?(facebook\.com|fb\.watch)\/.+/i.test(url.trim());
+  const cleaned = extractEmbedSrc(url).trim();
+  return /^(https?:\/\/)?(www\.|web\.|m\.)?(facebook\.com|fb\.watch)\/.+/i.test(cleaned);
 }
 
 /**
@@ -88,7 +107,14 @@ export function isFacebookUrl(url?: string): boolean {
  */
 export function getFacebookEmbedUrl(url?: string, autoplay = true): string {
   if (!url) return '';
-  const encoded = encodeURIComponent(url.trim());
+  const cleaned = extractEmbedSrc(url).trim();
+
+  // If already a facebook plugin iframe src
+  if (cleaned.includes('facebook.com/plugins/video.php')) {
+    return cleaned;
+  }
+
+  const encoded = encodeURIComponent(cleaned);
   return `https://www.facebook.com/plugins/video.php?href=${encoded}&show_text=0&autoplay=${autoplay ? '1' : '0'}`;
 }
 
@@ -97,7 +123,7 @@ export function getFacebookEmbedUrl(url?: string, autoplay = true): string {
  */
 export function detectMediaType(url?: string): 'audio' | 'youtube' | 'facebook' | 'custom_stream' {
   if (!url || typeof url !== 'string') return 'custom_stream';
-  const trimmed = url.trim().toLowerCase();
+  const trimmed = extractEmbedSrc(url).trim().toLowerCase();
 
   if (isYouTubeUrl(trimmed)) return 'youtube';
   if (isFacebookUrl(trimmed)) return 'facebook';
@@ -111,7 +137,7 @@ export function detectMediaType(url?: string): 'audio' | 'youtube' | 'facebook' 
  */
 export function isHlsUrl(url?: string): boolean {
   if (!url || typeof url !== 'string') return false;
-  const lower = url.trim().toLowerCase();
+  const lower = extractEmbedSrc(url).trim().toLowerCase();
   return lower.includes('.m3u8') || 
          lower.includes('/hls/') || 
          lower.includes('playlist-hls') ||
@@ -132,8 +158,7 @@ export function parseLiveStreamUrl(rawUrl?: string): LiveStreamFormat {
 
   // 1. Iframe Code detection
   if (trimmed.startsWith('<iframe') || trimmed.includes('<iframe')) {
-    const match = trimmed.match(/src=["']([^"']+)["']/i);
-    const src = match ? match[1] : trimmed;
+    const src = extractEmbedSrc(trimmed);
     
     // Check if the iframe src is actually YouTube
     const ytId = extractYouTubeId(src);
@@ -144,6 +169,15 @@ export function parseLiveStreamUrl(rawUrl?: string): LiveStreamFormat {
         directWatchUrl: `https://www.youtube.com/watch?v=${ytId}`,
         type: 'youtube',
         videoId: ytId
+      };
+    }
+
+    if (isFacebookUrl(src)) {
+      return {
+        originalUrl: trimmed,
+        embedUrl: getFacebookEmbedUrl(src, true),
+        directWatchUrl: src,
+        type: 'iframe'
       };
     }
 
