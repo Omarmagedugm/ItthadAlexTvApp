@@ -270,8 +270,31 @@ export default function Matches() {
 
                 {section.newestMatch && (
                   <motion.div variants={itemVariants}>
-                    <div className={`relative w-full rounded-[40px] overflow-hidden shadow-2xl ${section.id === 'basketball' ? 'bg-gradient-to-br from-orange-600 via-orange-900 to-slate-900 border border-orange-500/30' : 'stadium-gradient border border-white/5'} cinematic-glow`}>
+                    <div className={`relative w-full rounded-[40px] overflow-hidden shadow-2xl ${section.id === 'basketball' ? 'bg-gradient-to-br from-[#ea580c] via-[#c2410c] to-[#7c2d12] border border-orange-400/40' : 'stadium-gradient border border-white/5'} cinematic-glow`}>
                       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-overlay rounded-[inherit]"></div>
+                      
+                      {section.id === 'basketball' && (
+                        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none rounded-[inherit]">
+                          <svg className="absolute inset-0 w-full h-full opacity-25 pointer-events-none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 400 200">
+                            <defs>
+                              <pattern id="bb-pebbles-matches" width="16" height="16" patternUnits="userSpaceOnUse">
+                                <circle cx="4" cy="4" r="1.2" fill="#000000" opacity="0.35" />
+                                <circle cx="12" cy="12" r="1.2" fill="#000000" opacity="0.35" />
+                                <circle cx="12" cy="4" r="0.8" fill="#ffffff" opacity="0.25" />
+                                <circle cx="4" cy="12" r="0.8" fill="#ffffff" opacity="0.25" />
+                              </pattern>
+                            </defs>
+                            <rect width="100%" height="100%" fill="url(#bb-pebbles-matches)" />
+                            <path d="M -50,100 Q 200,-30 450,100" fill="none" stroke="#000000" strokeWidth="4" opacity="0.25" />
+                            <path d="M -50,100 Q 200,230 450,100" fill="none" stroke="#000000" strokeWidth="4" opacity="0.25" />
+                            <line x1="200" y1="-20" x2="200" y2="220" stroke="#000000" strokeWidth="4" opacity="0.25" />
+                            <line x1="-20" y1="100" x2="420" y2="100" stroke="#000000" strokeWidth="4" opacity="0.25" />
+                            <circle cx="200" cy="100" r="55" fill="none" stroke="#ffffff" strokeWidth="2" strokeDasharray="6 6" opacity="0.15" />
+                          </svg>
+                          <div className="absolute inset-0 bg-radial from-orange-400/30 via-transparent to-black/60 mix-blend-overlay pointer-events-none" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#431407]/90 via-transparent to-[#431407]/40" />
+                        </div>
+                      )}
                       
                       <div className="relative p-6">
                         <div className="flex items-center justify-between mb-8">

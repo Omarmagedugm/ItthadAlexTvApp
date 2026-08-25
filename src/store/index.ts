@@ -57,9 +57,9 @@ export const DEFAULT_SIDEBAR_ITEMS: SidebarMenuItem[] = [
   { id: 'news', title: 'الأخبار والتغطيات', path: '/news', icon: 'newspaper', iconType: 'material', active: true, order: 1, highlighted: false, group: 'main' },
   { id: 'matches', title: 'جدول المباريات', path: '/matches', icon: 'sports_soccer', iconType: 'material', active: true, order: 2, highlighted: false, group: 'main' },
   { id: 'live', title: 'البث المباشر', path: '/live', icon: 'live_tv', iconType: 'material', active: true, order: 3, highlighted: false, group: 'main' },
-  { id: 'world-fans', title: 'رابطة اتحاداوية العالم', path: '/world-fans', icon: 'Globe', iconType: 'lucide', active: true, order: 3.5, badge: 'حول العالم 🌍', badgeColor: 'bg-emerald-600 text-white', highlighted: false, group: 'main' },
+  { id: 'world-fans', title: 'رابطة اتحاداوية العالم', path: '/world-fans', icon: 'Globe', iconType: 'lucide', active: true, order: 3.5, highlighted: false, group: 'main' },
   { id: 'fan-zone', title: 'منطقة الجماهير', path: '/fan-zone', icon: 'stadium', iconType: 'material', active: true, order: 4, highlighted: false, group: 'main' },
-  { id: 'jersey-tryon', title: 'استوديو المشجع (AI)', path: '/jersey-tryon', icon: 'bolt', iconType: 'material', active: true, order: 5, badge: 'جديد', badgeColor: 'bg-red-500 text-white', highlighted: false, group: 'main' },
+  { id: 'jersey-tryon', title: 'استوديو المشجع (AI)', path: '/jersey-tryon', icon: 'bolt', iconType: 'material', active: true, order: 5, highlighted: false, group: 'main' },
   { id: 'club-members', title: 'أعضاء النادي', path: '/club-members', icon: 'ShieldCheck', iconType: 'lucide', active: true, order: 6, highlighted: false, group: 'main' },
   { id: 'library', title: 'المكتبة الرقمية والوسائط', path: '/library', icon: 'perm_media', iconType: 'material', active: true, order: 7, highlighted: false, group: 'main' },
   { id: 'social', title: 'سوشيال ميديا', path: '/social', icon: 'facebook', iconType: 'facebook', active: true, order: 8, highlighted: false, group: 'main' },
@@ -83,6 +83,7 @@ export interface NewsItem {
   image: string;
   date: string;
   type: 'manual' | 'rss';
+  newsType?: 'news' | 'article';
   category?: string;
   author?: string;
   editorName?: string;

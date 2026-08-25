@@ -351,7 +351,7 @@ export default function Home() {
     const timePhase = hour >= 6 && hour < 18 ? "day" : "night";
 
     const cardBg = effectiveSport === "basketball" 
-      ? "bg-gradient-to-br from-orange-600 via-orange-900 to-slate-900 border-orange-500/20" 
+      ? "bg-gradient-to-br from-[#ea580c] via-[#c2410c] to-[#7c2d12] border-orange-400/40" 
       : timePhase === "day" 
         ? "bg-gradient-to-br from-[#064e3b] via-[#065f46] to-[#047857] border-[#065f46]/30" 
         : "bg-gradient-to-br from-[#022c1b] via-[#044a2b] to-[#01140c] border-[#045532]/40";
@@ -462,9 +462,45 @@ export default function Home() {
                             alt="stadium"
                           />
                         ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-[#023823] via-[#045536] to-[#012215] rounded-[40px]" />
+                          <div className={`w-full h-full rounded-[40px] ${
+                            effectiveSport === "basketball"
+                              ? "bg-gradient-to-br from-[#ea580c] via-[#c2410c] to-[#7c2d12]"
+                              : "bg-gradient-to-br from-[#023823] via-[#045536] to-[#012215]"
+                          }`} />
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#011a10] via-[#011a10]/40 to-transparent rounded-[40px]" />
+
+                        {/* Basketball Texture & Court Pattern Overlay */}
+                        {effectiveSport === "basketball" && (
+                          <>
+                            {/* Basketball Court Seam & Texture Overlay */}
+                            <svg className="absolute inset-0 w-full h-full opacity-20 pointer-events-none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 400 200">
+                              <defs>
+                                <pattern id="bb-pebbles" width="16" height="16" patternUnits="userSpaceOnUse">
+                                  <circle cx="4" cy="4" r="1.2" fill="#000000" opacity="0.35" />
+                                  <circle cx="12" cy="12" r="1.2" fill="#000000" opacity="0.35" />
+                                  <circle cx="12" cy="4" r="0.8" fill="#ffffff" opacity="0.25" />
+                                  <circle cx="4" cy="12" r="0.8" fill="#ffffff" opacity="0.25" />
+                                </pattern>
+                              </defs>
+                              <rect width="100%" height="100%" fill="url(#bb-pebbles)" />
+                              {/* Classic curved basketball seams */}
+                              <path d="M -50,100 Q 200,-30 450,100" fill="none" stroke="#000000" strokeWidth="4" opacity="0.25" />
+                              <path d="M -50,100 Q 200,230 450,100" fill="none" stroke="#000000" strokeWidth="4" opacity="0.25" />
+                              <line x1="200" y1="-20" x2="200" y2="220" stroke="#000000" strokeWidth="4" opacity="0.25" />
+                              <line x1="-20" y1="100" x2="420" y2="100" stroke="#000000" strokeWidth="4" opacity="0.25" />
+                              {/* Basketball Court Key and Free Throw Circle watermark */}
+                              <circle cx="200" cy="100" r="55" fill="none" stroke="#ffffff" strokeWidth="2" strokeDasharray="6 6" opacity="0.15" />
+                            </svg>
+                            {/* Radial Glow highlights for basketball 3D ball curve */}
+                            <div className="absolute inset-0 bg-radial from-orange-400/30 via-transparent to-black/60 mix-blend-overlay pointer-events-none" />
+                          </>
+                        )}
+
+                        <div className={`absolute inset-0 rounded-[40px] ${
+                          effectiveSport === "basketball"
+                            ? "bg-gradient-to-t from-[#431407]/90 via-transparent to-[#431407]/40"
+                            : "bg-gradient-to-t from-[#011a10] via-[#011a10]/40 to-transparent"
+                        }`} />
                       </div>
                     </div>
 
@@ -879,6 +915,12 @@ export default function Home() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
                       <div className="absolute top-4 left-4 z-20 flex gap-1.5 flex-wrap max-w-[90%]">
+                        {item.newsType === 'article' && (
+                          <div className="h-7 px-2.5 bg-amber-500/95 backdrop-blur-md rounded-lg flex items-center justify-center gap-1 text-[8px] font-black text-white uppercase tracking-widest ring-1 ring-white/20 shadow-premium">
+                            <span className="material-symbols-outlined !text-[14px]">edit_note</span>
+                            <span>مقال</span>
+                          </div>
+                        )}
                         {item.videoUrl && (
                           <div className="h-7 px-2.5 bg-red-600/90 backdrop-blur-md rounded-lg flex items-center justify-center gap-1 text-[8px] font-black text-white uppercase tracking-widest ring-1 ring-white/20 shadow-premium">
                             <span className="material-symbols-outlined !text-[14px]">play_arrow</span>

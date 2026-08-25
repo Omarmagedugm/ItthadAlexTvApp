@@ -98,7 +98,8 @@ import {
   Youtube,
   Tv,
   Video,
-  Code
+  Code,
+  PenTool
 } from 'lucide-react';
 import { parseLiveStreamUrl, isYouTubeUrl, isFacebookUrl, isEmbedCode } from '../lib/videoUtils';
 import VideoEmbedWidget from '../components/widgets/VideoEmbedWidget';
@@ -549,6 +550,7 @@ export default function Admin() {
   const [clubSubTab, setClubSubTab] = useState<'committees' | 'announcements' | 'services' | 'trips' | 'discounts' | 'settings'>('committees');
   const [isExporting, setIsExporting] = useState(false);
   const [aiUsage, setAiUsage] = useState<any[]>([]);
+  const [newsFilterType, setNewsFilterType] = useState<'all' | 'news' | 'article'>('all');
 
   const isOmar = profile.email?.toLowerCase() === 'omarmagedugm@ittihad.club';
   const isDev = profile.email?.toLowerCase() === 'copyrightofficialco@gmail.com';
@@ -1120,6 +1122,7 @@ export default function Admin() {
           date: isEditing ? (formData.date || new Date().toISOString()) : new Date().toISOString(),
           author: formData.author || 'الموقع الرسمي',
           editorName: formData.editorName || '',
+          newsType: formData.newsType || 'news',
           type: formData.rssUrl ? 'rss' : 'manual',
           rssUrl: formData.rssUrl || '',
           videoUrl: (formData.videoUrl || '').trim(),
@@ -2305,6 +2308,7 @@ export default function Admin() {
     const data = { 
       ...item, 
       image: item.image || item.imageUrl,
+      newsType: item.newsType || 'news',
       videoUrl: item.videoUrl || '',
       videoType: item.videoType || 'auto'
     };
@@ -2318,7 +2322,7 @@ export default function Admin() {
   const openAddModal = () => {
     let initialData: any = {};
     if (activeTab === 'news') {
-      initialData = { title: '', content: '', image: '', category: 'أخبار النادي', author: 'الموقع الرسمي', videoUrl: '', videoType: 'auto', tagIds: [] };
+      initialData = { title: '', content: '', image: '', category: 'أخبار النادي', author: 'الموقع الرسمي', newsType: 'news', videoUrl: '', videoType: 'auto', tagIds: [] };
     } else if (activeTab === 'polls') {
       initialData = { options: ['', ''], active: true };
     } else if (activeTab === 'media') {
@@ -3531,49 +3535,116 @@ export default function Admin() {
           )}
 
           {activeTab === 'news' && (
-            <div className="grid grid-cols-1 gap-6">
-              {news.filter(item => 
-                item.title.toLowerCase().includes(contentSearch.toLowerCase()) || 
-                item.content?.toLowerCase().includes(contentSearch.toLowerCase()) ||
-                item.category?.toLowerCase().includes(contentSearch.toLowerCase())
-              ).map((item) => (
-                <div key={item.id} className="bg-white dark:bg-card-dark rounded-3xl border border-border-light dark:border-border-dark p-6 flex flex-col gap-4 shadow-sm hover:shadow-xl transition-all duration-300 group">
-                  <div className="flex items-center gap-4">
-                        <div className="relative overflow-hidden rounded-2xl">
-                          {item.image && item.image.trim() !== '' ? (
-                            <img src={item.image} alt="" className="w-20 h-20 object-cover group-hover:scale-110 transition-transform duration-500" referrerPolicy="no-referrer" />
-                          ) : (
-                            <div className="w-20 h-20 bg-slate-100 dark:bg-surface-dark flex items-center justify-center">
-                              <Newspaper size={32} className="text-slate-300" />
-                            </div>
+            <div className="space-y-6">
+              {/* Type filter tabs for Admin News */}
+              <div className="flex items-center gap-2 p-1.5 bg-slate-100 dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark w-fit">
+                <button
+                  type="button"
+                  onClick={() => setNewsFilterType('all')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                    newsFilterType === 'all'
+                      ? 'bg-primary text-white shadow-sm shadow-primary/20'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-primary'
+                  }`}
+                >
+                  الكل ({news.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewsFilterType('news')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+                    newsFilterType === 'news'
+                      ? 'bg-primary text-white shadow-sm shadow-primary/20'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-primary'
+                  }`}
+                >
+                  <Newspaper size={14} />
+                  <span>الأخبار ({news.filter(n => n.newsType !== 'article').length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewsFilterType('article')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+                    newsFilterType === 'article'
+                      ? 'bg-amber-600 text-white shadow-sm shadow-amber-600/20'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-amber-500'
+                  }`}
+                >
+                  <PenTool size={13} />
+                  <span>المقالات ({news.filter(n => n.newsType === 'article').length})</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6">
+                {news.filter(item => {
+                  if (newsFilterType === 'news' && item.newsType === 'article') return false;
+                  if (newsFilterType === 'article' && item.newsType !== 'article') return false;
+                  if (contentSearch && contentSearch.trim() !== '') {
+                    const q = contentSearch.toLowerCase();
+                    return item.title?.toLowerCase().includes(q) || 
+                           item.content?.toLowerCase().includes(q) ||
+                           item.category?.toLowerCase().includes(q) ||
+                           item.author?.toLowerCase().includes(q) ||
+                           item.editorName?.toLowerCase().includes(q);
+                  }
+                  return true;
+                }).map((item) => (
+                  <div key={item.id} className="bg-white dark:bg-card-dark rounded-3xl border border-border-light dark:border-border-dark p-6 flex flex-col gap-4 shadow-sm hover:shadow-xl transition-all duration-300 group">
+                    <div className="flex items-center gap-4">
+                          <div className="relative overflow-hidden rounded-2xl shrink-0">
+                            {item.image && item.image.trim() !== '' ? (
+                              <img src={item.image} alt="" className="w-20 h-20 object-cover group-hover:scale-110 transition-transform duration-500" referrerPolicy="no-referrer" />
+                            ) : (
+                              <div className="w-20 h-20 bg-slate-100 dark:bg-surface-dark flex items-center justify-center">
+                                {item.newsType === 'article' ? <PenTool size={28} className="text-amber-400" /> : <Newspaper size={32} className="text-slate-300" />}
+                              </div>
+                            )}
+                          </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                           {item.newsType === 'article' ? (
+                             <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-lg flex items-center gap-1 text-[10px] font-black shrink-0 border border-amber-500/20">
+                               <PenTool size={10} />
+                               <span>مقال</span>
+                             </span>
+                           ) : (
+                             <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-lg flex items-center gap-1 text-[10px] font-black shrink-0 border border-primary/20">
+                               <Newspaper size={10} />
+                               <span>خبر</span>
+                             </span>
+                           )}
+
+                           <h3 className="font-black text-base line-clamp-2 leading-tight text-slate-800 dark:text-white">{item.title}</h3>
+                           
+                           {item.videoUrl && (
+                             <div className="bg-red-500/10 text-red-500 px-2 py-0.5 rounded-lg flex items-center gap-1 text-[10px] font-black shrink-0 border border-red-500/20">
+                               <Play size={10} className="fill-current" />
+                               <span>فيديو</span>
+                             </div>
+                           )}
+                           {item.type === 'rss' && <div className="bg-orange-500/10 text-orange-500 p-1 rounded-lg"><Rss size={12} /></div>}
+                        </div>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
+                            <Calendar size={12} />
+                            {new Date(item.date).toLocaleDateString('ar-EG')}
+                          </span>
+                          <span className="text-[10px] font-black uppercase px-2 py-1 bg-slate-100 dark:bg-surface-dark text-slate-500 rounded-lg">{item.category || 'أخبار'}</span>
+                          {(item.author || item.editorName) && (
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                              {item.newsType === 'article' ? `بقلم: ${item.author || item.editorName}` : (item.editorName || item.author)}
+                            </span>
                           )}
                         </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                         <h3 className="font-black text-base line-clamp-2 leading-tight text-slate-800 dark:text-white">{item.title}</h3>
-                         {item.videoUrl && (
-                           <div className="bg-red-500/10 text-red-500 px-2 py-0.5 rounded-lg flex items-center gap-1 text-[10px] font-black shrink-0 border border-red-500/20">
-                             <Play size={10} className="fill-current" />
-                             <span>فيديو</span>
-                           </div>
-                         )}
-                         {item.type === 'rss' && <div className="bg-orange-500/10 text-orange-500 p-1 rounded-lg"><Rss size={12} /></div>}
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                          <Calendar size={12} />
-                          {new Date(item.date).toLocaleDateString('ar-EG')}
-                        </span>
-                        <span className="text-[10px] font-black uppercase px-2 py-1 bg-slate-100 dark:bg-surface-dark text-slate-500 rounded-lg">{item.category || 'أخبار'}</span>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleEditNews(item)} className="p-3 text-blue-500 bg-blue-500/5 hover:bg-blue-500/10 rounded-2xl transition-all"><Edit2 size={18} /></button>
+                        <button onClick={() => handleDelete('news', item.id)} className="p-3 text-red-500 bg-red-500/5 hover:bg-red-500/10 rounded-2xl transition-all"><Trash2 size={18} /></button>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => handleEditNews(item)} className="p-3 text-blue-500 bg-blue-500/5 hover:bg-blue-500/10 rounded-2xl transition-all"><Edit2 size={18} /></button>
-                      <button onClick={() => handleDelete('news', item.id)} className="p-3 text-red-500 bg-red-500/5 hover:bg-red-500/10 rounded-2xl transition-all"><Trash2 size={18} /></button>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
 
@@ -6579,40 +6650,112 @@ export default function Admin() {
 
                {activeTab === 'news' && (
                  <>
+                   {/* Switcher: خبر صحفي أو مقال رأي */}
+                   <div className="p-3 bg-slate-100 dark:bg-card-dark rounded-2xl border border-border-light dark:border-border-dark space-y-2">
+                     <label className="text-xs font-black text-slate-800 dark:text-white block">نوع المنشور الإخباري</label>
+                     <div className="grid grid-cols-2 gap-2">
+                       <button
+                         type="button"
+                         onClick={() => setFormData({ 
+                           ...formData, 
+                           newsType: 'news',
+                           author: formData.author === 'كاتب ومحلل رياضي' ? 'الموقع الرسمي' : formData.author
+                         })}
+                         className={`p-3 rounded-xl border font-black text-xs flex items-center justify-center gap-2 transition-all ${
+                           (formData.newsType || 'news') === 'news'
+                             ? 'bg-primary text-white border-primary shadow-md shadow-primary/20 scale-[1.01]'
+                             : 'bg-white dark:bg-surface-dark text-slate-600 dark:text-slate-300 border-border-light dark:border-border-dark hover:border-primary/50'
+                         }`}
+                       >
+                         <Newspaper size={16} />
+                         <span>خبر صحفي</span>
+                       </button>
+
+                       <button
+                         type="button"
+                         onClick={() => setFormData({ 
+                           ...formData, 
+                           newsType: 'article',
+                           category: (formData.category === 'أخبار النادي' || !formData.category) ? 'مقالات وآراء' : formData.category,
+                           author: formData.author === 'الموقع الرسمي' ? '' : formData.author
+                         })}
+                         className={`p-3 rounded-xl border font-black text-xs flex items-center justify-center gap-2 transition-all ${
+                           formData.newsType === 'article'
+                             ? 'bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-600/20 scale-[1.01]'
+                             : 'bg-white dark:bg-surface-dark text-slate-600 dark:text-slate-300 border-border-light dark:border-border-dark hover:border-amber-500/50'
+                         }`}
+                       >
+                         <PenTool size={15} />
+                         <span>مقال / رأي وتحليل</span>
+                       </button>
+                     </div>
+                   </div>
+
                    <div>
-                     <label className="text-[10px] font-black text-slate-500 mb-1 block">عنوان الخبر</label>
-                     <input type="text" placeholder="مثلاً: الاتحاد يحقق فوزاً ثميناً" className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm font-bold" value={formData.title || ''} onChange={(e) => setFormData({...formData, title: e.target.value})} />
+                     <label className="text-[10px] font-black text-slate-500 mb-1 block">
+                       {formData.newsType === 'article' ? 'عنوان المقال' : 'عنوان الخبر'}
+                     </label>
+                     <input type="text" placeholder={formData.newsType === 'article' ? "مثلاً: رؤية فنية حول أداء خط الوسط في المواجهات الأخيرة" : "مثلاً: الاتحاد يحقق فوزاً ثميناً"} className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm font-bold" value={formData.title || ''} onChange={(e) => setFormData({...formData, title: e.target.value})} />
                    </div>
                    <div>
-                     <label className="text-[10px] font-black text-slate-500 mb-1 block">محتوى الخبر</label>
-                     <textarea placeholder="اكتب تفاصيل الخبر هنا..." className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm min-h-[120px]" value={formData.content || ''} onChange={(e) => setFormData({...formData, content: e.target.value})} />
+                     <label className="text-[10px] font-black text-slate-500 mb-1 block">
+                       {formData.newsType === 'article' ? 'نص المقال والتحليل' : 'محتوى الخبر'}
+                     </label>
+                     <textarea placeholder={formData.newsType === 'article' ? "اكتب نص المقال والتحليل هنا..." : "اكتب تفاصيل الخبر هنا..."} className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm min-h-[140px]" value={formData.content || ''} onChange={(e) => setFormData({...formData, content: e.target.value})} />
                    </div>
-                   <div className="grid grid-cols-2 gap-2">
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                     <div>
                       <label className="text-[10px] font-black text-slate-500 mb-1 block">التصنيف</label>
-                      <select className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm font-bold" value={formData.category || 'أخبار النادي'} onChange={(e) => setFormData({...formData, category: e.target.value})}>
+                      <select className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm font-bold" value={formData.category || (formData.newsType === 'article' ? 'مقالات وآراء' : 'أخبار النادي')} onChange={(e) => setFormData({...formData, category: e.target.value})}>
                           {newsCategories.map(cat => (
                             <option key={cat} value={cat}>{cat}</option>
                           ))}
+                          {formData.newsType === 'article' && !newsCategories.includes('مقالات وآراء') && (
+                            <option value="مقالات وآراء">مقالات وآراء</option>
+                          )}
                       </select>
                     </div>
                     <div>
-                      <label className="text-[10px] font-black text-slate-500 mb-1 block">مصدر الخبر</label>
-                      <input type="text" placeholder="مثلاً: الموقع الرسمي" className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm" value={formData.author || ''} onChange={(e) => setFormData({...formData, author: e.target.value})} />
+                      <label className="text-[10px] font-black text-slate-500 mb-1 block">
+                        {formData.newsType === 'article' ? 'اسم كاتب المقال *' : 'مصدر الخبر'}
+                      </label>
+                      <input 
+                        type="text" 
+                        placeholder={formData.newsType === 'article' ? "مثلاً: د. أحمد رفعت" : "مثلاً: الموقع الرسمي"} 
+                        className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm font-bold" 
+                        value={formData.author || ''} 
+                        onChange={(e) => setFormData({...formData, author: e.target.value})} 
+                      />
                     </div>
                     <div>
-                      <label className="text-[10px] font-black text-slate-500 mb-1 block">اسم المحرر</label>
-                      <input type="text" placeholder="مثلاً: أحمد محمد" className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm" value={formData.editorName || ''} onChange={(e) => setFormData({...formData, editorName: e.target.value})} />
+                      <label className="text-[10px] font-black text-slate-500 mb-1 block">
+                        {formData.newsType === 'article' ? 'صفة الكاتب / التخصص' : 'اسم المحرر'}
+                      </label>
+                      <input 
+                        type="text" 
+                        placeholder={formData.newsType === 'article' ? "مثلاً: ناقد ومحلل رياضي" : "مثلاً: أحمد محمد"} 
+                        className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm" 
+                        value={formData.editorName || ''} 
+                        onChange={(e) => setFormData({...formData, editorName: e.target.value})} 
+                      />
                     </div>
                    </div>
-                    <UploadOrUrlField label="صورة الخبر" fieldName="image" currentUrl={formData.image} formData={formData} setFormData={setFormData} uploading={uploading} handleFileUpload={handleFileUpload} />
+                    <UploadOrUrlField 
+                      label={formData.newsType === 'article' ? "صورة المقال أو صورة الكاتب" : "صورة الخبر"} 
+                      fieldName="image" 
+                      currentUrl={formData.image} 
+                      formData={formData} 
+                      setFormData={setFormData} 
+                      uploading={uploading} 
+                      handleFileUpload={handleFileUpload} 
+                    />
 
                     {/* Video Embedding Field (YouTube / Facebook / Direct / Embed Code) */}
                     <div className="p-4 rounded-2xl bg-slate-50 dark:bg-surface-dark border border-border-light dark:border-border-dark space-y-3">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-black text-slate-800 dark:text-white flex items-center gap-1.5">
                           <Play size={15} className="text-red-500 fill-current" />
-                          <span>تضمين فيديو في الخبر (رابط أو كود Embed)</span>
+                          <span>{formData.newsType === 'article' ? 'تضمين فيديو في المقال (رابط أو كود Embed)' : 'تضمين فيديو في الخبر (رابط أو كود Embed)'}</span>
                         </label>
                         {formData.videoUrl && formData.videoUrl.trim() !== '' && (
                           <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 ${

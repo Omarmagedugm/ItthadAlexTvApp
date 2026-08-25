@@ -371,7 +371,7 @@ export default function MusicPlayer() {
             </div>
 
             {/* Miniature Progress Bar */}
-            <div className="h-1 bg-black/40 dark:bg-slate-100 w-full overflow-hidden">
+            <div className="h-1 bg-black/40 dark:bg-slate-100 w-full overflow-hidden" dir="ltr">
                <div 
                  className="h-full bg-gradient-to-r from-emerald-500 to-green-400 dark:from-emerald-600 dark:to-emerald-400 transition-all duration-300" 
                  style={{ width: `${progress}%` }} 
@@ -435,29 +435,31 @@ export default function MusicPlayer() {
                 </div>
               </div>
 
-              {/* Progress */}
-              <div className="mb-6">
-                <div className="relative h-2 group w-full flex items-center">
+              {/* Progress Bar (Left-to-Right Music Standard) */}
+              <div className="mb-6" dir="ltr">
+                <div className="relative h-2 group w-full flex items-center" dir="ltr">
                   <input 
                     type="range" 
                     min="0" 
                     max="100" 
+                    step="0.1"
                     value={progress}
                     onChange={handleProgressChange}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    dir="ltr"
                   />
-                  <div className="w-full h-2 bg-slate-100 dark:bg-surface-dark rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-slate-100 dark:bg-surface-dark rounded-full overflow-hidden" dir="ltr">
                     <div className="h-full bg-gradient-to-r from-primary to-emerald-400 relative rounded-full" style={{ width: `${progress}%` }} />
                   </div>
                   {/* Thumb */}
                   <div 
                     className="absolute h-3.5 w-3.5 bg-white border-2 border-primary rounded-full shadow-md pointer-events-none group-hover:scale-125 transition-transform"
-                    style={{ left: `${progress}%`, marginLeft: '-7px' }}
+                    style={{ left: `${progress}%`, transform: 'translateX(-50%)' }}
                   />
                 </div>
-                <div className="flex justify-between items-center mt-2 px-1">
-                  <span className="text-[10px] font-bold text-slate-400">{formatTime(currentTime)}</span>
-                  <span className="text-[10px] font-bold text-slate-400">{formatTime(duration)}</span>
+                <div className="flex justify-between items-center mt-2 px-1 text-[11px] font-mono font-bold text-slate-400" dir="ltr">
+                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(duration)}</span>
                 </div>
               </div>
 
@@ -490,7 +492,7 @@ export default function MusicPlayer() {
               </div>
               
               {/* Volume (Desktop Only) */}
-              <div className="hidden md:flex items-center gap-3 max-w-[200px] mx-auto opacity-70 hover:opacity-100 transition-opacity">
+              <div className="hidden md:flex items-center gap-3 max-w-[200px] mx-auto opacity-70 hover:opacity-100 transition-opacity" dir="ltr">
                  <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-primary transition-colors cursor-pointer">
                    {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
                  </button>
@@ -502,6 +504,7 @@ export default function MusicPlayer() {
                    value={isMuted ? 0 : volume}
                    onChange={(e) => setVolume(parseFloat(e.target.value))}
                    className="w-full h-1.5 bg-slate-100 dark:bg-surface-dark rounded-full appearance-none cursor-pointer accent-primary"
+                   dir="ltr"
                  />
               </div>
             </div>

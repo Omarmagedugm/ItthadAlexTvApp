@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, cleanFirestoreData } from '../lib/firebase';
 import { useAppStore, SidebarMenuItem, DEFAULT_SIDEBAR_ITEMS } from '../store';
 import toast from 'react-hot-toast';
 import { 
@@ -111,10 +111,17 @@ export default function AdminSidebarManager() {
     toast.success('تم تحديث حالة التمييز');
   };
 
+  const handleRemoveBadge = (id: string) => {
+    setItems(items.map(item => item.id === id ? { ...item, badge: '', badgeColor: '' } : item));
+    toast.success('تمت إزالة الشارة. احرص على الضغط على "حفظ التغييرات" لتأكيدها');
+  };
+
   const handleStartEdit = (item: SidebarMenuItem) => {
     setEditingId(item.id);
     setEditForm({ 
       ...item,
+      badge: item.badge || '',
+      badgeColor: item.badgeColor || 'bg-primary text-white',
       highlighted: item.highlighted || false,
       highlightColor: item.highlightColor || 'primary'
     });
@@ -124,7 +131,14 @@ export default function AdminSidebarManager() {
     if (!editingId) return;
     const updated = items.map(item => {
       if (item.id === editingId) {
-        return { ...item, ...editForm } as SidebarMenuItem;
+        return { 
+          ...item, 
+          ...editForm,
+          badge: editForm.badge?.trim() ? editForm.badge.trim() : '',
+          badgeColor: editForm.badge?.trim() ? (editForm.badgeColor || item.badgeColor || 'bg-primary text-white') : '',
+          highlighted: editForm.highlighted || false,
+          highlightColor: editForm.highlighted ? (editForm.highlightColor || 'primary') : undefined
+        } as SidebarMenuItem;
       }
       return item;
     });
@@ -150,13 +164,13 @@ export default function AdminSidebarManager() {
       title: newItem.title.trim(),
       path: newItem.path.trim(),
       icon: newItem.icon || 'link',
-      badge: newItem.badge?.trim() || undefined,
-      badgeColor: newItem.badgeColor || undefined,
-      highlighted: newItem.highlighted || false,
-      highlightColor: (newItem.highlightColor as any) || 'primary',
+      iconType: newItem.iconType || 'material',
       active: true,
       group: (newItem.group as any) || 'main',
-      order: items.length
+      order: items.length,
+      highlighted: Boolean(newItem.highlighted),
+      ...(newItem.highlighted && newItem.highlightColor ? { highlightColor: newItem.highlightColor as any } : {}),
+      ...(newItem.badge?.trim() ? { badge: newItem.badge.trim(), badgeColor: newItem.badgeColor?.trim() || 'bg-primary text-white' } : {})
     };
 
     setItems([...items, itemToAdd]);
@@ -176,7 +190,8 @@ export default function AdminSidebarManager() {
     if (!window.confirm('هل ترغب بإعادة تعيين القائمة الجانبية إلى الترتيب الافتراضي للنظام بدون تمييزات مسبقة؟')) return;
     setItems(DEFAULT_SIDEBAR_ITEMS);
     try {
-      await setDoc(doc(db, 'settings', 'sidebar_layout'), { items: DEFAULT_SIDEBAR_ITEMS });
+      const cleanItems = cleanFirestoreData(DEFAULT_SIDEBAR_ITEMS);
+      await setDoc(doc(db, 'settings', 'sidebar_layout'), { items: cleanItems });
       setSidebarMenuItems(DEFAULT_SIDEBAR_ITEMS);
       toast.success('تمت استعادة الترتيب الافتراضي بنجاح');
     } catch (e) {
@@ -188,14 +203,37 @@ export default function AdminSidebarManager() {
   const handleSaveToCloud = async () => {
     setIsSaving(true);
     try {
-      const normalizedItems = items.map((item, idx) => ({
-        ...item,
-        order: idx,
-        highlighted: item.highlighted || false,
-        highlightColor: item.highlighted ? (item.highlightColor || 'primary') : undefined
-      }));
+      const normalizedItems: SidebarMenuItem[] = items.map((item, idx) => {
+        const entry: Record<string, any> = {
+          id: String(item.id),
+          title: String(item.title || ''),
+          path: String(item.path || ''),
+          icon: String(item.icon || 'link'),
+          iconType: item.iconType || 'material',
+          active: item.active !== false,
+          order: idx,
+          group: item.group || 'main',
+          highlighted: Boolean(item.highlighted)
+        };
 
-      await setDoc(doc(db, 'settings', 'sidebar_layout'), { items: normalizedItems });
+        if (item.highlighted && item.highlightColor) {
+          entry.highlightColor = item.highlightColor;
+        }
+
+        if (item.badge && item.badge.trim() !== '') {
+          entry.badge = item.badge.trim();
+          entry.badgeColor = item.badgeColor?.trim() || 'bg-primary text-white';
+        }
+
+        if (item.isCustom) {
+          entry.isCustom = true;
+        }
+
+        return entry as SidebarMenuItem;
+      });
+
+      const cleanedPayload = cleanFirestoreData({ items: normalizedItems });
+      await setDoc(doc(db, 'settings', 'sidebar_layout'), cleanedPayload);
       setSidebarMenuItems(normalizedItems);
       toast.success('تم حفظ ترتيب وإعدادات القائمة الجانبية بنجاح ✨');
     } catch (error) {
@@ -437,14 +475,39 @@ export default function AdminSidebarManager() {
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 block mb-0.5">الشارة (Badge - اختياري)</label>
-                        <input
-                          type="text"
-                          value={editForm.badge || ''}
-                          onChange={e => setEditForm({ ...editForm, badge: e.target.value })}
-                          placeholder="اتركه فارغاً لإلغاء الشارة"
-                          className="w-full p-2 rounded-xl border border-border-light text-xs font-bold bg-white dark:bg-surface-dark"
-                        />
+                        <div className="flex items-center justify-between mb-0.5">
+                          <label className="text-[10px] font-bold text-slate-400 block">الشارة (Badge)</label>
+                          {editForm.badge && editForm.badge.trim() !== '' && (
+                            <button
+                              type="button"
+                              onClick={() => setEditForm({ ...editForm, badge: '', badgeColor: '' })}
+                              className="text-[10px] text-red-500 hover:text-red-600 font-black flex items-center gap-0.5 cursor-pointer"
+                              title="إزالة الشارة"
+                            >
+                              <X size={11} />
+                              <span>إزالة الشارة</span>
+                            </button>
+                          )}
+                        </div>
+                        <div className="relative flex items-center">
+                          <input
+                            type="text"
+                            value={editForm.badge || ''}
+                            onChange={e => setEditForm({ ...editForm, badge: e.target.value })}
+                            placeholder="اتركه فارغاً لإلغاء الشارة"
+                            className="w-full p-2 pl-7 rounded-xl border border-border-light text-xs font-bold bg-white dark:bg-surface-dark"
+                          />
+                          {editForm.badge && (
+                            <button
+                              type="button"
+                              onClick={() => setEditForm({ ...editForm, badge: '', badgeColor: '' })}
+                              className="absolute left-2 text-slate-400 hover:text-red-500"
+                              title="مسح الشارة"
+                            >
+                              <X size={13} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -490,9 +553,17 @@ export default function AdminSidebarManager() {
                           مميز ({getHighlightBadgeName(item.highlightColor)})
                         </span>
                       )}
-                      {item.badge && (
-                        <span className={`px-2 py-0.5 text-[8px] font-black rounded-full uppercase ${item.badgeColor || 'bg-primary text-white'}`}>
-                          {item.badge}
+                      {item.badge && item.badge.trim() !== '' && (
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-[9px] font-black rounded-full uppercase ${item.badgeColor || 'bg-primary text-white'} shadow-xs`}>
+                          <span>{item.badge}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleRemoveBadge(item.id); }}
+                            className="hover:bg-black/25 rounded-full p-0.5 transition-all text-white/90 hover:text-white"
+                            title="إزالة هذه الشارة فوراً"
+                          >
+                            <X size={10} />
+                          </button>
                         </span>
                       )}
                       {!isActive && (

@@ -212,7 +212,7 @@ export default function Sidebar({ isOpen, onClose, profile }: SidebarProps) {
                         {renderSidebarIcon(item)}
                         <span className="text-sm font-bold">{item.title}</span>
                       </div>
-                      {item.badge && (
+                      {item.badge && item.badge.trim() !== '' && (
                         <span className={`px-2 py-0.5 text-[8px] font-black rounded-full uppercase ${item.badgeColor || 'bg-primary text-white'}`}>
                           {item.badge}
                         </span>
@@ -232,7 +232,7 @@ export default function Sidebar({ isOpen, onClose, profile }: SidebarProps) {
                       {renderSidebarIcon(item)}
                       <span className="text-sm font-bold">{item.title}</span>
                     </div>
-                    {item.badge && (
+                    {item.badge && item.badge.trim() !== '' && (
                       <span className={`px-2 py-0.5 text-[8px] font-black rounded-full uppercase ${item.badgeColor || 'bg-primary text-white'}`}>
                         {item.badge}
                       </span>
@@ -265,10 +265,17 @@ export default function Sidebar({ isOpen, onClose, profile }: SidebarProps) {
                       key={item.id}
                       to={item.path}
                       onClick={onClose}
-                      className="flex items-center gap-3 p-3.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-surface-dark transition-colors text-slate-700 dark:text-slate-300 pressable"
+                      className="flex items-center justify-between p-3.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-surface-dark transition-colors text-slate-700 dark:text-slate-300 pressable"
                     >
-                      {renderSidebarIcon(item)}
-                      <span className="text-sm font-bold">{item.title}</span>
+                      <div className="flex items-center gap-3">
+                        {renderSidebarIcon(item)}
+                        <span className="text-sm font-bold">{item.title}</span>
+                      </div>
+                      {item.badge && item.badge.trim() !== '' && (
+                        <span className={`px-2 py-0.5 text-[8px] font-black rounded-full uppercase ${item.badgeColor || 'bg-primary text-white'}`}>
+                          {item.badge}
+                        </span>
+                      )}
                     </Link>
                   ))}
                 </>
