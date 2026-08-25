@@ -3,9 +3,10 @@ import { useAppStore } from '../store';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { motion } from 'motion/react';
-import { Share2, Bookmark, Heart, ArrowRight, Rss, Edit2 } from 'lucide-react';
+import { Share2, Bookmark, Heart, ArrowRight, Rss, Edit2, Play, Video as VideoIcon } from 'lucide-react';
 import { getOptimizedImage } from '../lib/cloudinary';
 import toast from 'react-hot-toast';
+import VideoEmbedWidget from '../components/widgets/VideoEmbedWidget';
 
 export default function NewsDetail() {
   const { id } = useParams();
@@ -167,10 +168,22 @@ export default function NewsDetail() {
              </div>
           </div>
 
-          <div className="prose dark:prose-invert max-w-none">
-            <p className="text-sm md:text-base font-bold text-slate-700 dark:text-slate-300 leading-relaxed text-justify whitespace-pre-wrap">
-              {article.content || 'لا يوجد محتوى متاح لهذا الخبر في الوقت الحالي.'}
-            </p>
+            <div className="prose dark:prose-invert max-w-none">
+              {article.videoUrl && article.videoUrl.trim() !== '' && (
+                <div className="mb-6 rounded-2xl md:rounded-3xl overflow-hidden shadow-sm not-prose">
+                  <VideoEmbedWidget 
+                    videoUrl={article.videoUrl} 
+                    videoType={article.videoType || 'auto'}
+                    title={article.title}
+                    subtitle="فيديو مرفق بالخبر"
+                    aspectRatio="16/9"
+                  />
+                </div>
+              )}
+
+              <p className="text-sm md:text-base font-bold text-slate-700 dark:text-slate-300 leading-relaxed text-justify whitespace-pre-wrap">
+                {article.content || 'لا يوجد محتوى متاح لهذا الخبر في الوقت الحالي.'}
+              </p>
             {article.type === 'rss' && (
                <div className="mt-8 p-4 rounded-2xl bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30">
                   <div className="flex items-center gap-2 mb-2 text-orange-600 dark:text-orange-400">

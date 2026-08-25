@@ -88,6 +88,8 @@ export interface NewsItem {
   editorName?: string;
   rssUrl?: string;
   rssSource?: string;
+  videoUrl?: string;
+  videoType?: 'youtube' | 'facebook' | 'direct' | 'auto';
   tagIds?: string[];
   views?: number;
   createdAt?: string;

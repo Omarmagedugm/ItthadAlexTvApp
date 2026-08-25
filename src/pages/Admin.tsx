@@ -25,6 +25,7 @@ import {
 import { 
   LayoutDashboard, 
   Newspaper, 
+  Play,
   PlayCircle, 
   Trophy, 
   Plus, 
@@ -98,7 +99,8 @@ import {
   Tv,
   Video
 } from 'lucide-react';
-import { parseLiveStreamUrl } from '../lib/videoUtils';
+import { parseLiveStreamUrl, isYouTubeUrl, isFacebookUrl } from '../lib/videoUtils';
+import VideoEmbedWidget from '../components/widgets/VideoEmbedWidget';
 import { motion } from 'motion/react';
 import AdminSidebar from '../components/AdminSidebar';
 import AdminSidebarManager from '../components/AdminSidebarManager';
@@ -1119,6 +1121,8 @@ export default function Admin() {
           editorName: formData.editorName || '',
           type: formData.rssUrl ? 'rss' : 'manual',
           rssUrl: formData.rssUrl || '',
+          videoUrl: (formData.videoUrl || '').trim(),
+          videoType: formData.videoType || 'auto',
           tagIds: formData.tagIds || []
         };
         
@@ -2297,7 +2301,12 @@ export default function Admin() {
   };
 
   const handleEditNews = (item: any) => {
-    const data = { ...item, image: item.image || item.imageUrl };
+    const data = { 
+      ...item, 
+      image: item.image || item.imageUrl,
+      videoUrl: item.videoUrl || '',
+      videoType: item.videoType || 'auto'
+    };
     setFormData(data);
     setBaseData(data);
     setIsEditing(true);
@@ -2307,7 +2316,9 @@ export default function Admin() {
 
   const openAddModal = () => {
     let initialData: any = {};
-    if (activeTab === 'polls') {
+    if (activeTab === 'news') {
+      initialData = { title: '', content: '', image: '', category: 'أخبار النادي', author: 'الموقع الرسمي', videoUrl: '', videoType: 'auto', tagIds: [] };
+    } else if (activeTab === 'polls') {
       initialData = { options: ['', ''], active: true };
     } else if (activeTab === 'media') {
       initialData = { type: 'video', source: 'youtube', url: '', videoUrl: '', date: new Date().toISOString() };
@@ -3539,6 +3550,12 @@ export default function Admin() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                          <h3 className="font-black text-base line-clamp-2 leading-tight text-slate-800 dark:text-white">{item.title}</h3>
+                         {item.videoUrl && (
+                           <div className="bg-red-500/10 text-red-500 px-2 py-0.5 rounded-lg flex items-center gap-1 text-[10px] font-black shrink-0 border border-red-500/20">
+                             <Play size={10} className="fill-current" />
+                             <span>فيديو</span>
+                           </div>
+                         )}
                          {item.type === 'rss' && <div className="bg-orange-500/10 text-orange-500 p-1 rounded-lg"><Rss size={12} /></div>}
                       </div>
                       <div className="flex items-center gap-3">
@@ -6588,6 +6605,66 @@ export default function Admin() {
                     </div>
                    </div>
                     <UploadOrUrlField label="صورة الخبر" fieldName="image" currentUrl={formData.image} formData={formData} setFormData={setFormData} uploading={uploading} handleFileUpload={handleFileUpload} />
+
+                    {/* Video Embedding Field (YouTube / Facebook / Direct) */}
+                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-surface-dark border border-border-light dark:border-border-dark space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black text-slate-800 dark:text-white flex items-center gap-1.5">
+                          <Play size={15} className="text-red-500 fill-current" />
+                          <span>تضمين فيديو في الخبر (يوتيوب أو فيسبوك)</span>
+                        </label>
+                        {formData.videoUrl && formData.videoUrl.trim() !== '' && (
+                          <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
+                            isYouTubeUrl(formData.videoUrl) 
+                              ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
+                              : isFacebookUrl(formData.videoUrl)
+                              ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                              : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                          }`}>
+                            {isYouTubeUrl(formData.videoUrl) ? 'YouTube مُكتشف' : isFacebookUrl(formData.videoUrl) ? 'Facebook مُكتشف' : 'فيديو مباشر'}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="relative">
+                          <input 
+                            type="text" 
+                            placeholder="ألصق رابط فيديو من YouTube أو Facebook هنا..." 
+                            className="w-full p-3 pl-10 rounded-xl border border-border-light bg-white dark:bg-card-dark dark:border-border-dark text-slate-800 dark:text-white text-xs font-bold text-left dir-ltr shadow-xs" 
+                            value={formData.videoUrl || ''} 
+                            onChange={(e) => setFormData({...formData, videoUrl: e.target.value})} 
+                          />
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                            {isYouTubeUrl(formData.videoUrl) ? (
+                              <Youtube size={18} className="text-red-500" />
+                            ) : isFacebookUrl(formData.videoUrl) ? (
+                              <span className="text-blue-600 font-black text-sm">f</span>
+                            ) : (
+                              <Video size={18} />
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold leading-relaxed">
+                          يدعم روابط يوتيوب (العادية، Shorts، البث المباشر) وروابط فيسبوك (Watch، الفيديوهات، Reels) وملفات MP4 المباشرة.
+                        </p>
+                      </div>
+
+                      {formData.videoUrl && formData.videoUrl.trim() !== '' && (
+                        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-border-dark/60">
+                          <p className="text-[10px] font-black text-slate-500 mb-2">معاينة الفيديو المضمن:</p>
+                          <div className="rounded-2xl overflow-hidden border border-border-light dark:border-border-dark">
+                            <VideoEmbedWidget 
+                              videoUrl={formData.videoUrl} 
+                              videoType={formData.videoType || 'auto'}
+                              title={formData.title || 'معاينة فيديو الخبر'}
+                              subtitle="معاينة فورية داخل لوحة التحكم"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                    <div>
                      <label className="text-[10px] font-black text-slate-500 mb-1 block">رابط RSS (لجلب الخبر تلقائياً)</label>
                      <input type="text" placeholder="https://..." className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm" value={formData.rssUrl || ''} onChange={(e) => setFormData({...formData, rssUrl: e.target.value})} />

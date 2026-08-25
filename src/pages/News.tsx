@@ -3,7 +3,7 @@ import { useAppStore } from '../store';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
-import { Rss, SlidersHorizontal, ChevronRight } from 'lucide-react';
+import { Rss, SlidersHorizontal, ChevronRight, Play, Video as VideoIcon } from 'lucide-react';
 import { getOptimizedImage } from '../lib/cloudinary';
 
 export default function News() {
@@ -68,6 +68,12 @@ export default function News() {
                       <div className="px-3 py-1 bg-accent rounded-xl text-[9px] font-black text-white shadow-glow tracking-tighter">
                         خبر مميز
                       </div>
+                      {featured.videoUrl && (
+                        <div className="px-3 py-1 bg-red-600/90 backdrop-blur-md rounded-xl text-[9px] font-black text-white flex items-center gap-1.5 shadow-premium">
+                          <Play size={11} className="fill-current" />
+                          <span>فيديو</span>
+                        </div>
+                      )}
                       {featured.category && (
                         <div className="px-3 py-1 bg-primary/90 backdrop-blur-md rounded-xl text-[9px] font-black text-white shadow-premium">
                           {featured.category}
@@ -174,6 +180,12 @@ export default function News() {
                       decoding="async"
                       referrerPolicy="no-referrer" 
                     />
+                    {item.videoUrl && (
+                      <div className="absolute top-2 right-2 bg-red-600/90 text-white backdrop-blur-md px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-sm text-[8px] font-black z-10">
+                        <Play size={9} className="fill-current" />
+                        <span>فيديو</span>
+                      </div>
+                    )}
                     {item.type === 'rss' && (
                        <div className="absolute bottom-1 right-1 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded-lg flex items-center gap-1 shadow-sm text-white">
                           <Rss size={8} className="text-orange-400" />

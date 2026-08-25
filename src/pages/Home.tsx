@@ -879,6 +879,12 @@ export default function Home() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
                       <div className="absolute top-4 left-4 z-20 flex gap-1.5 flex-wrap max-w-[90%]">
+                        {item.videoUrl && (
+                          <div className="h-7 px-2.5 bg-red-600/90 backdrop-blur-md rounded-lg flex items-center justify-center gap-1 text-[8px] font-black text-white uppercase tracking-widest ring-1 ring-white/20 shadow-premium">
+                            <span className="material-symbols-outlined !text-[14px]">play_arrow</span>
+                            <span>فيديو</span>
+                          </div>
+                        )}
                         <div className="h-7 px-3 bg-primary/90 backdrop-blur-md rounded-lg flex items-center justify-center text-[8px] font-black text-white uppercase tracking-widest ring-1 ring-white/20 shadow-premium">
                           {item.category || (item.type === "rss" ? "أخبار خارجية" : "رسمي")}
                         </div>
