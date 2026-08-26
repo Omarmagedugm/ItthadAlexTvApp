@@ -6,7 +6,8 @@ import {
   Search, ShieldCheck, Dumbbell, Building2, HelpCircle, Calendar, 
   CheckCircle2, AlertCircle, ArrowLeft, X, ExternalLink, Sparkles, Filter, Info,
   Compass, Ticket, DollarSign, Palmtree, User, Waves, Target, Trophy, Activity,
-  CalendarDays, Clock3, Medal, Percent, Sun, BookOpen, UserCheck, Landmark, BadgeCheck
+  CalendarDays, Clock3, Medal, Percent, Sun, BookOpen, UserCheck, Landmark, BadgeCheck,
+  GraduationCap, HeartPulse, ShoppingBag, Code
 } from 'lucide-react';
 import { useAppStore, ClubCommittee, ClubAnnouncement, ClubService, ClubTrip } from '../store';
 import { 
@@ -37,8 +38,23 @@ export default function ClubMembers() {
     if (t.includes('أحوال مدنية') || t.includes('سجل مدني') || t.includes('رقم قومي') || t.includes('شهادات')) {
       return <Landmark size={20} className="text-indigo-500 shrink-0" />;
     }
-    if (t.includes('فصل العضوية') || t.includes('عضوية') || c.includes('عضوية') || c.includes('اشتراكات')) {
+    if (t.includes('فصل العضوية') || t.includes('عضوية') || c.includes('عضوية') || c.includes('اشتراكات') || t.includes('اشتراك')) {
       return <UserCheck size={20} className="text-emerald-500 shrink-0" />;
+    }
+    if (t.includes('تعليم') || t.includes('تطوع') || t.includes('معلم') || t.includes('ألماني') || t.includes('دورات') || c.includes('تعليم')) {
+      return <GraduationCap size={20} className="text-blue-500 shrink-0" />;
+    }
+    if (t.includes('برمج') || t.includes('ذكاء اصطناعي') || t.includes('ai') || t.includes('كود')) {
+      return <Code size={20} className="text-purple-500 shrink-0" />;
+    }
+    if (t.includes('صحة') || t.includes('طبي') || t.includes('إنجابي') || t.includes('تنظيم أسرة') || c.includes('طبي')) {
+      return <HeartPulse size={20} className="text-rose-500 shrink-0" />;
+    }
+    if (t.includes('معرض') || t.includes('مدارس') || t.includes('أدوات') || t.includes('مكتب') || t.includes('school')) {
+      return <ShoppingBag size={20} className="text-amber-500 shrink-0" />;
+    }
+    if (t.includes('مولد') || t.includes('حفل') || t.includes('احتفال') || t.includes('مناسبات')) {
+      return <Sparkles size={20} className="text-amber-500 shrink-0" />;
     }
     if (t.includes('صيفية') || t.includes('صيفي') || t.includes('أكاديميات')) {
       return <Sun size={20} className="text-amber-500 shrink-0" />;
