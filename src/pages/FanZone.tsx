@@ -96,7 +96,6 @@ export default function FanZone() {
   const [editingContent, setEditingContent] = useState('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
-  const [tick, setTick] = useState(0);
   const [matchDayMoments, setMatchDayMoments] = useState<any[]>([]);
   const [attendancePoll, setAttendancePoll] = useState<any>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -119,11 +118,6 @@ export default function FanZone() {
       }
     });
     return () => unsubAiConfig();
-  }, []);
-
-  useEffect(() => {
-    const timer = setInterval(() => setTick(t => t + 1), 1000);
-    return () => clearInterval(timer);
   }, []);
 
   const handleAddPoll = () => {

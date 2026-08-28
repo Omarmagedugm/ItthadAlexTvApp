@@ -127,6 +127,53 @@ export function useFirestoreSync() {
         'predictions'
       );
 
+      // App Users (Fetch lightweight sample once on startup; Admin tab fetches full list on demand)
+      getDocs(query(collection(db, 'users'), limit(100)))
+        .then(s => {
+          if (isMounted) setUsers(s.docs.map(d => ({ id: d.id, uid: d.id, ...(d.data() as any) })) as any);
+        })
+        .catch(() => {});
+
+      // Club Members Section Data (Realtime sync for instant admin updates)
+      const unsubClubAnnouncements = subscribeSnapshot(
+        query(collection(db, 'club_announcements'), limit(50)),
+        (s) => setClubAnnouncements(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any),
+        'club_announcements'
+      );
+
+      const unsubClubServices = subscribeSnapshot(
+        query(collection(db, 'club_services'), limit(50)),
+        (s) => setClubServices(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any),
+        'club_services'
+      );
+
+      const unsubClubCommittees = subscribeSnapshot(
+        query(collection(db, 'club_committees'), limit(30)),
+        (s) => setClubCommittees(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any),
+        'club_committees'
+      );
+
+      const unsubClubTrips = subscribeSnapshot(
+        query(collection(db, 'club_trips'), limit(30)),
+        (s) => setClubTrips(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any),
+        'club_trips'
+      );
+
+      const unsubMemberDiscounts = subscribeSnapshot(
+        query(collection(db, 'member_discounts'), limit(50)),
+        (s) => setMemberDiscounts(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any),
+        'member_discounts'
+      );
+
+      const unsubClubMembersSettings = subscribeSnapshot(
+        doc(db, 'club_members_settings', 'main'),
+        (snap) => {
+          if (snap.exists()) setClubMembersSettings(snap.data() as any);
+        },
+        'club_members_settings/main',
+        OperationType.GET
+      );
+
       unsubs.push(
         unsubLiveFootball,
         unsubLiveBasketball,
@@ -137,7 +184,13 @@ export function useFirestoreSync() {
         unsubNews,
         unsubFanPosts,
         unsubPolls,
-        unsubPredictions
+        unsubPredictions,
+        unsubClubAnnouncements,
+        unsubClubServices,
+        unsubClubCommittees,
+        unsubClubTrips,
+        unsubMemberDiscounts,
+        unsubClubMembersSettings
       );
 
       // User Profile listener (only if logged in)
@@ -185,13 +238,13 @@ export function useFirestoreSync() {
 
     setupRealtimeSync();
 
-    // 2. Fetch Reference / Static Data ONCE (getDocs with limits, no realtime subscription loops)
+    // 2. Fetch Reference / Static Data in Prioritized Staggered Batches
     const fetchStaticData = async () => {
       if (isInitialFetchDoneRef.current) return;
 
       const fetchCol = async (col: string, setter: (d: any) => void, q?: any) => {
         try {
-          const s = await getDocs(q || query(collection(db, col), limit(100)));
+          const s = await getDocs(q || query(collection(db, col), limit(50)));
           if (!isMounted) return;
           const data = s.docs.map(d => ({ id: d.id, uid: d.id, ...(d.data() as any) }));
           if (data) setter(data);
@@ -214,66 +267,70 @@ export function useFirestoreSync() {
       };
 
       try {
+        // Priority 1: Instant Core Data required for Home UI & Navigation
         await Promise.allSettled([
-          // Settings & Info
           fetchDocItem('settings/ai_config', setAiConfig),
           fetchDocItem('settings/newsCategories', (s) => s?.list && setNewsCategories(s.list)),
           fetchDocItem('settings/newsTags', (s) => s?.tags && setNewsTags(s.tags)),
           fetchDocItem('settings/sidebar_layout', (s) => s?.items && setSidebarMenuItems(s.items)),
           fetchDocItem('city_info/alexandria', setCityInfo),
-          fetchDocItem('club_members_settings/main', setClubMembersSettings),
-          
-          // Media & Music
-          fetchCol('media', setMedia, query(collection(db, 'media'), orderBy('date', 'desc'), limit(60))),
-          fetchCol('songs', setSongs, query(collection(db, 'songs'), limit(100))),
-          fetchCol('albums', setAlbums, query(collection(db, 'albums'), limit(50))),
-          fetchCol('playlists', setPlaylists, query(collection(db, 'playlists'), limit(50))),
-          fetchCol('books', setBooks, query(collection(db, 'books'), limit(50))),
-          fetchCol('media_playlists', setMediaPlaylists, query(collection(db, 'media_playlists'), limit(50))),
-          
-          // Club & Business & Static Sections
-          fetchCol('clubs', setClubs),
-          fetchCol('products', setProducts),
           fetchCol('ads', setAds, query(collection(db, 'ads'), where('active', '==', true), orderBy('order', 'asc'))),
-          fetchCol('custom_pages', setCustomPages, query(collection(db, 'custom_pages'), orderBy('createdAt', 'desc'), limit(30))),
-          fetchCol('businesses', setBusinesses, query(collection(db, 'businesses'), limit(50))),
-          fetchCol('business_updates', setBusinessUpdates, query(collection(db, 'business_updates'), limit(50))),
-          fetchCol('business_reports', setBusinessReports, query(collection(db, 'business_reports'), limit(50))),
-          fetchCol('world_countries', (data) => {
-            if (!data || data.length === 0) {
-              setWorldCountries(defaultWorldCountries);
-            } else {
-              const merged = [...defaultWorldCountries];
-              data.forEach((vc: any) => {
-                const idx = merged.findIndex(m => m.id === vc.id);
-                if (idx >= 0) merged[idx] = { ...merged[idx], ...vc };
-                else merged.push(vc);
-              });
-              setWorldCountries(merged);
-            }
-          }),
-          fetchCol('world_groups', setWorldGroups, query(collection(db, 'world_groups'), limit(50))),
-          fetchCol('world_posts', setWorldPosts, query(collection(db, 'world_posts'), orderBy('createdAt', 'desc'), limit(40))),
-          fetchCol('world_events', setWorldEvents, query(collection(db, 'world_events'), orderBy('date', 'asc'), limit(30))),
-          fetchCol('world_help_requests', setWorldHelpRequests, query(collection(db, 'world_help_requests'), orderBy('createdAt', 'desc'), limit(30))),
-          fetchCol('world_applications', setWorldApplications, query(collection(db, 'world_applications'), limit(30))),
-          fetchCol('club_services', setClubServices),
-          fetchCol('club_stadiums', setStadiums),
-          fetchCol('club_timeline', setHistoryEvents),
-          fetchCol('club_titles', setClubTitles),
-          fetchCol('club_stats', setClubStats),
-          fetchCol('club_committees', setClubCommittees),
-          fetchCol('club_announcements', setClubAnnouncements),
-          fetchCol('club_trips', setClubTrips),
-          fetchCol('member_discounts', setMemberDiscounts)
+          fetchCol('custom_pages', setCustomPages, query(collection(db, 'custom_pages'), orderBy('createdAt', 'desc'), limit(20))),
+          fetchCol('clubs', setClubs, query(collection(db, 'clubs'), limit(30))),
+          fetchCol('club_stadiums', setStadiums, query(collection(db, 'club_stadiums'), limit(20))),
+          fetchCol('club_timeline', setHistoryEvents, query(collection(db, 'club_timeline'), limit(30))),
+          fetchCol('club_titles', setClubTitles, query(collection(db, 'club_titles'), limit(20))),
+          fetchCol('club_stats', setClubStats, query(collection(db, 'club_stats'), limit(20)))
         ]);
-      } catch (err) {
-        console.warn('Error fetching static data:', err);
-      } finally {
+
         if (isMounted) {
           isInitialFetchDoneRef.current = true;
           setDataLoaded(true);
         }
+
+        // Priority 2: Staggered Secondary Data (Media, Songs, Books, World Fans, Businesses)
+        // Loaded smoothly in the background without blocking the UI thread
+        setTimeout(async () => {
+          if (!isMounted) return;
+          try {
+            await Promise.allSettled([
+              fetchCol('media', setMedia, query(collection(db, 'media'), orderBy('date', 'desc'), limit(30))),
+              fetchCol('songs', setSongs, query(collection(db, 'songs'), limit(50))),
+              fetchCol('albums', setAlbums, query(collection(db, 'albums'), limit(30))),
+              fetchCol('playlists', setPlaylists, query(collection(db, 'playlists'), limit(30))),
+              fetchCol('books', setBooks, query(collection(db, 'books'), limit(30))),
+              fetchCol('media_playlists', setMediaPlaylists, query(collection(db, 'media_playlists'), limit(30))),
+              fetchCol('products', setProducts, query(collection(db, 'products'), limit(30))),
+              fetchCol('businesses', setBusinesses, query(collection(db, 'businesses'), limit(30))),
+              fetchCol('business_updates', setBusinessUpdates, query(collection(db, 'business_updates'), limit(30))),
+              fetchCol('business_reports', setBusinessReports, query(collection(db, 'business_reports'), limit(30))),
+              fetchCol('world_countries', (data) => {
+                if (!data || data.length === 0) {
+                  setWorldCountries(defaultWorldCountries);
+                } else {
+                  const merged = [...defaultWorldCountries];
+                  data.forEach((vc: any) => {
+                    const idx = merged.findIndex(m => m.id === vc.id);
+                    if (idx >= 0) merged[idx] = { ...merged[idx], ...vc };
+                    else merged.push(vc);
+                  });
+                  setWorldCountries(merged);
+                }
+              }),
+              fetchCol('world_groups', setWorldGroups, query(collection(db, 'world_groups'), limit(30))),
+              fetchCol('world_posts', setWorldPosts, query(collection(db, 'world_posts'), orderBy('createdAt', 'desc'), limit(30))),
+              fetchCol('world_events', setWorldEvents, query(collection(db, 'world_events'), orderBy('date', 'asc'), limit(20))),
+              fetchCol('world_help_requests', setWorldHelpRequests, query(collection(db, 'world_help_requests'), orderBy('createdAt', 'desc'), limit(20))),
+              fetchCol('world_applications', setWorldApplications, query(collection(db, 'world_applications'), limit(20)))
+            ]);
+          } catch (bgErr) {
+            console.warn('Background data fetch notice:', bgErr);
+          }
+        }, 500);
+
+      } catch (err) {
+        console.warn('Error fetching static data:', err);
+        if (isMounted) setDataLoaded(true);
       }
     };
 

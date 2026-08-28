@@ -17,7 +17,6 @@ export default function Matches() {
   const [selectedSport, setSelectedSport] = useState<'all' | 'football' | 'basketball'>('all');
   const [showPredictionsList, setShowPredictionsList] = useState<string | null>(null);
   const [matchPredictions, setMatchPredictions] = useState<any[]>([]);
-  const [tick, setTick] = useState(0);
   const [visibleCount, setVisibleCount] = useState<Record<string, number>>({});
   const [predictionMatchId, setPredictionMatchId] = useState<string | null>(null);
   const [homePrediction, setHomePrediction] = useState('0');
@@ -46,11 +45,6 @@ export default function Matches() {
       handleFirestoreError(error, OperationType.LIST, `predictions/${showPredictionsList}`);
     });
   }, [showPredictionsList]);
-
-  useEffect(() => {
-    const timer = setInterval(() => setTick(t => t + 1), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Fetch existing predictions for this user
   useEffect(() => {

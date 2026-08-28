@@ -466,7 +466,8 @@ export default function Admin() {
     setClubTitles, setClubStats, setHistoryEvents, setStadiums, setNewsCategories,
     setProducts, setOrders, setAds, setHomeSections, pushToUndoStack, popFromUndoStack,
     setSongs, setAlbums, setPlaylists, setMediaPlaylists, setBooks, setCityInfo,
-    setSettings
+    setSettings,
+    setClubCommittees, setClubAnnouncements, setClubServices, setClubTrips, setClubMembersSettings, setMemberDiscounts
   } = useAppStore();
 
   const committeesList = useMemo(() => {
@@ -1747,8 +1748,14 @@ export default function Admin() {
           };
           if (isEditing && editingId) {
             await setDoc(doc(db, 'club_committees', editingId), cleanPayload(payload));
+            setClubCommittees(
+              (clubCommittees || []).some(c => c.id === editingId)
+                ? (clubCommittees || []).map(c => c.id === editingId ? { id: editingId, ...payload } : c)
+                : [...(clubCommittees || []), { id: editingId, ...payload }]
+            );
           } else {
-            await addDoc(collection(db, 'club_committees'), cleanPayload(payload));
+            const docRef = await addDoc(collection(db, 'club_committees'), cleanPayload(payload));
+            setClubCommittees([{ id: docRef.id, ...payload }, ...(clubCommittees || [])]);
           }
         } else if (clubSubTab === 'announcements') {
           const payload = {
@@ -1764,8 +1771,14 @@ export default function Admin() {
           };
           if (isEditing && editingId) {
             await setDoc(doc(db, 'club_announcements', editingId), cleanPayload(payload));
+            setClubAnnouncements(
+              (clubAnnouncements || []).some(a => a.id === editingId)
+                ? (clubAnnouncements || []).map(a => a.id === editingId ? { id: editingId, ...payload } : a)
+                : [...(clubAnnouncements || []), { id: editingId, ...payload }]
+            );
           } else {
-            await addDoc(collection(db, 'club_announcements'), cleanPayload(payload));
+            const docRef = await addDoc(collection(db, 'club_announcements'), cleanPayload(payload));
+            setClubAnnouncements([{ id: docRef.id, ...payload }, ...(clubAnnouncements || [])]);
           }
         } else if (clubSubTab === 'services') {
           const payload = {
@@ -1784,8 +1797,14 @@ export default function Admin() {
           };
           if (isEditing && editingId) {
             await setDoc(doc(db, 'club_services', editingId), cleanPayload(payload));
+            setClubServices(
+              (clubServices || []).some(s => s.id === editingId)
+                ? (clubServices || []).map(s => s.id === editingId ? { id: editingId, ...payload } : s)
+                : [...(clubServices || []), { id: editingId, ...payload }]
+            );
           } else {
-            await addDoc(collection(db, 'club_services'), cleanPayload(payload));
+            const docRef = await addDoc(collection(db, 'club_services'), cleanPayload(payload));
+            setClubServices([{ id: docRef.id, ...payload }, ...(clubServices || [])]);
           }
         } else if (clubSubTab === 'trips') {
           const payload = {
@@ -1807,8 +1826,14 @@ export default function Admin() {
           };
           if (isEditing && editingId) {
             await setDoc(doc(db, 'club_trips', editingId), cleanPayload(payload));
+            setClubTrips(
+              (clubTrips || []).some(t => t.id === editingId)
+                ? (clubTrips || []).map(t => t.id === editingId ? { id: editingId, ...payload } : t)
+                : [...(clubTrips || []), { id: editingId, ...payload }]
+            );
           } else {
-            await addDoc(collection(db, 'club_trips'), cleanPayload(payload));
+            const docRef = await addDoc(collection(db, 'club_trips'), cleanPayload(payload));
+            setClubTrips([{ id: docRef.id, ...payload }, ...(clubTrips || [])]);
           }
         } else if (clubSubTab === 'settings') {
           const payload = {
@@ -1818,6 +1843,7 @@ export default function Admin() {
             updatedAt: new Date().toISOString()
           };
           await setDoc(doc(db, 'club_members_settings', 'main'), cleanPayload(payload));
+          setClubMembersSettings(payload as any);
         } else if (clubSubTab === 'discounts') {
           const payload = {
             name: formData.name || '',
@@ -1833,8 +1859,14 @@ export default function Admin() {
           };
           if (isEditing && editingId) {
             await updateDoc(doc(db, 'member_discounts', editingId), cleanPayload(payload));
+            setMemberDiscounts(
+              (memberDiscounts || []).some(d => d.id === editingId)
+                ? (memberDiscounts || []).map(d => d.id === editingId ? { id: editingId, ...payload } : d)
+                : [...(memberDiscounts || []), { id: editingId, ...payload }]
+            );
           } else {
-            await addDoc(collection(db, 'member_discounts'), cleanPayload(payload));
+            const docRef = await addDoc(collection(db, 'member_discounts'), cleanPayload(payload));
+            setMemberDiscounts([{ id: docRef.id, ...payload }, ...(memberDiscounts || [])]);
           }
         }
       }
@@ -2005,6 +2037,16 @@ export default function Admin() {
           } catch (e) {}
           setCustomPages(prev => prev.filter(p => p.id !== id));
           useAppStore.getState().setCustomPages(useAppStore.getState().customPages.filter(p => p.id !== id));
+        } else if (coll === 'club_announcements') {
+          setClubAnnouncements((clubAnnouncements || []).filter(a => a.id !== id));
+        } else if (coll === 'club_services') {
+          setClubServices((clubServices || []).filter(s => s.id !== id));
+        } else if (coll === 'club_committees') {
+          setClubCommittees((clubCommittees || []).filter(c => c.id !== id));
+        } else if (coll === 'club_trips') {
+          setClubTrips((clubTrips || []).filter(t => t.id !== id));
+        } else if (coll === 'member_discounts') {
+          setMemberDiscounts((memberDiscounts || []).filter(d => d.id !== id));
         }
 
         toast.success('تم الحذف ونقل نسخة احتياطية لسلة المحذوفات بنجاح 🗑️');
@@ -2130,8 +2172,6 @@ export default function Admin() {
     }
   };
 
-  const [tick, setTick] = useState(0);
-
   useEffect(() => {
     // Auto-seed history if empty
     const seedHistory = async () => {
@@ -2212,9 +2252,6 @@ export default function Admin() {
       }
     };
     seedHistory();
-
-    const timer = setInterval(() => setTick(t => t + 1), 1000);
-    return () => clearInterval(timer);
   }, [clubStats.length, clubTitles.length, historyEvents.length, stadiums.length]);
 
   const calculateCurrentMinute = (match: any) => {

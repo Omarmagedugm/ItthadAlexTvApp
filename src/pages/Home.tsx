@@ -54,6 +54,31 @@ import VideoEmbedWidget from "../components/widgets/VideoEmbedWidget";
 import { SafeImage } from "../components/SafeImage";
 import { getOptimizedImage } from "../lib/cloudinary";
 
+function LiveMatchTimeDisplay({ match }: { match: any }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!match?.isTimerRunning) return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [match?.isTimerRunning, match?.timerStartTime]);
+
+  if (!match) return null;
+  if (!match.isTimerRunning || !match.timerStartTime) {
+    return <span>{`${String(match.timerBaseMinute || 0).padStart(2, '0')}:00'`}</span>;
+  }
+  const start = new Date(match.timerStartTime).getTime();
+  if (isNaN(start)) {
+    return <span>{`${String(match.timerBaseMinute || 0).padStart(2, '0')}:00'`}</span>;
+  }
+  const totalSeconds = Math.max(0, Math.floor((now - start) / 1000));
+  const baseSeconds = Number(match.timerBaseMinute || 0) * 60;
+  const currentSeconds = baseSeconds + totalSeconds;
+  const mm = Math.floor(currentSeconds / 60);
+  const ss = currentSeconds % 60;
+  return <span>{`${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}'`}</span>;
+}
+
 export default function Home() {
   const {
     news,
@@ -72,7 +97,6 @@ export default function Home() {
     dataLoaded,
     aiConfig: storeAiConfig
   } = useAppStore();
-  const [tick, setTick] = useState(0);
   const [clarityOpen, setClarityOpen] = useState(false);
   
   const aiConfig = storeAiConfig || { 
@@ -115,15 +139,22 @@ export default function Home() {
   }, [selectedSport]);
 
   useEffect(() => {
-    const timer = setInterval(() => setTick((t) => t + 1), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
     const citySection = homeSections.find(
       (s) => s.type === "city" || s.id === "city",
     );
     if (citySection?.active && (!cityInfo || cityInfo.active !== false)) {
+      // Check session cache first (15 mins valid)
+      try {
+        const cached = sessionStorage.getItem('ittihad_alex_weather');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && (Date.now() - parsed.ts < 15 * 60 * 1000)) {
+            setAutoWeather(parsed.data);
+            return;
+          }
+        }
+      } catch (e) {}
+
       fetch(
         "https://api.open-meteo.com/v1/forecast?latitude=31.2001&longitude=29.9187&current_weather=true&daily=sunrise,sunset&timezone=Africa%2FCairo&forecast_days=1",
       )
@@ -173,35 +204,24 @@ export default function Home() {
             }
           };
 
-          setAutoWeather({
+          const weatherPayload = {
             temp: Math.round(data.current_weather.temperature ?? 25).toString(),
             condition: weatherCodeToText(data.current_weather.weathercode ?? 0),
             sunrise: formatTime(data.daily.sunrise[0]),
             sunset: formatTime(data.daily.sunset[0]),
             isDay: data.current_weather.is_day === 1,
-          });
+          };
+
+          setAutoWeather(weatherPayload);
+          try {
+            sessionStorage.setItem('ittihad_alex_weather', JSON.stringify({ ts: Date.now(), data: weatherPayload }));
+          } catch (e) {}
         })
         .catch((err) => {
           console.warn("Weather fetch suppressed:", err.message);
         });
     }
   }, [homeSections, cityInfo?.active]);
-
-  const calculateCurrentTimeFormat = (match: any) => {
-    if (!match.isTimerRunning || !match.timerStartTime) {
-      return `${String(match.timerBaseMinute || 0).padStart(2, '0')}:00'`;
-    }
-    const start = new Date(match.timerStartTime).getTime();
-    if (isNaN(start)) {
-      return `${String(match.timerBaseMinute || 0).padStart(2, '0')}:00'`;
-    }
-    const totalSeconds = Math.max(0, Math.floor((new Date().getTime() - start) / 1000));
-    const baseSeconds = Number(match.timerBaseMinute || 0) * 60;
-    const currentSeconds = baseSeconds + totalSeconds;
-    const mm = Math.floor(currentSeconds / 60);
-    const ss = currentSeconds % 60;
-    return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}'`;
-  };
 
   const handleScoreUpdate = async (matchId: string, team: 'home' | 'away', change: number) => {
     const match = matches.find(m => m.id === matchId);
@@ -678,7 +698,7 @@ export default function Home() {
                             {heroMatch.status === "live" && (
                               <div className="flex flex-col items-center gap-2 mt-4">
                                 <div className="px-5 py-1.5 bg-black/40 border border-white/20 rounded-xl text-white font-digital font-black text-[18px] tabular-nums text-center tracking-widest shadow-inner">
-                                  {calculateCurrentTimeFormat(heroMatch)}
+                                  <LiveMatchTimeDisplay match={heroMatch} />
                                 </div>
                                 {isAdmin && (
                                   <div className="flex items-center gap-2 mt-1">

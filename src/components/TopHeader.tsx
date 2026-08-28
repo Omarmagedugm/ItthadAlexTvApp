@@ -19,23 +19,27 @@ export default function TopHeader() {
   });
   const [isActivating, setIsActivating] = useState(false);
 
-  const lightLogo = appSettings?.headerLogoLight || appSettings?.appLogo;
-  const darkLogo = appSettings?.headerLogoDark || appSettings?.appLogo;
+  const lightLogo = appSettings?.headerLogoLight || appSettings?.appLogo || '/icon.png';
+  const darkLogo = appSettings?.headerLogoDark || appSettings?.appLogo || '/icon.png';
   const currentLogo = theme === 'dark' ? darkLogo : lightLogo;
 
   useEffect(() => {
     setImageError(false);
   }, [currentLogo]);
 
-  // Keep permission state in sync with browser
+  // Keep permission state in sync with browser efficiently via focus/visibilitychange
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       const updatePermission = () => {
         setPermission(Notification.permission);
       };
       updatePermission();
-      const timer = setInterval(updatePermission, 1500);
-      return () => clearInterval(timer);
+      window.addEventListener('focus', updatePermission);
+      document.addEventListener('visibilitychange', updatePermission);
+      return () => {
+        window.removeEventListener('focus', updatePermission);
+        document.removeEventListener('visibilitychange', updatePermission);
+      };
     }
   }, []);
 
@@ -161,7 +165,7 @@ export default function TopHeader() {
               {currentLogo && !imageError ? (
                 <img 
                   src={currentLogo} 
-                  alt={title} 
+                  alt="قناة الاتحاد السكندري" 
                   style={{
                     height: `${logoHeight}px`,
                     maxHeight: '92px'
@@ -172,7 +176,7 @@ export default function TopHeader() {
                 />
               ) : (
                 <h1 className="text-base sm:text-lg md:text-xl font-black tracking-tight text-primary-dark dark:text-white uppercase truncate max-w-[160px] sm:max-w-[220px]">
-                  {appSettings?.logoText || title}
+                  {appSettings?.logoText || 'قناة الاتحاد السكندري'}
                 </h1>
               )}
             </Link>
