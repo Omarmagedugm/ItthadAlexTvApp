@@ -1324,21 +1324,31 @@ export default function Admin() {
         try {
           const docName = liveSportSubTab === 'programs' ? 'liveStream_programs' : liveSportSubTab === 'basketball' ? 'liveStream_basketball' : 'liveStream';
           const currentStream = liveSportSubTab === 'programs' ? liveStreams.programs : liveSportSubTab === 'basketball' ? liveStreams.basketball : liveStreams.football;
-          const rawUrl = formData.url !== undefined ? formData.url : (currentStream.url || '');
+          const rawUrl = (formData.url !== undefined ? formData.url : (currentStream.url || currentStream.rawUrl || '')).trim();
           const parsed = parseLiveStreamUrl(rawUrl);
           
-          await setDoc(doc(db, 'settings', docName), {
+          const payload = {
             isActive: formData.isActive !== undefined ? formData.isActive : currentStream.isActive,
-            url: parsed.embedUrl || rawUrl,
-            rawUrl: rawUrl || '',
+            url: rawUrl, // Preserve exact iframe or URL string as entered by admin!
+            rawUrl: rawUrl,
+            embedUrl: parsed.embedUrl || rawUrl,
             title: formData.title !== undefined ? formData.title : currentStream.title,
             viewers: Number(formData.viewers || currentStream.viewers || 0),
             sport: liveSportSubTab,
             streamType: parsed.type,
             updatedAt: new Date().toISOString()
+          };
+
+          await setDoc(doc(db, 'settings', docName), cleanPayload(payload));
+
+          // Immediately update local store
+          const { updateLiveStreams } = useAppStore.getState();
+          updateLiveStreams({
+            [liveSportSubTab]: payload
           });
+
           const sportLabel = liveSportSubTab === 'programs' ? 'البرامج' : liveSportSubTab === 'basketball' ? 'كرة السلة' : 'كرة القدم';
-          toast.success(`تم تحديث بث ${sportLabel} بنجاح`);
+          toast.success(`تم تحديث وحفظ بث ${sportLabel} بنجاح ✅`);
         } catch (err) {
           handleFirestoreError(err, OperationType.WRITE, `settings/liveStream_${liveSportSubTab}`);
         }
@@ -6006,29 +6016,35 @@ export default function Admin() {
                      <div>
                         <div className="flex items-center justify-between mb-2">
                           <label className="text-xs font-black text-slate-800 dark:text-white flex items-center gap-1.5">
-                             <Youtube size={16} className="text-red-600" />
-                             رابط البث أو لينك اليوتيوب لايف
+                             <Tv size={16} className="text-primary" />
+                             كود الـ Iframe أو رابط البث المباشر (YouTube Live / HLS / MP4)
                           </label>
                           {parsedStream.type && (
-                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-surface-dark px-2.5 py-1 rounded-lg border border-border-light dark:border-border-dark">
-                              النوع المكتشف: {parsedStream.type === 'youtube' ? '🔴 يوتيوب (YouTube)' : parsedStream.type === 'iframe' ? '🌐 كود تضمين (Iframe)' : parsedStream.type === 'video' ? '⚡ سيرفر مباشر (HLS/MP4)' : '🔗 رابط مخصص'}
+                            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-surface-dark px-2.5 py-1 rounded-lg border border-border-light dark:border-border-dark flex items-center gap-1">
+                              {parsedStream.rawIframe || (typeof currentUrl === 'string' && currentUrl.includes('<iframe')) ? (
+                                <span className="text-indigo-600 dark:text-indigo-400 font-black">🌐 كود تضمين (Iframe كامل - يُحفظ ويُعرض كـ Iframe أصلي)</span>
+                              ) : parsedStream.type === 'youtube' ? (
+                                <span className="text-red-600 font-bold">🔴 يوتيوب (YouTube Live / Video)</span>
+                              ) : parsedStream.type === 'video' || parsedStream.type === 'hls' ? (
+                                <span className="text-emerald-600 font-bold">⚡ سيرفر مباشر (HLS / m3u8 / MP4)</span>
+                              ) : (
+                                <span>🔗 رابط مخصص</span>
+                              )}
                             </span>
                           )}
                         </div>
                         <div className="relative">
-                          <input 
-                            type="text" 
-                            className="w-full p-3.5 pr-10 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-xs text-left dir-ltr font-mono" 
+                          <textarea 
+                            rows={3}
+                            className="w-full p-3.5 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-xs text-left dir-ltr font-mono resize-y focus:ring-2 focus:ring-primary/20" 
                             value={currentUrl} 
-                            placeholder="https://www.youtube.com/live/... أو https://youtu.be/... أو https://.../stream.m3u8"
+                            placeholder='<iframe src="https://..." allowfullscreen ...></iframe> أو https://www.youtube.com/live/... أو https://.../stream.m3u8'
                             onChange={(e) => setFormData({...formData, url: e.target.value})}
                           />
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                            <Youtube size={18} />
-                          </div>
                         </div>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2 leading-relaxed">
-                          💡 يمكنك لصق رابط يوتيوب لايف المباشر مثل: <span className="font-mono text-primary font-bold">https://youtube.com/live/VIDEO_ID</span> أو رابط الفيديو العادي أو كود التضمين &lt;iframe&gt; وسيتم ضبطه وتشغيله تلقائياً.
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed flex items-center gap-1.5">
+                          <span>💡</span>
+                          <span>عند وضع كود <strong className="text-primary font-mono font-bold">&lt;iframe&gt;...&lt;/iframe&gt;</strong> يتم الاحتفاظ به كاملاً وتشغيله مباشرة دون تحويله إلى رابط.</span>
                         </p>
                      </div>
 

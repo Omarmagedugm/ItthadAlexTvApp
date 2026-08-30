@@ -4,6 +4,7 @@ export interface LiveStreamFormat {
   directWatchUrl: string;
   type: 'youtube' | 'hls' | 'video' | 'iframe' | 'custom' | 'audio';
   videoId?: string;
+  rawIframe?: string;
 }
 
 /**
@@ -156,7 +157,7 @@ export function parseLiveStreamUrl(rawUrl?: string): LiveStreamFormat {
 
   const trimmed = rawUrl.trim();
 
-  // 1. Iframe Code detection
+  // 1. Iframe Code detection - preserve raw iframe HTML exactly
   if (trimmed.startsWith('<iframe') || trimmed.includes('<iframe')) {
     const src = extractEmbedSrc(trimmed);
     
@@ -167,8 +168,9 @@ export function parseLiveStreamUrl(rawUrl?: string): LiveStreamFormat {
         originalUrl: trimmed,
         embedUrl: `https://www.youtube.com/embed/${ytId}?autoplay=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1`,
         directWatchUrl: `https://www.youtube.com/watch?v=${ytId}`,
-        type: 'youtube',
-        videoId: ytId
+        type: 'iframe',
+        videoId: ytId,
+        rawIframe: trimmed
       };
     }
 
@@ -177,7 +179,8 @@ export function parseLiveStreamUrl(rawUrl?: string): LiveStreamFormat {
         originalUrl: trimmed,
         embedUrl: getFacebookEmbedUrl(src, true),
         directWatchUrl: src,
-        type: 'iframe'
+        type: 'iframe',
+        rawIframe: trimmed
       };
     }
 
@@ -185,7 +188,8 @@ export function parseLiveStreamUrl(rawUrl?: string): LiveStreamFormat {
       originalUrl: trimmed,
       embedUrl: src,
       directWatchUrl: src,
-      type: 'iframe'
+      type: 'iframe',
+      rawIframe: trimmed
     };
   }
 

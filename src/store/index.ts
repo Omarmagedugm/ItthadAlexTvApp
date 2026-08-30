@@ -276,6 +276,9 @@ export interface FanPostItem {
 export interface LiveStream {
   isActive: boolean;
   url: string;
+  rawUrl?: string;
+  embedUrl?: string;
+  streamType?: string;
   title: string;
   viewers: number;
   sport?: 'football' | 'basketball' | 'programs' | string;

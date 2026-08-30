@@ -23,13 +23,21 @@ export default function LivePlayer({ url, title, isActive = true, sportName = 'Ù
 
   const parsed = parseLiveStreamUrl(url);
   const isAudio = parsed.type === 'audio';
+  const isRawIframe = !!(parsed.rawIframe || (typeof url === 'string' && (url.trim().startsWith('<iframe') || url.includes('<iframe'))));
 
   // Reset states on URL change
   useEffect(() => {
     setHasError(false);
-    setIsLoading(true);
+    setIsLoading(!isRawIframe);
     setIsAudioPlaying(false);
-  }, [url, reloadKey, sportName]);
+
+    if (isRawIframe) {
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [url, reloadKey, sportName, isRawIframe]);
 
   // Audio stream setup
   useEffect(() => {
@@ -247,15 +255,26 @@ export default function LivePlayer({ url, title, isActive = true, sportName = 'Ù
 
   return (
     <div className="relative w-full h-full bg-black flex flex-col items-center justify-center overflow-hidden">
-      {/* YouTube Stream */}
-      {parsed.type === 'youtube' && (
+      {/* Raw HTML IFrame Stream (preserved exactly as provided) */}
+      {isRawIframe && (
+        <div
+          key={`raw-iframe-${reloadKey}`}
+          className="w-full h-full relative overflow-hidden bg-black [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:absolute [&>iframe]:inset-0 [&>iframe]:border-0 [&>iframe]:object-cover"
+          dangerouslySetInnerHTML={{
+            __html: parsed.rawIframe || (url as string)
+          }}
+        />
+      )}
+
+      {/* YouTube Stream (if not raw iframe) */}
+      {!isRawIframe && parsed.type === 'youtube' && (
         <div className="relative w-full h-full">
           <iframe
             key={`yt-${reloadKey}-${parsed.embedUrl}`}
             className="w-full h-full absolute inset-0 border-0"
             src={parsed.embedUrl}
             title={title || "YouTube Live Stream"}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
             allowFullScreen
             referrerPolicy="origin-when-cross-origin"
             onLoad={() => setIsLoading(false)}
@@ -264,12 +283,11 @@ export default function LivePlayer({ url, title, isActive = true, sportName = 'Ù
               setIsLoading(false);
             }}
           />
-          {/* Embed / Video / HLS Stream Container */}
         </div>
       )}
 
       {/* Direct Video / HLS Stream */}
-      {(parsed.type === 'hls' || parsed.type === 'video') && (
+      {!isRawIframe && (parsed.type === 'hls' || parsed.type === 'video') && (
         <video
           key={`video-${reloadKey}`}
           ref={videoRef}
@@ -292,13 +310,13 @@ export default function LivePlayer({ url, title, isActive = true, sportName = 'Ù
         </video>
       )}
 
-      {/* Embed / IFrame Stream */}
-      {parsed.type === 'iframe' && (
+      {/* Embed / IFrame URL Stream (Non-HTML URL that is an iframe source) */}
+      {!isRawIframe && parsed.type === 'iframe' && (
         <iframe
           key={`iframe-${reloadKey}`}
           src={parsed.embedUrl}
           className="w-full h-full border-0"
-          allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen; screen-wake-lock; display-capture"
           allowFullScreen
           onLoad={() => setIsLoading(false)}
           onError={() => {
@@ -309,12 +327,12 @@ export default function LivePlayer({ url, title, isActive = true, sportName = 'Ù
       )}
 
       {/* Fallback Custom URL */}
-      {parsed.type === 'custom' && (
+      {!isRawIframe && parsed.type === 'custom' && (
         <iframe
           key={`custom-${reloadKey}`}
           src={parsed.embedUrl}
           className="w-full h-full border-0"
-          allow="autoplay; fullscreen; picture-in-picture"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
           allowFullScreen
           onLoad={() => setIsLoading(false)}
           onError={() => {
