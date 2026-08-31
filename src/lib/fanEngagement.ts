@@ -13,6 +13,7 @@ export interface FanEngagementStats {
   predictionsPoints: number;
   postsPoints: number;
   likesReceivedPoints: number;
+  likesGivenPoints: number;
   commentsPoints: number;
   pollsPoints: number;
   membershipBonus: number;
@@ -23,6 +24,7 @@ export interface FanEngagementStats {
   correctOutcomes: number;
   totalPosts: number;
   totalLikesReceived: number;
+  totalLikesGiven: number;
   totalComments: number;
   rankBadge: {
     label: string;
@@ -43,7 +45,13 @@ export interface EngagementContext {
   attendancePoll?: any;
 }
 
-const DEFAULT_COMMUNITY_FANS: Partial<UserProfile>[] = [
+const DEFAULT_COMMUNITY_FANS: (Partial<UserProfile> & {
+  defaultPosts?: number;
+  defaultLikesReceived?: number;
+  defaultLikesGiven?: number;
+  defaultPredictions?: number;
+  defaultCorrectScores?: number;
+})[] = [
   {
     uid: 'fan_leader_1',
     name: 'محمود الشاطبي 👑',
@@ -52,7 +60,12 @@ const DEFAULT_COMMUNITY_FANS: Partial<UserProfile>[] = [
     isVerifiedMember: true,
     membershipNumber: 'SC-88192',
     tier: 'diamond',
-    points: 1250
+    points: 1250,
+    defaultPosts: 12,
+    defaultLikesReceived: 86,
+    defaultLikesGiven: 45,
+    defaultPredictions: 18,
+    defaultCorrectScores: 9
   },
   {
     uid: 'fan_leader_2',
@@ -62,7 +75,12 @@ const DEFAULT_COMMUNITY_FANS: Partial<UserProfile>[] = [
     isVerifiedMember: true,
     membershipNumber: 'SC-65412',
     tier: 'gold',
-    points: 980
+    points: 980,
+    defaultPosts: 9,
+    defaultLikesReceived: 64,
+    defaultLikesGiven: 38,
+    defaultPredictions: 15,
+    defaultCorrectScores: 6
   },
   {
     uid: 'fan_leader_3',
@@ -72,7 +90,12 @@ const DEFAULT_COMMUNITY_FANS: Partial<UserProfile>[] = [
     isVerifiedMember: true,
     membershipNumber: 'SC-99014',
     tier: 'gold',
-    points: 840
+    points: 840,
+    defaultPosts: 7,
+    defaultLikesReceived: 52,
+    defaultLikesGiven: 29,
+    defaultPredictions: 12,
+    defaultCorrectScores: 5
   },
   {
     uid: 'fan_leader_4',
@@ -81,7 +104,12 @@ const DEFAULT_COMMUNITY_FANS: Partial<UserProfile>[] = [
     email: 'sara.green@ittihad.club',
     isVerifiedMember: false,
     tier: 'silver',
-    points: 620
+    points: 620,
+    defaultPosts: 5,
+    defaultLikesReceived: 38,
+    defaultLikesGiven: 22,
+    defaultPredictions: 9,
+    defaultCorrectScores: 3
   },
   {
     uid: 'fan_leader_5',
@@ -91,7 +119,12 @@ const DEFAULT_COMMUNITY_FANS: Partial<UserProfile>[] = [
     isVerifiedMember: true,
     membershipNumber: 'SC-33109',
     tier: 'silver',
-    points: 510
+    points: 510,
+    defaultPosts: 4,
+    defaultLikesReceived: 27,
+    defaultLikesGiven: 19,
+    defaultPredictions: 8,
+    defaultCorrectScores: 2
   },
   {
     uid: 'fan_leader_6',
@@ -100,7 +133,12 @@ const DEFAULT_COMMUNITY_FANS: Partial<UserProfile>[] = [
     email: 'tarek.moharem@ittihad.club',
     isVerifiedMember: false,
     tier: 'bronze',
-    points: 390
+    points: 390,
+    defaultPosts: 3,
+    defaultLikesReceived: 18,
+    defaultLikesGiven: 14,
+    defaultPredictions: 6,
+    defaultCorrectScores: 2
   }
 ];
 
@@ -238,20 +276,66 @@ export function calculateUserEngagement(
     }
   });
 
-  // 2. FanZone Posts & Likes received
+  // 2. FanZone Posts, Likes received & Likes given (made by user)
   let postsPoints = 0;
   let likesReceivedPoints = 0;
+  let likesGivenPoints = 0;
   let totalLikesReceived = 0;
+  let totalLikesGiven = 0;
   
   const userPosts = fanPosts.filter(post => isMatchUser(post.userId, post.userName));
-  const totalPosts = userPosts.length;
+  let totalPosts = userPosts.length;
   
   userPosts.forEach(post => {
     postsPoints += 20; // 20 pts per post created
-    const likes = Number(post.likes || 0);
+    const likes = Array.isArray(post.likedBy) ? Math.max(post.likedBy.length, Number(post.likes || 0)) : Number(post.likes || 0);
     totalLikesReceived += likes;
     likesReceivedPoints += (likes * 5); // 5 pts per like received
   });
+
+  // Real count of likes the user has made (given) on posts
+  fanPosts.forEach(post => {
+    if (Array.isArray(post.likedBy)) {
+      if ((uid && post.likedBy.includes(uid)) || (userName && post.likedBy.includes(userName))) {
+        totalLikesGiven += 1;
+      }
+    }
+  });
+
+  // Real count of likes the user has made on comments
+  if (Array.isArray(fanComments)) {
+    fanComments.forEach(comment => {
+      if (Array.isArray(comment.likedBy)) {
+        if ((uid && comment.likedBy.includes(uid)) || (userName && comment.likedBy.includes(userName))) {
+          totalLikesGiven += 1;
+        }
+      }
+    });
+  }
+
+  // Fallback defaults for mock baseline leaders if zero real records exist
+  const mockUser = user as any;
+  if (totalPosts === 0 && mockUser.defaultPosts) {
+    totalPosts = mockUser.defaultPosts;
+    postsPoints = totalPosts * 20;
+  }
+  if (totalLikesReceived === 0 && mockUser.defaultLikesReceived) {
+    totalLikesReceived = mockUser.defaultLikesReceived;
+    likesReceivedPoints = totalLikesReceived * 5;
+  }
+  if (totalLikesGiven === 0 && mockUser.defaultLikesGiven) {
+    totalLikesGiven = mockUser.defaultLikesGiven;
+  }
+  if (userPredictionsCount === 0 && mockUser.defaultPredictions) {
+    userPredictionsCount = mockUser.defaultPredictions;
+    predictionsPoints += userPredictionsCount * 10;
+  }
+  if (correctScores === 0 && mockUser.defaultCorrectScores) {
+    correctScores = mockUser.defaultCorrectScores;
+    predictionsPoints += correctScores * 50;
+  }
+
+  likesGivenPoints = totalLikesGiven * 2; // 2 pts per like given
 
   // 3. Comments written by user
   let commentsPoints = 0;
@@ -296,6 +380,7 @@ export function calculateUserEngagement(
   const totalPoints = predictionsPoints +
     postsPoints +
     likesReceivedPoints +
+    likesGivenPoints +
     commentsPoints +
     pollsPoints +
     storePoints +
@@ -318,6 +403,7 @@ export function calculateUserEngagement(
     predictionsPoints,
     postsPoints,
     likesReceivedPoints,
+    likesGivenPoints,
     commentsPoints,
     pollsPoints,
     membershipBonus,
@@ -328,6 +414,7 @@ export function calculateUserEngagement(
     correctOutcomes,
     totalPosts,
     totalLikesReceived,
+    totalLikesGiven,
     totalComments,
     rankBadge
   };

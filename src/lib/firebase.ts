@@ -1,9 +1,16 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { initializeFirestore, doc, getDoc, getDocFromServer, setDoc, serverTimestamp, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { initializeFirestore, doc, getDoc, getDocFromServer, setDoc, serverTimestamp, persistentLocalCache, persistentMultipleTabManager, setLogLevel } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import firebaseConfigJson from '../../firebase-applet-config.json';
 import { requestNotificationPermission as requestOneSignalPermission } from './onesignal';
+
+// Suppress benign internal timestamp drift warnings
+try {
+  setLogLevel('error');
+} catch (e) {
+  // Ignore if already configured
+}
 
 export enum OperationType {
   CREATE = 'create',

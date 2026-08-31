@@ -172,7 +172,7 @@ export const FansLeaderboard: React.FC = () => {
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold mt-0.5">
-                توقع: {currentUserStats.totalPredictions} | منشورات: {currentUserStats.totalPosts} | لايكات: {currentUserStats.totalLikesReceived}
+                توقع: {currentUserStats.totalPredictions} | منشورات: {currentUserStats.totalPosts} | لايكات نالها: {currentUserStats.totalLikesReceived} | لايكات عملها: {currentUserStats.totalLikesGiven}
               </p>
             </div>
           </div>
@@ -384,9 +384,10 @@ export const FansLeaderboard: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex items-center gap-2.5 text-[10px] text-slate-400 font-bold mt-0.5 flex-wrap">
-                    <span>🎯 {fan.correctScores} نتيجة صائبة</span>
+                    <span>🎯 {fan.correctScores} صائبة ({fan.totalPredictions} توقع)</span>
                     <span>✍️ {fan.totalPosts} منشور</span>
-                    <span>❤️ {fan.totalLikesReceived} لايك</span>
+                    <span>❤️ {fan.totalLikesReceived} لايك ناله</span>
+                    <span>👍 {fan.totalLikesGiven} لايك عمله</span>
                   </div>
                 </div>
               </div>

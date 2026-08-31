@@ -362,37 +362,50 @@ export default function Profile() {
         <motion.div
            initial={{ opacity: 0, y: 10 }}
            animate={{ opacity: 1, y: 0 }}
-           className="grid grid-cols-3 gap-3 px-4 pb-8"
+           className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 px-4 pb-8"
         >
           <div 
             onClick={() => navigate('/fanzone', { state: { activeTab: 'predictions' } })}
-            className="flex flex-col items-center justify-center gap-2 rounded-3xl bg-white p-5 shadow-sm border border-border-light/60 dark:border-border-dark dark:bg-card-dark pressable group cursor-pointer transition-colors hover:border-primary/30"
+            className="flex flex-col items-center justify-center gap-1.5 rounded-3xl bg-white p-4 shadow-sm border border-border-light/60 dark:border-border-dark dark:bg-card-dark pressable group cursor-pointer transition-colors hover:border-green-500/30"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10 text-green-500 group-hover:scale-110 transition-transform">
-              <span className="material-symbols-outlined">sports_soccer</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10 text-green-500 group-hover:scale-110 transition-transform">
+              <span className="material-symbols-outlined !text-[20px]">sports_soccer</span>
             </div>
-            <span className="mt-1 text-2xl font-black text-slate-900 dark:text-white tabular-nums">{engagementStats.totalPredictions}</span>
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">التوقعات ({engagementStats.correctScores} صائبة)</span>
+            <span className="text-xl font-black text-slate-900 dark:text-white tabular-nums">{engagementStats.totalPredictions}</span>
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 text-center">التوقعات ({engagementStats.correctScores} صائبة)</span>
           </div>
+
           <div 
             onClick={() => navigate('/fanzone', { state: { activeTab: 'all' } })}
-            className="flex flex-col items-center justify-center gap-2 rounded-3xl bg-white p-5 shadow-sm border border-border-light/60 dark:border-border-dark dark:bg-card-dark pressable group cursor-pointer transition-colors hover:border-blue-500/30"
+            className="flex flex-col items-center justify-center gap-1.5 rounded-3xl bg-white p-4 shadow-sm border border-border-light/60 dark:border-border-dark dark:bg-card-dark pressable group cursor-pointer transition-colors hover:border-blue-500/30"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10 text-blue-500 group-hover:scale-110 transition-transform">
-              <span className="material-symbols-outlined">article</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 text-blue-500 group-hover:scale-110 transition-transform">
+              <span className="material-symbols-outlined !text-[20px]">article</span>
             </div>
-            <span className="mt-1 text-2xl font-black text-slate-900 dark:text-white tabular-nums">{engagementStats.totalPosts}</span>
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">المنشورات ({engagementStats.totalLikesReceived} لايك)</span>
+            <span className="text-xl font-black text-slate-900 dark:text-white tabular-nums">{engagementStats.totalPosts}</span>
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 text-center">المنشورات الحقيقية</span>
           </div>
+
           <div 
             onClick={() => navigate('/fanzone?tab=leaderboard', { state: { activeTab: 'leaderboard' } })}
-            className="flex flex-col items-center justify-center gap-2 rounded-3xl bg-white p-5 shadow-sm border border-border-light/60 dark:border-border-dark dark:bg-card-dark pressable group cursor-pointer transition-colors hover:border-yellow-500/30"
+            className="flex flex-col items-center justify-center gap-1.5 rounded-3xl bg-white p-4 shadow-sm border border-border-light/60 dark:border-border-dark dark:bg-card-dark pressable group cursor-pointer transition-colors hover:border-red-500/30"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-500 group-hover:scale-110 transition-transform">
-              <span className="material-symbols-outlined font-variation-settings-fill">group</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10 text-red-500 group-hover:scale-110 transition-transform">
+              <span className="material-symbols-outlined !text-[20px] font-variation-settings-fill">favorite</span>
             </div>
-            <span className="mt-1 text-2xl font-black text-slate-900 dark:text-white tabular-nums">{users.length}</span>
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">مجتمع المشجعين</span>
+            <span className="text-xl font-black text-slate-900 dark:text-white tabular-nums">{engagementStats.totalLikesReceived}</span>
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 text-center">إعجابات نلتها</span>
+          </div>
+
+          <div 
+            onClick={() => navigate('/fanzone?tab=leaderboard', { state: { activeTab: 'leaderboard' } })}
+            className="flex flex-col items-center justify-center gap-1.5 rounded-3xl bg-white p-4 shadow-sm border border-border-light/60 dark:border-border-dark dark:bg-card-dark pressable group cursor-pointer transition-colors hover:border-amber-500/30"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10 text-amber-500 group-hover:scale-110 transition-transform">
+              <span className="material-symbols-outlined !text-[20px]">thumb_up</span>
+            </div>
+            <span className="text-xl font-black text-slate-900 dark:text-white tabular-nums">{engagementStats.totalLikesGiven}</span>
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 text-center">إعجابات عملتها</span>
           </div>
         </motion.div>
 
