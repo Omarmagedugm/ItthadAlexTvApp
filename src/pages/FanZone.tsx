@@ -45,6 +45,7 @@ import ScoreSelector from '../components/ScoreSelector';
 import ImageUploader from '../components/ImageUploader';
 import { getOptimizedImage } from '../lib/cloudinary';
 import { SafeImage } from '../components/SafeImage';
+import { FansLeaderboard } from '../components/fanzone/FansLeaderboard';
 import { 
   doc, 
   updateDoc, 
@@ -77,13 +78,21 @@ export default function FanZone() {
   };
 
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState<'all' | 'matchday' | 'polls' | 'chat' | 'predictions'>((location.state as any)?.activeTab || 'all');
+  const searchParams = new URLSearchParams(location.search);
+  const initialTab = searchParams.get('tab') || (location.state as any)?.activeTab || 'all';
+  const [activeTab, setActiveTab] = useState<'all' | 'matchday' | 'polls' | 'chat' | 'predictions' | 'leaderboard'>(
+    ['all', 'matchday', 'polls', 'chat', 'predictions', 'leaderboard'].includes(initialTab) ? (initialTab as any) : 'all'
+  );
 
   useEffect(() => {
-    if ((location.state as any)?.activeTab) {
-      setActiveTab((location.state as any).activeTab);
+    const tabFromUrl = new URLSearchParams(location.search).get('tab');
+    const tabFromState = (location.state as any)?.activeTab;
+    const targetTab = tabFromUrl || tabFromState;
+    if (targetTab && ['all', 'matchday', 'polls', 'chat', 'predictions', 'leaderboard'].includes(targetTab)) {
+      setActiveTab(targetTab as any);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [location.state]);
+  }, [location.state, location.search]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedPrediction, setSelectedPrediction] = useState<{ matchId: string; home: number; away: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -894,9 +903,10 @@ export default function FanZone() {
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 snap-x">
           {[
             { id: 'all', label: 'الساحة', icon: Users },
+            { id: 'leaderboard', label: 'صدارة المشجعين 🏆', icon: Trophy },
             { id: 'chat', label: 'الدردشة', icon: MessageCircle },
             { id: 'predictions', label: 'توقعات', icon: Target },
-            { id: 'matchday', label: 'المباراة', icon: Trophy },
+            { id: 'matchday', label: 'المباراة', icon: Clock },
             { id: 'polls', label: 'استطلاع', icon: BarChart2 },
           ].map((tab) => (
             <motion.button
@@ -1459,6 +1469,18 @@ export default function FanZone() {
                   </motion.button>
                 </div>
               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'leaderboard' && (
+            <motion.div
+              key="leaderboard"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="space-y-6"
+            >
+              <FansLeaderboard />
             </motion.div>
           )}
 

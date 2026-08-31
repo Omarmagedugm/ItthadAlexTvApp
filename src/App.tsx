@@ -401,6 +401,9 @@ function AppContent() {
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<Home />} />
             <Route path="/feed" element={<FanZone />} />
+            <Route path="/fanzone" element={<FanZone />} />
+            <Route path="/fan-zone" element={<FanZone />} />
+            <Route path="/leaderboard" element={<FanZone />} />
             <Route path="/news" element={<News />} />
             <Route path="/news/:id" element={<NewsDetail />} />
             <Route path="/media" element={<Media />} />

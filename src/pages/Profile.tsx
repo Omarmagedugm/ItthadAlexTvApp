@@ -1,10 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore, UserProfile } from '../store';
-import React, { useState, useEffect } from 'react';
-import { Camera, X, Check, Lock, ShieldCheck, Mail, Loader2, Save, Upload, Edit2, Newspaper } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Camera, X, Check, Lock, ShieldCheck, Mail, Loader2, Save, Upload, Edit2, Newspaper, Trophy, Award, Flame, Target } from 'lucide-react';
 import { db, auth, uploadImage, handleFirestoreError, OperationType } from '../lib/firebase';
 import { requestNotificationPermission } from '../lib/onesignal';
+import { calculateUserEngagement } from '../lib/fanEngagement';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { updatePassword, updateProfile as updateAuthProfile, updateEmail } from 'firebase/auth';
 import toast from 'react-hot-toast';
@@ -13,7 +14,7 @@ import DigitalFanID from '../components/DigitalFanID';
 import { getOptimizedImage } from '../lib/cloudinary';
 
 export default function Profile() {
-  const { profile, theme, toggleTheme, users, fanPosts, predictions } = useAppStore();
+  const { profile, theme, toggleTheme, users, fanPosts, predictions, matches, polls, orders } = useAppStore();
   const updateProfile = useAppStore(state => state.updateProfile);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -33,6 +34,17 @@ export default function Profile() {
     return false;
   });
   const navigate = useNavigate();
+
+  // Calculate real fan loyalty and engagement points
+  const engagementStats = useMemo(() => {
+    return calculateUserEngagement(profile, {
+      predictions,
+      matches,
+      fanPosts,
+      polls,
+      orders
+    });
+  }, [profile, predictions, matches, fanPosts, polls, orders]);
 
   const handleToggleNotifications = async () => {
     if (!notificationsEnabled) {
@@ -311,27 +323,71 @@ export default function Profile() {
           </div>
         </motion.div>
 
+        {/* Loyalty Points & Rank Hero Card */}
+        <motion.div
+           initial={{ opacity: 0, y: 10 }}
+           animate={{ opacity: 1, y: 0 }}
+           className="px-4 pb-4"
+        >
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-900 via-primary-dark to-slate-900 p-5 text-white shadow-lg border border-primary/30 flex items-center justify-between">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-amber-400/20 border border-amber-400/30 flex items-center justify-center text-amber-300">
+                <Trophy size={24} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black text-amber-300 uppercase tracking-wider">رصيد الولاء والتفاعل</span>
+                  <span className={`text-[8px] font-black px-2 py-0.5 rounded-full border ${engagementStats.rankBadge.bg} ${engagementStats.rankBadge.color}`}>
+                    {engagementStats.rankBadge.label}
+                  </span>
+                </div>
+                <h3 className="text-2xl font-black text-white mt-0.5">
+                  {engagementStats.totalPoints.toLocaleString('ar-EG')}{' '}
+                  <span className="text-xs font-bold text-emerald-200">نقطة</span>
+                </h3>
+              </div>
+            </div>
+
+            <button
+              onClick={() => navigate('/fanzone?tab=leaderboard', { state: { activeTab: 'leaderboard' } })}
+              className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-black border border-white/20 transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Award size={14} className="text-amber-300" />
+              <span>لوحة الصدارة</span>
+            </button>
+          </div>
+        </motion.div>
+
         {/* Stats Grid */}
         <motion.div
            initial={{ opacity: 0, y: 10 }}
            animate={{ opacity: 1, y: 0 }}
            className="grid grid-cols-3 gap-3 px-4 pb-8"
         >
-          <div className="flex flex-col items-center justify-center gap-2 rounded-3xl bg-white p-5 shadow-sm border border-border-light/60 dark:border-border-dark dark:bg-card-dark pressable group cursor-pointer transition-colors hover:border-primary/30">
+          <div 
+            onClick={() => navigate('/fanzone', { state: { activeTab: 'predictions' } })}
+            className="flex flex-col items-center justify-center gap-2 rounded-3xl bg-white p-5 shadow-sm border border-border-light/60 dark:border-border-dark dark:bg-card-dark pressable group cursor-pointer transition-colors hover:border-primary/30"
+          >
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10 text-green-500 group-hover:scale-110 transition-transform">
               <span className="material-symbols-outlined">sports_soccer</span>
             </div>
-            <span className="mt-1 text-2xl font-black text-slate-900 dark:text-white tabular-nums">{predictions.filter(p => p.userId === profile.uid).length}</span>
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">التوقعات</span>
+            <span className="mt-1 text-2xl font-black text-slate-900 dark:text-white tabular-nums">{engagementStats.totalPredictions}</span>
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">التوقعات ({engagementStats.correctScores} صائبة)</span>
           </div>
-          <div className="flex flex-col items-center justify-center gap-2 rounded-3xl bg-white p-5 shadow-sm border border-border-light/60 dark:border-border-dark dark:bg-card-dark pressable group cursor-pointer transition-colors hover:border-blue-500/30">
+          <div 
+            onClick={() => navigate('/fanzone', { state: { activeTab: 'all' } })}
+            className="flex flex-col items-center justify-center gap-2 rounded-3xl bg-white p-5 shadow-sm border border-border-light/60 dark:border-border-dark dark:bg-card-dark pressable group cursor-pointer transition-colors hover:border-blue-500/30"
+          >
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10 text-blue-500 group-hover:scale-110 transition-transform">
               <span className="material-symbols-outlined">article</span>
             </div>
-            <span className="mt-1 text-2xl font-black text-slate-900 dark:text-white tabular-nums">{fanPosts.filter(p => p.userId === profile.uid).length}</span>
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">المنشورات</span>
+            <span className="mt-1 text-2xl font-black text-slate-900 dark:text-white tabular-nums">{engagementStats.totalPosts}</span>
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">المنشورات ({engagementStats.totalLikesReceived} لايك)</span>
           </div>
-          <div className="flex flex-col items-center justify-center gap-2 rounded-3xl bg-white p-5 shadow-sm border border-border-light/60 dark:border-border-dark dark:bg-card-dark pressable group cursor-pointer transition-colors hover:border-yellow-500/30">
+          <div 
+            onClick={() => navigate('/fanzone?tab=leaderboard', { state: { activeTab: 'leaderboard' } })}
+            className="flex flex-col items-center justify-center gap-2 rounded-3xl bg-white p-5 shadow-sm border border-border-light/60 dark:border-border-dark dark:bg-card-dark pressable group cursor-pointer transition-colors hover:border-yellow-500/30"
+          >
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-500 group-hover:scale-110 transition-transform">
               <span className="material-symbols-outlined font-variation-settings-fill">group</span>
             </div>

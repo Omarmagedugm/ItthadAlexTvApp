@@ -34,6 +34,7 @@ import {
 import { useAppStore } from '../../store';
 import { collection, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { calculateTopActiveFans } from '../../lib/fanEngagement';
 import toast from 'react-hot-toast';
 
 type TimeFilter = 'all' | '30days' | '7days' | 'today';
@@ -210,16 +211,16 @@ export default function AdminAnalytics() {
     }).length;
   }, [users]);
 
-  // Top Most Engaged Fans (Leaderboard)
+  // Top Most Engaged Fans (Leaderboard) with real dynamic points calculation
   const topActiveFans = useMemo(() => {
-    return [...users]
-      .sort((a, b) => {
-        const pointsA = Number(a.points) || 0;
-        const pointsB = Number(b.points) || 0;
-        return pointsB - pointsA;
-      })
-      .slice(0, 5);
-  }, [users]);
+    return calculateTopActiveFans(users, {
+      predictions,
+      matches,
+      fanPosts,
+      polls,
+      orders
+    }, 5);
+  }, [users, predictions, matches, fanPosts, polls, orders]);
 
   // Top Trending Fan Posts
   const topTrendingPosts = useMemo(() => {
@@ -294,7 +295,7 @@ export default function AdminAnalytics() {
         totalBusinesses: businesses.length,
         worldFansApplications: worldApplications.length
       },
-      topActiveFans: topActiveFans.map(u => ({ name: u.name, email: u.email, points: u.points || 0 })),
+      topActiveFans: topActiveFans.map(u => ({ name: u.userName, email: u.email, points: u.totalPoints })),
       ordersStats,
       predictionsStats
     };
@@ -658,7 +659,7 @@ export default function AdminAnalytics() {
 
               <div className="space-y-3">
                 {topActiveFans.map((fan, idx) => (
-                  <div key={fan.uid || idx} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-surface-dark border border-slate-100 dark:border-border-dark hover:scale-[1.02] transition-transform">
+                  <div key={fan.userId || idx} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-surface-dark border border-slate-100 dark:border-border-dark hover:scale-[1.02] transition-transform">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="relative">
                         <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${
@@ -671,16 +672,21 @@ export default function AdminAnalytics() {
                         </div>
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-black text-slate-900 dark:text-white truncate flex items-center gap-1">
-                          {fan.name}
+                        <p className="text-xs font-black text-slate-900 dark:text-white truncate flex items-center gap-1.5">
+                          <span>{fan.userName}</span>
                           {fan.isVerifiedMember && <ShieldCheck size={12} className="text-primary shrink-0" />}
+                          <span className={`text-[8px] font-black px-1.5 py-0.2 rounded-full border ${fan.rankBadge.bg} ${fan.rankBadge.color} shrink-0`}>
+                            {fan.rankBadge.label}
+                          </span>
                         </p>
-                        <p className="text-[10px] text-slate-400 font-bold truncate">{fan.email || 'مشجع إتحاداوي'}</p>
+                        <p className="text-[10px] text-slate-400 font-bold truncate">
+                          🎯 {fan.correctScores} نتيجة | ✍️ {fan.totalPosts} منشور | ❤️ {fan.totalLikesReceived} لايك
+                        </p>
                       </div>
                     </div>
                     <div className="text-left shrink-0">
                       <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 font-black text-xs">
-                        {(fan.points || 0).toLocaleString('ar-EG')} نقطة
+                        {fan.totalPoints.toLocaleString('ar-EG')} نقطة
                       </span>
                     </div>
                   </div>
