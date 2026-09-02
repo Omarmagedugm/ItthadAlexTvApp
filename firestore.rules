@@ -84,6 +84,13 @@ service cloud.firestore {
       allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
+    match /live_viewers/{viewerId} {
+      allow read: if true;
+      allow create, update: if isValidId(viewerId) &&
+                               incoming().channel in ['football', 'basketball', 'programs', 'all'];
+      allow delete: if true;
+    }
+
     match /users/{userId} {
       allow read: if true;
       allow create: if isOwner(userId) && 

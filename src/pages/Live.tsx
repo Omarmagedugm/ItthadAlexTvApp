@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import LivePlayer from '../components/live/LivePlayer';
 import { parseLiveStreamUrl } from '../lib/videoUtils';
+import { useLiveViewers } from '../hooks/useLiveViewers';
 
 interface Comment {
   id: string;
@@ -94,6 +95,12 @@ export default function Live() {
     : selectedSport === 'basketball' 
       ? liveStreams.basketball 
       : liveStreams.football;
+
+  // Real-time live stream viewers tracking and presence (strictly real count of people in page)
+  const { totalViewers: realViewersCount } = useLiveViewers(
+    selectedSport,
+    profile?.name || profile?.displayName || auth.currentUser?.displayName || undefined
+  );
 
   const parsedUrl = parseLiveStreamUrl(currentStream?.url);
 
@@ -239,26 +246,50 @@ export default function Live() {
           {/* LEFT / MAIN COLUMN: Video Player & Stream Control Hub */}
           <div className="lg:col-span-8 flex flex-col space-y-3">
 
-            {/* Header bar above video player: Live status badge & Share */}
-            {currentStream?.isActive && (
-              <div className="flex justify-between items-center px-1">
-                <div className="flex items-center gap-2 bg-red-600/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 px-3 py-1.5 rounded-full border border-red-500/30 text-xs font-black shadow-sm">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
-                  <span>مباشر الآن</span>
-                </div>
+            {/* Header bar above video player: Live status badge, Viewers count & Share */}
+            <div className="flex justify-between items-center px-1">
+              <div className="flex items-center gap-2">
+                {currentStream?.isActive ? (
+                  <div className="flex items-center gap-2 bg-red-600/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 px-3 py-1.5 rounded-full border border-red-500/30 text-xs font-black shadow-sm">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+                    <span>مباشر الآن</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-surface-dark text-slate-500 px-3 py-1.5 rounded-full border border-border-light dark:border-border-dark text-xs font-bold">
+                    <span>البث غير متصل</span>
+                  </div>
+                )}
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleShare}
-                    className="bg-white dark:bg-card-dark hover:bg-slate-100 dark:hover:bg-surface-dark px-3 py-1.5 rounded-full border border-border-light dark:border-border-dark text-slate-700 dark:text-slate-200 text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-1.5 hover:text-primary"
-                    title="مشاركة البث"
-                  >
-                    <Share2 size={14} />
-                    <span>مشاركة</span>
-                  </button>
+                {/* Real Live Viewers Badge */}
+                <div 
+                  className="flex items-center gap-1.5 bg-white dark:bg-card-dark px-3 py-1.5 rounded-full border border-border-light dark:border-border-dark text-slate-800 dark:text-white text-xs font-black shadow-xs"
+                  title={`${realViewersCount.toLocaleString('ar-EG')} شخص في الصفحة حالياً`}
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <Eye size={14} className="text-red-500 shrink-0" />
+                  <span className="tabular-nums font-black text-slate-900 dark:text-white">
+                    {realViewersCount.toLocaleString('ar-EG')}
+                  </span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold hidden xs:inline sm:inline">
+                    في الصفحة حالياً
+                  </span>
                 </div>
               </div>
-            )}
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleShare}
+                  className="bg-white dark:bg-card-dark hover:bg-slate-100 dark:hover:bg-surface-dark px-3 py-1.5 rounded-full border border-border-light dark:border-border-dark text-slate-700 dark:text-slate-200 text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-1.5 hover:text-primary"
+                  title="مشاركة البث"
+                >
+                  <Share2 size={14} />
+                  <span>مشاركة</span>
+                </button>
+              </div>
+            </div>
             
             {/* 1. Video Player Container with rounded corners & shadow */}
             <div className="relative w-full aspect-video bg-black rounded-2xl lg:rounded-3xl overflow-hidden shadow-xl border border-slate-800">
@@ -268,6 +299,7 @@ export default function Live() {
                 title={currentStream?.title}
                 isActive={currentStream?.isActive}
                 sportName={getSportTitle()}
+                viewersCount={realViewersCount}
               />
             </div>
 
@@ -306,7 +338,7 @@ export default function Live() {
             <div className="bg-white dark:bg-card-dark rounded-2xl lg:rounded-3xl p-4 lg:p-5 border border-border-light dark:border-border-dark shadow-sm space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-border-dark">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black bg-primary/10 text-primary border border-primary/20">
                       قناة زعيم الثغر
                     </span>
@@ -320,6 +352,13 @@ export default function Live() {
                         غير متصل
                       </span>
                     )}
+
+                    {/* Real Viewers Pill Badge */}
+                    <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 flex items-center gap-1.5 shadow-2xs">
+                      <Eye size={12} className="text-red-500 shrink-0" />
+                      <span className="tabular-nums font-black">{realViewersCount.toLocaleString('ar-EG')}</span>
+                      <span>في الصفحة حالياً</span>
+                    </span>
                   </div>
                   <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
                     {currentStream?.title || `بث مباشر: ${getSportTitle()}`}
@@ -364,9 +403,9 @@ export default function Live() {
                     <h2 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white flex items-center gap-1.5">
                       دردشة جماهير زعيم الثغر
                     </h2>
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      متصل الآن
+                      <span>متصل الآن ({realViewersCount.toLocaleString('ar-EG')} مشاهد)</span>
                     </span>
                   </div>
                 </div>
