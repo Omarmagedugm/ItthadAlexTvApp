@@ -281,7 +281,9 @@ export interface LiveStream {
   streamType?: string;
   title: string;
   viewers: number;
-  sport?: 'football' | 'basketball' | 'programs' | string;
+  sport?: 'football' | 'basketball' | 'programs' | 'custom' | string;
+  customName?: string;
+  hidden?: boolean;
 }
 
 export interface ClubTitle {
@@ -585,6 +587,7 @@ interface AppState {
     football: LiveStream;
     basketball: LiveStream;
     programs: LiveStream;
+    custom: LiveStream;
   };
   theme: 'dark' | 'light';
   profile: UserProfile;
@@ -651,7 +654,7 @@ interface AppState {
   deleteUser: (uid: string) => void;
   setSettings: (settings: any) => void;
   updateLiveStream: (stream: Partial<LiveStream>) => void;
-  updateLiveStreams: (streams: { football?: Partial<LiveStream>; basketball?: Partial<LiveStream>; programs?: Partial<LiveStream> }) => void;
+  updateLiveStreams: (streams: { football?: Partial<LiveStream>; basketball?: Partial<LiveStream>; programs?: Partial<LiveStream>; custom?: Partial<LiveStream> }) => void;
   toggleTheme: () => void;
   updateProfile: (profile: Partial<UserProfile>) => void;
   setClubTitles: (titles: ClubTitle[]) => void;
@@ -718,6 +721,7 @@ const defaultLiveStreams = {
   football: { ...defaultLiveStream, sport: 'football' as const },
   basketball: { ...defaultLiveStream, sport: 'basketball' as const },
   programs: { ...defaultLiveStream, title: 'برامج واستوديو الاتحاد', sport: 'programs' as const },
+  custom: { ...defaultLiveStream, title: 'بث خاص ومباشر', sport: 'custom' as const, customName: 'بث خاص' },
 };
 
 const defaultProfile: UserProfile = {
@@ -904,9 +908,10 @@ export const useAppStore = create<AppState>()(
       updateLiveStream: (stream) => set((state) => ({ liveStream: { ...state.liveStream, ...stream } })),
       updateLiveStreams: (streams) => set((state) => ({
         liveStreams: {
-          football: { ...state.liveStreams.football, ...streams.football },
-          basketball: { ...state.liveStreams.basketball, ...streams.basketball },
-          programs: { ...state.liveStreams.programs, ...streams.programs },
+          football: { ...state.liveStreams?.football, ...streams.football },
+          basketball: { ...state.liveStreams?.basketball, ...streams.basketball },
+          programs: { ...state.liveStreams?.programs, ...streams.programs },
+          custom: { ...(state.liveStreams?.custom || defaultLiveStreams.custom), ...streams.custom },
         },
         // Also update legacy liveStream if football is updated
         ...(streams.football ? { liveStream: { ...state.liveStream, ...streams.football } } : {})

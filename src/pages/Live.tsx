@@ -38,7 +38,7 @@ interface Comment {
   role: string;
 }
 
-type SportChannel = 'football' | 'basketball' | 'programs';
+type SportChannel = 'football' | 'basketball' | 'programs' | 'custom';
 
 export default function Live() {
   const { liveStream, liveStreams, profile, users, appSettings } = useAppStore();
@@ -46,54 +46,85 @@ export default function Live() {
   // Track whether the user has manually picked a channel in this session
   const userSelectedRef = useRef(false);
 
-  // Helper to find which stream is active
+  // Helper to find which stream is active and not hidden
   const getFirstActiveSport = (): SportChannel | null => {
-    if (liveStreams.football?.isActive) return 'football';
-    if (liveStreams.basketball?.isActive) return 'basketball';
-    if (liveStreams.programs?.isActive) return 'programs';
+    if (!liveStreams.football?.hidden && liveStreams.football?.isActive) return 'football';
+    if (!liveStreams.basketball?.hidden && liveStreams.basketball?.isActive) return 'basketball';
+    if (!liveStreams.programs?.hidden && liveStreams.programs?.isActive) return 'programs';
+    if (!liveStreams.custom?.hidden && liveStreams.custom?.isActive) return 'custom';
     return null;
   };
 
-  // Default initial sport: active stream first!
-  const [selectedSport, setSelectedSport] = useState<SportChannel>(() => {
+  const getInitialSport = (): SportChannel => {
     const active = getFirstActiveSport();
     if (active) return active;
-    if (appSettings.liveViewMode && ['football', 'basketball', 'programs'].includes(appSettings.liveViewMode)) {
-      return appSettings.liveViewMode as SportChannel;
+    if (appSettings.liveViewMode && ['football', 'basketball', 'programs', 'custom'].includes(appSettings.liveViewMode)) {
+      const mode = appSettings.liveViewMode as SportChannel;
+      if (!liveStreams[mode]?.hidden) return mode;
     }
-    return 'football';
-  });
+    const order: SportChannel[] = ['football', 'basketball', 'programs', 'custom'];
+    const nonHidden = order.find(s => !liveStreams[s]?.hidden);
+    return nonHidden || 'football';
+  };
+
+  // Default initial sport: active stream first, skipping hidden channels!
+  const [selectedSport, setSelectedSport] = useState<SportChannel>(getInitialSport);
 
   const [playerReloadKey, setPlayerReloadKey] = useState(0);
 
   // Auto-switch to active stream whenever liveStreams state loads or updates
   useEffect(() => {
     const active = getFirstActiveSport();
-    if (active && (!userSelectedRef.current || !liveStreams[selectedSport]?.isActive)) {
+    if (active && (!userSelectedRef.current || !liveStreams[selectedSport]?.isActive || liveStreams[selectedSport]?.hidden)) {
       setSelectedSport(active);
     }
   }, [
     liveStreams.football?.isActive,
+    liveStreams.football?.hidden,
     liveStreams.basketball?.isActive,
-    liveStreams.programs?.isActive
+    liveStreams.basketball?.hidden,
+    liveStreams.programs?.isActive,
+    liveStreams.programs?.hidden,
+    liveStreams.custom?.isActive,
+    liveStreams.custom?.hidden
+  ]);
+
+  // If current sport becomes hidden, switch to another non-hidden sport
+  useEffect(() => {
+    if (liveStreams[selectedSport]?.hidden) {
+      const order: SportChannel[] = ['football', 'basketball', 'programs', 'custom'];
+      const nonHidden = order.find(s => !liveStreams[s]?.hidden);
+      if (nonHidden && nonHidden !== selectedSport) {
+        setSelectedSport(nonHidden);
+      }
+    }
+  }, [
+    liveStreams.football?.hidden,
+    liveStreams.basketball?.hidden,
+    liveStreams.programs?.hidden,
+    liveStreams.custom?.hidden,
+    selectedSport
   ]);
 
   // Handle liveViewMode changes from app settings
   useEffect(() => {
     if (appSettings.liveViewMode && appSettings.liveViewMode !== 'both') {
-      if (['football', 'basketball', 'programs'].includes(appSettings.liveViewMode)) {
-        if (!getFirstActiveSport()) {
-          setSelectedSport(appSettings.liveViewMode as SportChannel);
+      if (['football', 'basketball', 'programs', 'custom'].includes(appSettings.liveViewMode)) {
+        const mode = appSettings.liveViewMode as SportChannel;
+        if (!getFirstActiveSport() && !liveStreams[mode]?.hidden) {
+          setSelectedSport(mode);
         }
       }
     }
   }, [appSettings.liveViewMode]);
   
-  const currentStream = selectedSport === 'programs' 
-    ? liveStreams.programs 
-    : selectedSport === 'basketball' 
-      ? liveStreams.basketball 
-      : liveStreams.football;
+  const currentStream = selectedSport === 'custom'
+    ? liveStreams.custom
+    : selectedSport === 'programs' 
+      ? liveStreams.programs 
+      : selectedSport === 'basketball' 
+        ? liveStreams.basketball 
+        : liveStreams.football;
 
   const parsedUrl = parseLiveStreamUrl(currentStream?.url);
 
@@ -190,12 +221,16 @@ export default function Live() {
   };
 
   const getSportTitle = () => {
+    if (selectedSport === 'custom') return liveStreams.custom?.customName?.trim() || 'بث خاص';
     if (selectedSport === 'programs') return 'برامج واستوديو الاتحاد';
     if (selectedSport === 'basketball') return 'كرة السلة';
     return 'كرة القدم';
   };
 
-  // Define channels: Football, Basketball, Programs
+  const customChannelName = liveStreams.custom?.customName?.trim() || 'بث خاص';
+  const isCustomAvailable = !!(liveStreams.custom?.isActive || liveStreams.custom?.url || liveStreams.custom?.customName);
+
+  // Define channels: Football, Basketball, Programs, and Custom Channel
   const channelsConfig: Array<{
     id: SportChannel;
     label: string;
@@ -226,8 +261,23 @@ export default function Live() {
     }
   ];
 
+  if (isCustomAvailable) {
+    channelsConfig.push({
+      id: 'custom',
+      label: customChannelName,
+      icon: 'sensors',
+      activeStyle: 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20',
+      isActive: !!liveStreams.custom?.isActive
+    });
+  }
+
+  // Filter out channels marked as hidden by admin
+  const visibleChannels = channelsConfig.filter(c => !liveStreams[c.id]?.hidden);
+  // Fallback: If all channels are hidden, show channelsConfig so screen doesn't break
+  const effectiveChannels = visibleChannels.length > 0 ? visibleChannels : channelsConfig;
+
   // Reorder channels to display LIVE broadcasting channels first
-  const sortedChannels = [...channelsConfig].sort((a, b) => (b.isActive ? 1 : 0) - (a.isActive ? 1 : 0));
+  const sortedChannels = [...effectiveChannels].sort((a, b) => (b.isActive ? 1 : 0) - (a.isActive ? 1 : 0));
 
   return (
     <div className="flex-1 w-full min-h-screen bg-background-light dark:bg-background-dark pb-28 lg:pb-12">

@@ -753,18 +753,30 @@ export default function Home() {
                       <div className="mt-8 grid grid-cols-2 gap-4 relative z-20">
                         <Link
                           to={
-                            heroMatch.status === "live" || liveStreams.football?.isActive || liveStreams.basketball?.isActive || liveStreams.programs?.isActive
+                            heroMatch.status === "live" ||
+                            (!liveStreams.football?.hidden && liveStreams.football?.isActive) ||
+                            (!liveStreams.basketball?.hidden && liveStreams.basketball?.isActive) ||
+                            (!liveStreams.programs?.hidden && liveStreams.programs?.isActive) ||
+                            (!liveStreams.custom?.hidden && liveStreams.custom?.isActive)
                               ? "/live"
                               : "/matches"
                           }
                           className="h-14 rounded-2xl bg-white text-primary-dark hover:bg-primary-light hover:text-white transition-all duration-300 font-black text-[12px] flex items-center justify-center gap-3 shadow-premium group/btn relative z-30 cursor-pointer"
                         >
                           <span className="material-symbols-outlined !text-[20px] group-hover/btn:translate-x-1 transition-transform">
-                            {heroMatch.status === "live" || liveStreams.football?.isActive || liveStreams.basketball?.isActive || liveStreams.programs?.isActive
+                            {heroMatch.status === "live" ||
+                            (!liveStreams.football?.hidden && liveStreams.football?.isActive) ||
+                            (!liveStreams.basketball?.hidden && liveStreams.basketball?.isActive) ||
+                            (!liveStreams.programs?.hidden && liveStreams.programs?.isActive) ||
+                            (!liveStreams.custom?.hidden && liveStreams.custom?.isActive)
                               ? "sensors"
                               : "event"}
                           </span>
-                          {heroMatch.status === "live" || liveStreams.football?.isActive || liveStreams.basketball?.isActive || liveStreams.programs?.isActive
+                          {heroMatch.status === "live" ||
+                          (!liveStreams.football?.hidden && liveStreams.football?.isActive) ||
+                          (!liveStreams.basketball?.hidden && liveStreams.basketball?.isActive) ||
+                          (!liveStreams.programs?.hidden && liveStreams.programs?.isActive) ||
+                          (!liveStreams.custom?.hidden && liveStreams.custom?.isActive)
                             ? "دخول البث"
                             : "التفاصيل"}
                         </Link>
@@ -802,57 +814,70 @@ export default function Home() {
       }
 
       case "live":
-        if (!liveStreams.football?.isActive && !liveStreams.basketball?.isActive && !liveStreams.programs?.isActive) return null;
-        return (
-          <motion.section
-            key={section.id}
-            variants={itemVariants}
-            className="relative z-20"
-          >
-            <Link
-              to="/live"
-              className="flex items-center justify-between p-4 rounded-[32px] bg-accent/10 border border-accent/20 cinematic-glow pressable relative z-30 cursor-pointer"
+        if (
+          (!liveStreams.football?.hidden && liveStreams.football?.isActive) ||
+          (!liveStreams.basketball?.hidden && liveStreams.basketball?.isActive) ||
+          (!liveStreams.programs?.hidden && liveStreams.programs?.isActive) ||
+          (!liveStreams.custom?.hidden && liveStreams.custom?.isActive)
+        ) {
+          return (
+            <motion.section
+              key={section.id}
+              variants={itemVariants}
+              className="relative z-20"
             >
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-2xl bg-accent flex items-center justify-center text-white shadow-glow animate-pulse">
-                  <span className="material-symbols-outlined font-variation-settings-fill">
-                    broadcast_on_home
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-black text-slate-800 dark:text-white">
-                    بث مباشر متاح الآن
-                  </span>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {liveStreams.football?.isActive && (
-                      <span className="text-[8px] font-black bg-primary text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
-                        <span className="material-symbols-outlined !text-[10px]">sports_soccer</span>
-                        كرة القدم
-                      </span>
-                    )}
-                    {liveStreams.basketball?.isActive && (
-                      <span className="text-[8px] font-black bg-orange-600 text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
-                        <span className="material-symbols-outlined !text-[10px]">sports_basketball</span>
-                        كرة السلة
-                      </span>
-                    )}
-                    {liveStreams.programs?.isActive && (
-                      <span className="text-[8px] font-black bg-indigo-600 text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
-                        <span className="material-symbols-outlined !text-[10px]">live_tv</span>
-                        برامج
-                      </span>
-                    )}
+              <Link
+                to="/live"
+                className="flex items-center justify-between p-4 rounded-[32px] bg-accent/10 border border-accent/20 cinematic-glow pressable relative z-30 cursor-pointer"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-accent flex items-center justify-center text-white shadow-glow animate-pulse">
+                    <span className="material-symbols-outlined font-variation-settings-fill">
+                      broadcast_on_home
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-black text-slate-800 dark:text-white">
+                      بث مباشر متاح الآن
+                    </span>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {!liveStreams.football?.hidden && liveStreams.football?.isActive && (
+                        <span className="text-[8px] font-black bg-primary text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
+                          <span className="material-symbols-outlined !text-[10px]">sports_soccer</span>
+                          كرة القدم
+                        </span>
+                      )}
+                      {!liveStreams.basketball?.hidden && liveStreams.basketball?.isActive && (
+                        <span className="text-[8px] font-black bg-orange-600 text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
+                          <span className="material-symbols-outlined !text-[10px]">sports_basketball</span>
+                          كرة السلة
+                        </span>
+                      )}
+                      {!liveStreams.programs?.hidden && liveStreams.programs?.isActive && (
+                        <span className="text-[8px] font-black bg-indigo-600 text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
+                          <span className="material-symbols-outlined !text-[10px]">live_tv</span>
+                          برامج
+                        </span>
+                      )}
+                      {!liveStreams.custom?.hidden && liveStreams.custom?.isActive && (
+                        <span className="text-[8px] font-black bg-emerald-600 text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
+                          <span className="material-symbols-outlined !text-[10px]">sensors</span>
+                          {liveStreams.custom?.customName?.trim() || 'بث خاص'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="h-10 w-10 rounded-xl bg-white dark:bg-surface-dark flex items-center justify-center text-slate-400">
-                <span className="material-symbols-outlined rotate-180">
-                  arrow_back
-                </span>
-              </div>
-            </Link>
-          </motion.section>
-        );
+                <div className="h-10 w-10 rounded-xl bg-white dark:bg-surface-dark flex items-center justify-center text-slate-400">
+                  <span className="material-symbols-outlined rotate-180">
+                    arrow_back
+                  </span>
+                </div>
+              </Link>
+            </motion.section>
+          );
+        }
+        return null;
 
       case "custom":
         return (

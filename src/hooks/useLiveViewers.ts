@@ -9,7 +9,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 
-export type LiveSportChannel = 'football' | 'basketball' | 'programs';
+export type LiveSportChannel = 'football' | 'basketball' | 'programs' | 'custom' | string;
 
 // Generate or retrieve a persistent session-based viewer ID per tab
 function getSessionViewerId(): string {

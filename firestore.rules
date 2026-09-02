@@ -87,7 +87,7 @@ service cloud.firestore {
     match /live_viewers/{viewerId} {
       allow read: if true;
       allow create, update: if isValidId(viewerId) &&
-                               incoming().channel in ['football', 'basketball', 'programs', 'all'];
+                               (incoming().channel in ['football', 'basketball', 'programs', 'custom', 'all'] || (incoming().channel is string && incoming().channel.size() <= 100));
       allow delete: if true;
     }
 

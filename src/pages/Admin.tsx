@@ -547,7 +547,7 @@ export default function Admin() {
   const [historySubTab, setHistorySubTab] = useState<'stats' | 'titles' | 'timeline' | 'stadiums'>('stats');
   const [mediaSubTab, setMediaSubTab] = useState<'items' | 'playlists' | 'banner'>('items');
   const [musicSubTab, setMusicSubTab] = useState<'songs' | 'albums' | 'playlists'>('songs');
-  const [liveSportSubTab, setLiveSportSubTab] = useState<'football' | 'basketball' | 'programs'>('football');
+  const [liveSportSubTab, setLiveSportSubTab] = useState<'football' | 'basketball' | 'programs' | 'custom'>('football');
   const [clubSubTab, setClubSubTab] = useState<'committees' | 'announcements' | 'services' | 'trips' | 'discounts' | 'settings'>('committees');
   const [isExporting, setIsExporting] = useState(false);
   const [aiUsage, setAiUsage] = useState<any[]>([]);
@@ -1110,6 +1110,63 @@ export default function Admin() {
     setLoading(false);
   };
 
+  const handleToggleChannelVisibility = async (sportKey: 'football' | 'basketball' | 'programs' | 'custom', e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    try {
+      const docName = sportKey === 'custom'
+        ? 'liveStream_custom'
+        : sportKey === 'programs'
+          ? 'liveStream_programs'
+          : sportKey === 'basketball'
+            ? 'liveStream_basketball'
+            : 'liveStream';
+      const targetStream = liveStreams[sportKey] || {
+        isActive: false,
+        url: '',
+        rawUrl: '',
+        embedUrl: '',
+        title: '',
+        viewers: 0,
+        sport: sportKey
+      };
+      const newHiddenState = !(targetStream.hidden ?? false);
+
+      const sportLabel = sportKey === 'custom'
+        ? (targetStream.customName || 'البث المخصص')
+        : sportKey === 'programs'
+          ? 'برامج واستوديو'
+          : sportKey === 'basketball'
+            ? 'كرة السلة'
+            : 'كرة القدم';
+
+      const payload = {
+        ...targetStream,
+        hidden: newHiddenState,
+        updatedAt: new Date().toISOString()
+      };
+
+      const cleanPayload = (obj: any) => JSON.parse(JSON.stringify(obj));
+      await setDoc(doc(db, 'settings', docName), cleanPayload(payload), { merge: true });
+
+      const { updateLiveStreams } = useAppStore.getState();
+      updateLiveStreams({
+        [sportKey]: payload
+      });
+
+      if (newHiddenState) {
+        toast.success(`تم إخفاء خانة (${sportLabel}) عن المشاهدين 👁️‍🗨️`);
+      } else {
+        toast.success(`تم إظهار خانة (${sportLabel}) للجمهور بنجاح 👁️`);
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `settings/liveStream_${sportKey}`);
+      toast.error('حدث خطأ أثناء تحديث حالة الظهور');
+    }
+  };
+
   const handleAdd = async () => {
     setLoading(true);
     const cleanPayload = (obj: any) => JSON.parse(JSON.stringify(obj));
@@ -1322,20 +1379,38 @@ export default function Admin() {
         }
       } else if (activeTab === 'live') {
         try {
-          const docName = liveSportSubTab === 'programs' ? 'liveStream_programs' : liveSportSubTab === 'basketball' ? 'liveStream_basketball' : 'liveStream';
-          const currentStream = liveSportSubTab === 'programs' ? liveStreams.programs : liveSportSubTab === 'basketball' ? liveStreams.basketball : liveStreams.football;
-          const rawUrl = (formData.url !== undefined ? formData.url : (currentStream.url || currentStream.rawUrl || '')).trim();
+          const docName = liveSportSubTab === 'custom'
+            ? 'liveStream_custom'
+            : liveSportSubTab === 'programs' 
+              ? 'liveStream_programs' 
+              : liveSportSubTab === 'basketball' 
+                ? 'liveStream_basketball' 
+                : 'liveStream';
+          const currentStream = liveSportSubTab === 'custom'
+            ? liveStreams.custom
+            : liveSportSubTab === 'programs' 
+              ? liveStreams.programs 
+              : liveSportSubTab === 'basketball' 
+                ? liveStreams.basketball 
+                : liveStreams.football;
+          const rawUrl = (formData.url !== undefined ? formData.url : (currentStream?.url || currentStream?.rawUrl || '')).trim();
           const parsed = parseLiveStreamUrl(rawUrl);
           
+          const customName = liveSportSubTab === 'custom'
+            ? (formData.customName !== undefined ? formData.customName.trim() : (currentStream?.customName || 'بث خاص'))
+            : undefined;
+
           const payload = {
-            isActive: formData.isActive !== undefined ? formData.isActive : currentStream.isActive,
+            isActive: formData.isActive !== undefined ? formData.isActive : (currentStream?.isActive ?? false),
+            hidden: formData.hidden !== undefined ? formData.hidden : (currentStream?.hidden ?? false),
             url: rawUrl, // Preserve exact iframe or URL string as entered by admin!
             rawUrl: rawUrl,
             embedUrl: parsed.embedUrl || rawUrl,
-            title: formData.title !== undefined ? formData.title : currentStream.title,
-            viewers: Number(formData.viewers || currentStream.viewers || 0),
+            title: formData.title !== undefined ? formData.title : (currentStream?.title || ''),
+            viewers: Number(formData.viewers || currentStream?.viewers || 0),
             sport: liveSportSubTab,
             streamType: parsed.type,
+            ...(customName ? { customName } : {}),
             updatedAt: new Date().toISOString()
           };
 
@@ -1347,7 +1422,13 @@ export default function Admin() {
             [liveSportSubTab]: payload
           });
 
-          const sportLabel = liveSportSubTab === 'programs' ? 'البرامج' : liveSportSubTab === 'basketball' ? 'كرة السلة' : 'كرة القدم';
+          const sportLabel = liveSportSubTab === 'custom'
+            ? (customName || 'البث المخصص')
+            : liveSportSubTab === 'programs' 
+              ? 'البرامج' 
+              : liveSportSubTab === 'basketball' 
+                ? 'كرة السلة' 
+                : 'كرة القدم';
           toast.success(`تم تحديث وحفظ بث ${sportLabel} بنجاح ✅`);
         } catch (err) {
           handleFirestoreError(err, OperationType.WRITE, `settings/liveStream_${liveSportSubTab}`);
@@ -5917,56 +5998,150 @@ export default function Admin() {
                        }
                     }}
                   >
-                     <option value="both">كرة قدم وسلة (معاً)</option>
+                     <option value="both">كافة القنوات (عرض تلقائي)</option>
                      <option value="football">كرة قدم فقط</option>
                      <option value="basketball">كرة سلة فقط</option>
-                      <option value="programs">برامج فقط</option>
+                     <option value="programs">برامج فقط</option>
+                     <option value="custom">الخانة المخصصة ({liveStreams.custom?.customName || 'بث خاص'})</option>
                   </select>
                </div>
 
                {(() => {
-                 const currentStream = liveSportSubTab === 'programs' 
-                   ? liveStreams.programs 
-                   : liveSportSubTab === 'basketball' 
-                     ? liveStreams.basketball 
-                     : liveStreams.football;
+                 const currentStream = liveSportSubTab === 'custom'
+                   ? liveStreams.custom
+                   : liveSportSubTab === 'programs' 
+                     ? liveStreams.programs 
+                     : liveSportSubTab === 'basketball' 
+                       ? liveStreams.basketball 
+                       : liveStreams.football;
                  const currentUrl = formData.url !== undefined ? formData.url : (currentStream?.url || '');
                  const parsedStream = parseLiveStreamUrl(currentUrl);
 
                  return (
                    <>
-                     <div className="flex bg-slate-100 dark:bg-surface-dark p-1 rounded-xl w-fit">
-                        <button 
-                          onClick={() => {
-                              setLiveSportSubTab('football');
-                              setFormData({});
-                          }} 
-                          className={`px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 ${liveSportSubTab === 'football' ? 'bg-white dark:bg-card-dark text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                          <Trophy size={14} />
-                          كرة القدم
-                        </button>
-                        <button 
-                          onClick={() => {
-                              setLiveSportSubTab('basketball');
-                              setFormData({});
-                          }} 
-                          className={`px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 ${liveSportSubTab === 'basketball' ? 'bg-white dark:bg-card-dark text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                          <Trophy size={14} />
-                          كرة السلة
-                        </button>
-                        <button 
-                          onClick={() => {
-                              setLiveSportSubTab('programs');
-                              setFormData({});
-                          }} 
-                          className={`px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-2 ${liveSportSubTab === 'programs' ? 'bg-white dark:bg-card-dark text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                          <Tv size={14} />
-                          برامج
-                        </button>
+                     <div className="flex bg-slate-100 dark:bg-surface-dark p-1 rounded-xl w-fit flex-wrap items-center gap-1.5">
+                        {/* Football */}
+                        <div className={`flex items-center rounded-lg transition-all ${liveSportSubTab === 'football' ? 'bg-white dark:bg-card-dark shadow-sm' : 'hover:bg-slate-200 dark:hover:bg-slate-800/50'}`}>
+                          <button 
+                            onClick={() => {
+                                setLiveSportSubTab('football');
+                                setFormData({});
+                            }} 
+                            className={`px-3 py-2 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${liveSportSubTab === 'football' ? 'text-primary' : 'text-slate-500 hover:text-slate-700'}`}
+                          >
+                            <Trophy size={14} />
+                            <span>كرة القدم</span>
+                            {liveStreams.football?.isActive && (
+                              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleChannelVisibility('football', e)}
+                            title={liveStreams.football?.hidden ? 'خانة كرة القدم مخفية (اضغط للإظهار)' : 'خانة كرة القدم ظاهرة (اضغط للإخفاء)'}
+                            className={`p-1.5 mx-1 rounded-md transition-all cursor-pointer ${liveStreams.football?.hidden ? 'bg-rose-500/10 text-rose-600 hover:bg-rose-500/20' : 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20'}`}
+                          >
+                            {liveStreams.football?.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
+                          </button>
+                        </div>
+
+                        {/* Basketball */}
+                        <div className={`flex items-center rounded-lg transition-all ${liveSportSubTab === 'basketball' ? 'bg-white dark:bg-card-dark shadow-sm' : 'hover:bg-slate-200 dark:hover:bg-slate-800/50'}`}>
+                          <button 
+                            onClick={() => {
+                                setLiveSportSubTab('basketball');
+                                setFormData({});
+                            }} 
+                            className={`px-3 py-2 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${liveSportSubTab === 'basketball' ? 'text-orange-600' : 'text-slate-500 hover:text-slate-700'}`}
+                          >
+                            <Trophy size={14} />
+                            <span>كرة السلة</span>
+                            {liveStreams.basketball?.isActive && (
+                              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleChannelVisibility('basketball', e)}
+                            title={liveStreams.basketball?.hidden ? 'خانة كرة السلة مخفية (اضغط للإظهار)' : 'خانة كرة السلة ظاهرة (اضغط للإخفاء)'}
+                            className={`p-1.5 mx-1 rounded-md transition-all cursor-pointer ${liveStreams.basketball?.hidden ? 'bg-rose-500/10 text-rose-600 hover:bg-rose-500/20' : 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20'}`}
+                          >
+                            {liveStreams.basketball?.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
+                          </button>
+                        </div>
+
+                        {/* Programs */}
+                        <div className={`flex items-center rounded-lg transition-all ${liveSportSubTab === 'programs' ? 'bg-white dark:bg-card-dark shadow-sm' : 'hover:bg-slate-200 dark:hover:bg-slate-800/50'}`}>
+                          <button 
+                            onClick={() => {
+                                setLiveSportSubTab('programs');
+                                setFormData({});
+                            }} 
+                            className={`px-3 py-2 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${liveSportSubTab === 'programs' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                          >
+                            <Tv size={14} />
+                            <span>برامج</span>
+                            {liveStreams.programs?.isActive && (
+                              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleChannelVisibility('programs', e)}
+                            title={liveStreams.programs?.hidden ? 'خانة البرامج مخفية (اضغط للإظهار)' : 'خانة البرامج ظاهرة (اضغط للإخفاء)'}
+                            className={`p-1.5 mx-1 rounded-md transition-all cursor-pointer ${liveStreams.programs?.hidden ? 'bg-rose-500/10 text-rose-600 hover:bg-rose-500/20' : 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20'}`}
+                          >
+                            {liveStreams.programs?.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
+                          </button>
+                        </div>
+
+                        {/* Custom Channel */}
+                        <div className={`flex items-center rounded-lg transition-all ${liveSportSubTab === 'custom' ? 'bg-white dark:bg-card-dark shadow-sm' : 'hover:bg-slate-200 dark:hover:bg-slate-800/50'}`}>
+                          <button 
+                            onClick={() => {
+                                setLiveSportSubTab('custom');
+                                setFormData({});
+                            }} 
+                            className={`px-3 py-2 text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${liveSportSubTab === 'custom' ? 'text-emerald-600' : 'text-slate-500 hover:text-slate-700'}`}
+                          >
+                            <Radio size={14} />
+                            <span>{liveStreams.custom?.customName?.trim() ? `بث مخصص (${liveStreams.custom.customName})` : 'خانة بث مخصصة +'}</span>
+                            {liveStreams.custom?.isActive && (
+                              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleChannelVisibility('custom', e)}
+                            title={liveStreams.custom?.hidden ? 'الخانة المخصصة مخفية (اضغط للإظهار)' : 'الخانة المخصصة ظاهرة (اضغط للإخفاء)'}
+                            className={`p-1.5 mx-1 rounded-md transition-all cursor-pointer ${liveStreams.custom?.hidden ? 'bg-rose-500/10 text-rose-600 hover:bg-rose-500/20' : 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20'}`}
+                          >
+                            {liveStreams.custom?.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
+                          </button>
+                        </div>
                      </div>
+
+                     {/* Custom Channel Name Customizer */}
+                     {liveSportSubTab === 'custom' && (
+                       <div className="p-4 bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex flex-col gap-2.5">
+                         <div className="flex items-center gap-2">
+                           <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+                             <Radio size={16} />
+                           </div>
+                           <div>
+                             <h4 className="text-xs font-black text-slate-800 dark:text-white">تخصيص اسم خانة البث (يظهر للمشاهدين بجوار البرامج والكرة والسلة)</h4>
+                             <p className="text-[10px] text-slate-500 dark:text-slate-400">حدد الاسم الذي تريده أن يظهر للجمهور في صفحة البث المباشر (مثل: كرة اليد، ألعاب صالات، مؤتمر صحفي، تغطية خاصة)</p>
+                           </div>
+                         </div>
+                         <input 
+                           type="text" 
+                           className="w-full p-3 rounded-xl border border-emerald-500/40 bg-white dark:bg-card-dark text-sm font-black text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30" 
+                           value={formData.customName !== undefined ? formData.customName : (currentStream?.customName || '')} 
+                           placeholder="اكتب اسم الخانة المخصصة هنا (مثال: كرة اليد / مؤتمر صحفي / صالات الاتحاد)"
+                           onChange={(e) => setFormData({...formData, customName: e.target.value})}
+                         />
+                       </div>
+                     )}
 
                      {/* YouTube Live info banner */}
                      <div className="p-4 bg-gradient-to-r from-red-500/10 via-red-500/5 to-primary/10 border border-red-500/20 dark:border-red-500/30 rounded-2xl flex flex-col gap-2">
@@ -5989,9 +6164,22 @@ export default function Admin() {
                        </div>
                      </div>
 
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     {/* Hidden Status Warning Banner */}
+                     {(formData.hidden !== undefined ? formData.hidden : (currentStream?.hidden ?? false)) && (
+                       <div className="p-3.5 bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/30 rounded-2xl flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                           <EyeOff size={18} />
+                         </div>
+                         <div className="flex-1">
+                           <h4 className="text-xs font-black text-rose-800 dark:text-rose-300">هذه الخانة مخفية حالياً عن المشاهدين</h4>
+                           <p className="text-[10px] text-rose-600/80 dark:text-rose-400">تم حجب هذه الخانة ولن تظهر في قائمة القنوات بصفحة البث المباشر حتى تختار "إظهار الخانة" أو تضغط على أيقونة العين بالأعلى.</p>
+                         </div>
+                       </div>
+                     )}
+
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                        <div>
-                          <label className="text-xs font-bold mb-1.5 block">حالة بث {liveSportSubTab === 'programs' ? 'البرامج' : liveSportSubTab === 'basketball' ? 'كرة السلة' : 'كرة القدم'}</label>
+                          <label className="text-xs font-bold mb-1.5 block">حالة بث {liveSportSubTab === 'custom' ? (formData.customName || currentStream?.customName || 'الخانة المخصصة') : liveSportSubTab === 'programs' ? 'البرامج' : liveSportSubTab === 'basketball' ? 'كرة السلة' : 'كرة القدم'}</label>
                           <select 
                             className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm font-bold" 
                             value={formData.isActive !== undefined ? (formData.isActive ? '1' : '0') : (currentStream?.isActive ? '1' : '0')} 
@@ -6002,12 +6190,28 @@ export default function Admin() {
                           </select>
                        </div>
                        <div>
+                          <label className="text-xs font-bold mb-1.5 flex items-center justify-between">
+                            <span>ظهور الخانة للجمهور</span>
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${!(formData.hidden !== undefined ? formData.hidden : (currentStream?.hidden ?? false)) ? 'bg-emerald-500/10 text-emerald-600' : 'bg-rose-500/10 text-rose-600'}`}>
+                              {!(formData.hidden !== undefined ? formData.hidden : (currentStream?.hidden ?? false)) ? 'ظاهرة 👁️' : 'مخفية 🚫'}
+                            </span>
+                          </label>
+                          <select 
+                            className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm font-bold" 
+                            value={formData.hidden !== undefined ? (formData.hidden ? '1' : '0') : (currentStream?.hidden ? '1' : '0')} 
+                            onChange={(e) => setFormData({...formData, hidden: e.target.value === '1'})}
+                          >
+                             <option value="0">👁️ إظهار الخانة (ظاهرة للجمهور في صفحة البث)</option>
+                             <option value="1">🚫 إخفاء الخانة (حجب هذه الخانة تماماً عن الجمهور)</option>
+                          </select>
+                       </div>
+                       <div>
                           <label className="text-xs font-bold mb-1.5 block">عنوان البث المباشر</label>
                           <input 
                             type="text" 
                             className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm font-bold" 
                             value={formData.title !== undefined ? formData.title : (currentStream?.title || '')} 
-                            placeholder={liveSportSubTab === 'programs' ? 'مثال: استوديو قلعة الشاطبي - تحليل ما بعد المباراة' : 'مثال: الاتحاد السكندري vs الأهلي - بث مباشر'}
+                            placeholder={liveSportSubTab === 'custom' ? 'مثال: تغطية خاصة - البث المباشر الحصري' : liveSportSubTab === 'programs' ? 'مثال: استوديو قلعة الشاطبي - تحليل ما بعد المباراة' : 'مثال: الاتحاد السكندري vs الأهلي - بث مباشر'}
                             onChange={(e) => setFormData({...formData, title: e.target.value})}
                           />
                        </div>

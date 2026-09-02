@@ -70,6 +70,10 @@ export function useFirestoreSync() {
         if (snap.exists()) updateLiveStreams({ programs: snap.data() as any });
       }, 'settings/liveStream_programs', OperationType.GET);
 
+      const unsubLiveCustom = subscribeSnapshot(doc(db, 'settings', 'liveStream_custom'), (snap) => {
+        if (snap.exists()) updateLiveStreams({ custom: snap.data() as any });
+      }, 'settings/liveStream_custom', OperationType.GET);
+
       // Home layout & settings
       const unsubLayout = subscribeSnapshot(doc(db, 'settings', 'homeLayout'), (snap) => {
         if (snap.exists()) {
@@ -178,6 +182,7 @@ export function useFirestoreSync() {
         unsubLiveFootball,
         unsubLiveBasketball,
         unsubLivePrograms,
+        unsubLiveCustom,
         unsubLayout,
         unsubGlobalSettings,
         unsubMatches,
