@@ -14,7 +14,6 @@ import {
   Loader2, 
   Radio, 
   Trophy, 
-  Eye, 
   Share2, 
   Tv, 
   RefreshCw, 
@@ -27,7 +26,7 @@ import {
 } from 'lucide-react';
 import LivePlayer from '../components/live/LivePlayer';
 import { parseLiveStreamUrl } from '../lib/videoUtils';
-import { useLiveViewers } from '../hooks/useLiveViewers';
+import LiveViewersBadge from '../components/live/LiveViewersBadge';
 
 interface Comment {
   id: string;
@@ -95,12 +94,6 @@ export default function Live() {
     : selectedSport === 'basketball' 
       ? liveStreams.basketball 
       : liveStreams.football;
-
-  // Real-time live stream viewers tracking and presence (strictly real count of people in page)
-  const { totalViewers: realViewersCount } = useLiveViewers(
-    selectedSport,
-    profile?.name || profile?.displayName || auth.currentUser?.displayName || undefined
-  );
 
   const parsedUrl = parseLiveStreamUrl(currentStream?.url);
 
@@ -260,23 +253,11 @@ export default function Live() {
                   </div>
                 )}
 
-                {/* Real Live Viewers Badge */}
-                <div 
-                  className="flex items-center gap-1.5 bg-white dark:bg-card-dark px-3 py-1.5 rounded-full border border-border-light dark:border-border-dark text-slate-800 dark:text-white text-xs font-black shadow-xs"
-                  title={`${realViewersCount.toLocaleString('ar-EG')} شخص في الصفحة حالياً`}
-                >
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
-                  <Eye size={14} className="text-red-500 shrink-0" />
-                  <span className="tabular-nums font-black text-slate-900 dark:text-white">
-                    {realViewersCount.toLocaleString('ar-EG')}
-                  </span>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold hidden xs:inline sm:inline">
-                    في الصفحة حالياً
-                  </span>
-                </div>
+                {/* Real Live Viewers Badge (Isolated so count updates never refresh or interrupt the stream) */}
+                <LiveViewersBadge 
+                  channel={selectedSport} 
+                  userName={profile?.name || profile?.displayName || auth.currentUser?.displayName || undefined} 
+                />
               </div>
 
               <div className="flex items-center gap-2">
@@ -299,7 +280,6 @@ export default function Live() {
                 title={currentStream?.title}
                 isActive={currentStream?.isActive}
                 sportName={getSportTitle()}
-                viewersCount={realViewersCount}
               />
             </div>
 
@@ -352,13 +332,6 @@ export default function Live() {
                         غير متصل
                       </span>
                     )}
-
-                    {/* Real Viewers Pill Badge */}
-                    <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 flex items-center gap-1.5 shadow-2xs">
-                      <Eye size={12} className="text-red-500 shrink-0" />
-                      <span className="tabular-nums font-black">{realViewersCount.toLocaleString('ar-EG')}</span>
-                      <span>في الصفحة حالياً</span>
-                    </span>
                   </div>
                   <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
                     {currentStream?.title || `بث مباشر: ${getSportTitle()}`}
@@ -405,7 +378,7 @@ export default function Live() {
                     </h2>
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      <span>متصل الآن ({realViewersCount.toLocaleString('ar-EG')} مشاهد)</span>
+                      <span>متصل الآن</span>
                     </span>
                   </div>
                 </div>

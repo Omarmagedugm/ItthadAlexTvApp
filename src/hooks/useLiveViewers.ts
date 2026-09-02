@@ -57,8 +57,8 @@ export function useLiveViewers(
     // Initial presence write on page mount
     updatePresence();
 
-    // Regular heartbeat every 15 seconds to prove user is still currently in page
-    const interval = setInterval(updatePresence, 15000);
+    // Regular heartbeat every 20 seconds
+    const interval = setInterval(updatePresence, 20000);
 
     // Immediate cleanup when user closes the tab, navigates away, or unmounts
     const handleUnload = () => {
@@ -84,29 +84,22 @@ export function useLiveViewers(
   useEffect(() => {
     setIsLoading(true);
 
-    // Listen to all viewers currently in the live section
     const colRef = collection(db, 'live_viewers');
 
+    // Do NOT use includeMetadataChanges to avoid unnecessary re-renders on local writes
     const unsubscribe = onSnapshot(
       colRef,
-      { includeMetadataChanges: true },
       (snapshot) => {
         const now = Date.now();
-        // A user is considered currently in the page if they sent a heartbeat within the last 35 seconds
+        // A user is considered currently in the page if they sent a heartbeat within the last 45 seconds
         const activeDocs = snapshot.docs.filter((d) => {
           const data = d.data();
           const updatedAt = Number(data.updatedAt || 0);
-          
-          // Cleanup stale orphaned docs older than 90 seconds
-          if (updatedAt && now - updatedAt > 90000) {
-            deleteDoc(d.ref).catch(() => {});
-            return false;
-          }
 
-          if (updatedAt && now - updatedAt < 35000) {
+          if (updatedAt && now - updatedAt < 45000) {
             return true;
           }
-          if (data.lastSeen?.toMillis && now - data.lastSeen.toMillis() < 35000) {
+          if (data.lastSeen?.toMillis && now - data.lastSeen.toMillis() < 45000) {
             return true;
           }
           return false;
@@ -143,3 +136,4 @@ export function useLiveViewers(
     isLoading
   };
 }
+

@@ -1,17 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import { parseLiveStreamUrl } from '../../lib/videoUtils';
-import { Play, Pause, ExternalLink, RefreshCw, AlertTriangle, Youtube, Volume2, VolumeX, Radio as AudioIcon, Eye } from 'lucide-react';
+import { Play, Pause, ExternalLink, RefreshCw, AlertTriangle, Youtube, Volume2, VolumeX, Radio as AudioIcon } from 'lucide-react';
 
 interface LivePlayerProps {
   url?: string;
   title?: string;
   isActive?: boolean;
   sportName?: string;
-  viewersCount?: number;
 }
 
-export default function LivePlayer({ url, title, isActive = true, sportName = 'كرة القدم', viewersCount }: LivePlayerProps) {
+const LivePlayer = React.memo(function LivePlayer({ url, title, isActive = true, sportName = 'كرة القدم' }: LivePlayerProps) {
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
@@ -256,19 +255,6 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
 
   return (
     <div className="relative w-full h-full bg-black flex flex-col items-center justify-center overflow-hidden">
-      {/* Real Live Viewers Floating Badge inside Video Player */}
-      {isActive && typeof viewersCount === 'number' && viewersCount > 0 && (
-        <div className="absolute top-3 left-3 z-30 flex items-center gap-1.5 bg-black/75 backdrop-blur-md text-white px-2.5 py-1 rounded-full border border-white/15 text-[11px] font-black shadow-lg pointer-events-none select-none">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-          </span>
-          <Eye size={12} className="text-red-400 shrink-0" />
-          <span className="tabular-nums font-black">{viewersCount.toLocaleString('ar-EG')}</span>
-          <span className="text-[10px] text-slate-300 font-bold hidden xs:inline sm:inline">مشاهد</span>
-        </div>
-      )}
-
       {/* Raw HTML IFrame Stream (preserved exactly as provided) */}
       {isRawIframe && (
         <div
@@ -391,4 +377,6 @@ export default function LivePlayer({ url, title, isActive = true, sportName = '�
       )}
     </div>
   );
-}
+});
+
+export default LivePlayer;
