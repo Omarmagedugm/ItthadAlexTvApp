@@ -206,7 +206,7 @@ export default function SocialMedia() {
           <div className="flex items-center gap-3.5 mt-1">
             <div className="relative w-14 h-14 rounded-2xl bg-white/10 p-1.5 ring-2 ring-emerald-400/40 shadow-inner flex items-center justify-center shrink-0">
               <img 
-                src={getOptimizedImage(appSettings?.appLogo, 120) || 'https://upload.wikimedia.org/wikipedia/ar/thumb/0/0e/Al_Ittihad_Alexandria_Club_Logo.svg/1024px-Al_Ittihad_Alexandria_Club_Logo.svg.png'} 
+                src={getOptimizedImage(appSettings?.appLogo, 120) || '/icon.png'} 
                 alt="قناة الاتحاد السكندري" 
                 className="w-full h-full object-contain"
                 referrerPolicy="no-referrer"

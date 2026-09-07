@@ -239,8 +239,8 @@ function AppContent() {
   useEffect(() => {
     preloadImages([
       '/icon.png',
-      'https://upload.wikimedia.org/wikipedia/en/thumb/e/ef/Al_Ahly_SC_logo.svg/1200px-Al_Ahly_SC_logo.svg.png',
-      'https://upload.wikimedia.org/wikipedia/en/thumb/0/04/Zamalek_SC_logo.svg/1200px-Zamalek_SC_logo.svg.png'
+      'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777841244/admin_logo/fpjoepth9okjaedlcj97.png',
+      'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1786266811/admin_logo/nuzc32cczrp3mczzwbj4.png'
     ]);
   }, []);
 

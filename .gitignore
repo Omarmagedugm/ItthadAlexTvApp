@@ -4,5 +4,8 @@ build/
 coverage/
 .DS_Store
 *.log
+*.tar.gz
+cloudinary_images_backup/
+bun.lock
 .env*
 !.env.example

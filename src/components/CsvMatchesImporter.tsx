@@ -45,7 +45,7 @@ interface CsvMatchesImporterProps {
 }
 
 const DEFAULT_HOME_LOGO = '/icon.png';
-const DEFAULT_AWAY_LOGO = 'https://upload.wikimedia.org/wikipedia/en/thumb/e/e4/Al_Ahly_SC_logo.png/150px-Al_Ahly_SC_logo.png';
+const DEFAULT_AWAY_LOGO = '/icon.png';
 
 // Robust CSV Line Parser that handles quotes, escaped quotes, and different delimiters
 function parseCsvLine(line: string, delimiter: string = ','): string[] {

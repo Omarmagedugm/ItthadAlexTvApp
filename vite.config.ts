@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => {
           skipWaiting: true,
           clientsClaim: true,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff2,webmanifest}'],
+          globIgnores: ['**/storage/**'],
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // Increase to 5MB
           navigateFallback: 'index.html',
           // Optimize for Vercel

@@ -148,7 +148,7 @@ export const WorldFansWidget: React.FC = () => {
                 >
                   <div className="relative mb-2">
                     <img
-                      src={group.logo || 'https://upload.wikimedia.org/wikipedia/ar/thumb/0/0e/Al_Ittihad_Alexandria_Club_Logo.svg/1024px-Al_Ittihad_Alexandria_Club_Logo.svg.png'}
+                      src={group.logo || '/icon.png'}
                       alt={group.name}
                       className="w-12 h-12 rounded-xl object-cover border-2 border-emerald-400/50 shadow-md bg-white/5"
                       referrerPolicy="no-referrer"

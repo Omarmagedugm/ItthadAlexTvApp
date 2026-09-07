@@ -1,11 +1,11 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import { GoogleGenAI } from '@google/genai';
+import { MIGRATED_IMAGES_MAP } from './src/lib/migratedImagesMap';
 
 dotenv.config();
 
@@ -318,6 +318,91 @@ OUTPUT: Return ONLY the transformed image.`;
     }
   });
 
+  // Serve storage with fallback to Cloudinary CDN
+  const storageDir = fs.existsSync(path.join(process.cwd(), 'public', 'storage'))
+    ? path.join(process.cwd(), 'public', 'storage')
+    : path.join(process.cwd(), 'dist', 'storage');
+
+  app.get('/storage/migrated/:filename', (req, res, next) => {
+    const filename = req.params.filename;
+    const localFile = path.join(storageDir, 'migrated', filename);
+    if (fs.existsSync(localFile)) {
+      return res.sendFile(localFile);
+    }
+    const cUrl = MIGRATED_IMAGES_MAP[filename];
+    if (cUrl) {
+      return res.redirect(302, cUrl);
+    }
+    next();
+  });
+
+  app.use('/storage', express.static(storageDir, {
+    maxAge: '30d'
+  }));
+
+  // Migration status endpoint
+  app.get('/api/migration/status', (req, res) => {
+    try {
+      const reportPath = fs.existsSync(path.join(process.cwd(), 'public', 'cloudinary-migration-report-latest.json'))
+        ? path.join(process.cwd(), 'public', 'cloudinary-migration-report-latest.json')
+        : path.join(process.cwd(), 'dist', 'cloudinary-migration-report-latest.json');
+
+      if (fs.existsSync(reportPath)) {
+        const data = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+        return res.json(data);
+      }
+      res.status(404).json({ error: 'Report not found' });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Local storage upload endpoint
+  app.post('/api/storage/upload', upload.single('image'), async (req: any, res: any) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No image provided' });
+      }
+      const folder = (req.body.folder || 'general').replace(/[^a-zA-Z0-9_-]/g, '');
+      const ext = req.file.mimetype.includes('png') ? 'png' : req.file.mimetype.includes('webp') ? 'webp' : 'jpg';
+      const cleanName = (req.file.originalname || `upload_${Date.now()}`).split('.')[0].replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+      const filename = `${Date.now()}_${cleanName}.${ext}`;
+      const destDir = path.join(process.cwd(), 'public', 'storage', folder);
+      if (!fs.existsSync(destDir)) {
+        fs.mkdirSync(destDir, { recursive: true });
+      }
+      const destPath = path.join(destDir, filename);
+      fs.writeFileSync(destPath, req.file.buffer);
+
+      const url = `/storage/${folder}/${filename}`;
+      res.json({ url, success: true });
+    } catch (error: any) {
+      console.error('Storage upload error:', error);
+      res.status(500).json({ error: error.message || 'Upload failed' });
+    }
+  });
+
+  // Proxy image to bypass CORS in browser
+  app.get('/api/proxy-image', async (req: any, res: any) => {
+    try {
+      const targetUrl = req.query.url as string;
+      if (!targetUrl || !targetUrl.startsWith('http')) {
+        return res.status(400).json({ error: 'Invalid URL' });
+      }
+      const fetchRes = await fetch(targetUrl);
+      if (!fetchRes.ok) {
+        return res.status(fetchRes.status).send('Failed to fetch remote image');
+      }
+      const contentType = fetchRes.headers.get('content-type') || 'application/octet-stream';
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      const arrayBuffer = await fetchRes.arrayBuffer();
+      res.send(Buffer.from(arrayBuffer));
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Cloudinary Upload Endpoint (Still needed for image management)
   app.post('/api/upload', upload.single('image'), async (req: any, res: any) => {
     try {
@@ -349,8 +434,11 @@ OUTPUT: Return ONLY the transformed image.`;
     }
   });
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== 'production') {
+  // Vite middleware for development vs static dist serving in production
+  const isRunningBundled = typeof process.argv[1] === 'string' && process.argv[1].endsWith('.cjs');
+  const isProduction = process.env.NODE_ENV === 'production' || isRunningBundled;
+  if (!isProduction) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -358,10 +446,18 @@ OUTPUT: Return ONLY the transformed image.`;
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
+
     if (fs.existsSync(distPath)) {
       app.use(express.static(distPath));
       app.get('*all', (req, res) => {
         res.sendFile(path.join(distPath, 'index.html'));
+      });
+      app.use((req, res, next) => {
+        if (req.method === 'GET' && !req.path.startsWith('/api/')) {
+          res.sendFile(path.join(distPath, 'index.html'));
+        } else {
+          next();
+        }
       });
       console.log('Serving static files from:', distPath);
     } else {

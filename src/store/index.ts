@@ -754,7 +754,7 @@ export const useAppStore = create<AppState>()(
       users: [],
       appSettings: {
         appName: 'قناة الاتحاد السكندري',
-        appLogo: 'https://upload.wikimedia.org/wikipedia/ar/thumb/0/0e/Al_Ittihad_Alexandria_Club_Logo.svg/1024px-Al_Ittihad_Alexandria_Club_Logo.svg.png',
+        appLogo: '/icon.png',
         headerLogoLight: '',
         headerLogoDark: '',
         headerLogoSize: 'medium',

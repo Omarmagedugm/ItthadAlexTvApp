@@ -1,8 +1,19 @@
+import { MIGRATED_IMAGES_MAP } from './migratedImagesMap';
+
 /**
  * Cloudinary image optimization utility
  */
 export const getOptimizedImage = (url: string | undefined | null, width?: number) => {
   if (!url) return '';
+
+  // Resolve local migrated storage URLs to high-speed Cloudinary CDN URLs
+  if (url.startsWith('/storage/migrated/')) {
+    const filename = url.replace('/storage/migrated/', '').split('?')[0];
+    if (MIGRATED_IMAGES_MAP[filename]) {
+      url = MIGRATED_IMAGES_MAP[filename];
+    }
+  }
+
   if (
     url.startsWith('/') ||
     url.startsWith('data:') || 

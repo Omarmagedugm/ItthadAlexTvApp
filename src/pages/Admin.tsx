@@ -1278,7 +1278,7 @@ export default function Admin() {
           homeTeam: formData.homeTeam || 'الاتحاد',
           awayTeam: formData.awayTeam || 'الفريق الخصم',
           homeLogo: formData.homeLogo || '/icon.png',
-          awayLogo: formData.awayLogo || 'https://upload.wikimedia.org/wikipedia/en/thumb/e/e4/Al_Ahly_SC_logo.png/150px-Al_Ahly_SC_logo.png',
+          awayLogo: formData.awayLogo || '/icon.png',
           homeScore: formData.homeScore !== undefined && formData.homeScore !== null ? String(formData.homeScore) : (formData.status === 'upcoming' ? '-' : '0'),
           awayScore: formData.awayScore !== undefined && formData.awayScore !== null ? String(formData.awayScore) : (formData.status === 'upcoming' ? '-' : '0'),
           date: formData.date || new Date().toISOString(),

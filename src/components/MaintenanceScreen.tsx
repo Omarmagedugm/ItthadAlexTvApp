@@ -12,7 +12,7 @@ export default function MaintenanceScreen() {
   const title = appSettings?.maintenanceTitle?.trim() || 'سنعود بعد قليل انتظرونا';
   const message = appSettings?.maintenanceMessage?.trim() || 'نقوم حالياً بإجراء بعض أعمال الصيانة والتطوير الدورية لتقديم تجربة أفضل وأسرع لكافة جماهير ومحبي سيد البلد. سنعود بعد قليل، انتظرونا!';
   const estimatedTime = appSettings?.maintenanceEstimatedTime?.trim();
-  const logo = appSettings?.appLogo || 'https://upload.wikimedia.org/wikipedia/ar/thumb/0/0e/Al_Ittihad_Alexandria_Club_Logo.svg/1024px-Al_Ittihad_Alexandria_Club_Logo.svg.png';
+  const logo = appSettings?.appLogo || '/icon.png';
 
   const socialLinks = appSettings?.socialLinks || {
     facebook: appSettings?.facebookPageUrl || 'https://www.facebook.com/Itthadalexchannel',
