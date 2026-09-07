@@ -4,9 +4,12 @@
 export const getOptimizedImage = (url: string | undefined | null, width?: number) => {
   if (!url) return '';
   if (
+    url.startsWith('/') ||
     url.startsWith('data:') || 
     url.startsWith('blob:') || 
     url.endsWith('.svg') ||
+    url.includes('firebasestorage.googleapis.com') ||
+    url.includes('storage.googleapis.com') ||
     url.includes('wikimedia.org') ||
     url.includes('wikipedia.org') ||
     url.includes('ui-avatars.com') ||
@@ -18,10 +21,13 @@ export const getOptimizedImage = (url: string | undefined | null, width?: number
   const isLogo = url.toLowerCase().includes('logo') || url.toLowerCase().includes('favicon');
 
   if (!url.includes('cloudinary.com')) {
-    // Use Cloudinary "fetch" for external non-Cloudinary images
-    const transformations = ['f_auto', 'q_auto'];
-    if (width && !isLogo) transformations.push(`w_${width}`, 'c_limit');
-    return `https://res.cloudinary.com/dqj6gzwfg/image/fetch/${transformations.join(',')}/${encodeURIComponent(url)}`;
+    // For external non-Cloudinary images, keep original URL if Cloudinary fetch is not desired,
+    // or return directly if not a valid http url
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      return url;
+    }
+    // Return original url if fetch fails or if it's already an external source
+    return url;
   }
 
   // Handle direct Cloudinary URLs (res.cloudinary.com/...)

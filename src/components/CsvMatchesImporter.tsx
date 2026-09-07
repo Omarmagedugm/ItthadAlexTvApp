@@ -44,7 +44,7 @@ interface CsvMatchesImporterProps {
   onSuccess?: () => void;
 }
 
-const DEFAULT_HOME_LOGO = 'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777720049/admin_homeLogo/bsxn6a8jxy6yfbyh56df.png';
+const DEFAULT_HOME_LOGO = '/icon.png';
 const DEFAULT_AWAY_LOGO = 'https://upload.wikimedia.org/wikipedia/en/thumb/e/e4/Al_Ahly_SC_logo.png/150px-Al_Ahly_SC_logo.png';
 
 // Robust CSV Line Parser that handles quotes, escaped quotes, and different delimiters

@@ -111,6 +111,7 @@ import AdminBusiness from '../components/AdminBusiness';
 import AdminWorldFans from '../components/admin/AdminWorldFans';
 import AdminAuditLogs from '../components/admin/AdminAuditLogs';
 import AdminAnalytics from '../components/admin/AdminAnalytics';
+import { CloudinaryMigrationManager } from '../components/admin/CloudinaryMigrationManager';
 import ScoreSelector from '../components/ScoreSelector';
 import ImageUploader from '../components/ImageUploader';
 import LivePlayer from '../components/live/LivePlayer';
@@ -272,13 +273,13 @@ const UploadOrUrlField = ({
   formData: any,
   skipResize?: boolean
 }) => {
-  const isExternalUrl = currentUrl && currentUrl.startsWith('http') && !currentUrl.includes('cloudinary.com');
+  const isExternalUrl = currentUrl && currentUrl.startsWith('http') && !currentUrl.includes('cloudinary.com') && !currentUrl.includes('firebasestorage.googleapis.com');
   const [internalMode, setInternalMode] = useState<'upload' | 'url'>(isExternalUrl ? 'url' : 'upload');
 
   // Keep internal mode in sync ONLY when field is initialized (e.g. opening different edit modals)
   useEffect(() => {
     if (currentUrl) {
-      const isExt = currentUrl.startsWith('http') && !currentUrl.includes('cloudinary.com');
+      const isExt = currentUrl.startsWith('http') && !currentUrl.includes('cloudinary.com') && !currentUrl.includes('firebasestorage.googleapis.com');
       if (isExt) setInternalMode('url');
     }
   }, [fieldName]); // Re-evaluate only when the field being edited changes
@@ -293,7 +294,7 @@ const UploadOrUrlField = ({
               type="button"
               onClick={() => {
                 setInternalMode('url');
-                setFormData({ ...formData, [fieldName]: 'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777720049/admin_homeLogo/bsxn6a8jxy6yfbyh56df.png' });
+                setFormData({ ...formData, [fieldName]: '/icon.png' });
               }}
               className="text-[8px] font-black px-2.5 py-1 rounded-md transition-all text-green-600 bg-green-50 hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50 dark:text-green-400"
               title="لوجو الاتحاد السكندري"
@@ -1276,7 +1277,7 @@ export default function Admin() {
         const payload = {
           homeTeam: formData.homeTeam || 'الاتحاد',
           awayTeam: formData.awayTeam || 'الفريق الخصم',
-          homeLogo: formData.homeLogo || 'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777720049/admin_homeLogo/bsxn6a8jxy6yfbyh56df.png',
+          homeLogo: formData.homeLogo || '/icon.png',
           awayLogo: formData.awayLogo || 'https://upload.wikimedia.org/wikipedia/en/thumb/e/e4/Al_Ahly_SC_logo.png/150px-Al_Ahly_SC_logo.png',
           homeScore: formData.homeScore !== undefined && formData.homeScore !== null ? String(formData.homeScore) : (formData.status === 'upcoming' ? '-' : '0'),
           awayScore: formData.awayScore !== undefined && formData.awayScore !== null ? String(formData.awayScore) : (formData.status === 'upcoming' ? '-' : '0'),
@@ -5391,8 +5392,8 @@ export default function Admin() {
                        {/* Preview with exact chosen header height */}
                        <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-border-light dark:border-border-dark shadow-sm flex items-center justify-center">
                          <img 
-                           src={formData.headerLogoLight || formData.appLogo || appSettings.headerLogoLight || appSettings.appLogo || 'https://upload.wikimedia.org/wikipedia/ar/thumb/0/0e/Al_Ittihad_Alexandria_Club_Logo.svg/1024px-Al_Ittihad_Alexandria_Club_Logo.svg.png'} 
-                           onError={(e) => { e.currentTarget.src = 'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777716805/favicon_gd0ic4.png'; }} 
+                           src={formData.headerLogoLight || formData.appLogo || appSettings.headerLogoLight || appSettings.appLogo || '/icon.png'} 
+                           onError={(e) => { e.currentTarget.src = '/icon.png'; }} 
                            style={{ height: `${formData.headerLogoHeight ?? appSettings.headerLogoHeight ?? 48}px` }}
                            className="w-auto object-contain drop-shadow-md transition-all duration-300" 
                            referrerPolicy="no-referrer" 
@@ -6460,6 +6461,8 @@ export default function Admin() {
 
            {activeTab === 'backup' && (
              <div className="flex flex-col gap-6 max-w-4xl mx-auto">
+               <CloudinaryMigrationManager />
+
                <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 md:p-8 rounded-[32px] shadow-lg border border-slate-700">
                  <div className="flex items-center gap-4 mb-4">
                    <div className="w-14 h-14 rounded-2xl bg-primary/20 text-primary flex items-center justify-center border border-primary/30">

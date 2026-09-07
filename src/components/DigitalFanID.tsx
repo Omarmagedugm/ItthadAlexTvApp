@@ -159,13 +159,13 @@ export default function DigitalFanID({ username, memberId, avatarUrl, role, tier
         <div className="flex items-center gap-3.5 px-4 relative z-10">
           <div className="w-16 h-16 rounded-full border-2 border-white shadow-xl overflow-hidden shrink-0 bg-slate-100 flex items-center justify-center">
             <img 
-              src={avatarUrl || 'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777716805/favicon_gd0ic4.png'} 
+              src={avatarUrl || '/icon.png'} 
               alt={username} 
               className="w-full h-full object-cover"
               crossOrigin="anonymous"
               referrerPolicy="no-referrer"
               onError={(e) => {
-                e.currentTarget.src = 'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777716805/favicon_gd0ic4.png';
+                e.currentTarget.src = '/icon.png';
               }}
             />
           </div>
@@ -190,8 +190,8 @@ export default function DigitalFanID({ username, memberId, avatarUrl, role, tier
           
           <div className="h-8 w-8 flex items-center justify-center opacity-90 drop-shadow">
             <img 
-              src={getOptimizedImage(appSettings.appLogo, 100) || 'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777716805/favicon_gd0ic4.png'} 
-              onError={(e) => { e.currentTarget.src = 'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777716805/favicon_gd0ic4.png'; }}
+              src={getOptimizedImage(appSettings.appLogo, 100) || '/icon.png'} 
+              onError={(e) => { e.currentTarget.src = '/icon.png'; }}
               alt="Logo" 
               className="w-full h-full object-contain"
               crossOrigin="anonymous" 

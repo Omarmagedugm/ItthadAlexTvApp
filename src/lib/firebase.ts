@@ -138,11 +138,17 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
   return res.subscriptionId || (res.success ? 'granted' : null);
 };
 
-export const uploadImage = async (file: File, folder: string): Promise<string> => {
-  const path = `${folder}/${Date.now()}_${file.name}`;
+export const uploadImage = async (file: File | Blob, folder: string, customName?: string): Promise<string> => {
+  const originalName = customName || (file instanceof File ? file.name : `image_${Date.now()}`);
+  const cleanName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 60);
+  const path = `${folder}/${Date.now()}_${cleanName}`;
   try {
     const storageRef = ref(storage, path);
-    await uploadBytes(storageRef, file);
+    const metadata = {
+      contentType: file.type || 'image/jpeg',
+      cacheControl: 'public, max-age=31536000',
+    };
+    await uploadBytes(storageRef, file, metadata);
     return await getDownloadURL(storageRef);
   } catch (error) {
     handleStorageError(error, path);

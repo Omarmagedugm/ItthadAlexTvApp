@@ -18,6 +18,7 @@ export function useFirestoreSync() {
 
   const isInitialFetchDoneRef = useRef(false);
 
+  // 1. Public / Global Data Effect - Starts once on app load, NEVER recreated on auth changes
   useEffect(() => {
     let isMounted = true;
     const unsubs: (() => void)[] = [];
@@ -29,6 +30,9 @@ export function useFirestoreSync() {
       op: OperationType = OperationType.LIST
     ) => {
       try {
+        if (import.meta.env.DEV) {
+          console.debug('[Firestore] Public listener started:', path);
+        }
         const unsub = onSnapshot(
           docOrQuery, 
           (snap) => {
@@ -54,8 +58,7 @@ export function useFirestoreSync() {
       }
     };
 
-    // 1. Essential Dynamic Listeners ONLY (Matches, News, Live Settings, Interactive Posts)
-    // Avoid blanket listeners on static collections to protect Firestore read quota
+    // Essential Dynamic Listeners (Matches, News, Live Settings, Interactive Posts, Club Data)
     const setupRealtimeSync = () => {
       // Live Stream Configs (Single Document reads)
       const unsubLiveFootball = subscribeSnapshot(doc(db, 'settings', 'liveStream'), (snap) => {
@@ -197,53 +200,11 @@ export function useFirestoreSync() {
         unsubMemberDiscounts,
         unsubClubMembersSettings
       );
-
-      // User Profile listener (only if logged in)
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        const unsubProfile = subscribeSnapshot(
-          doc(db, 'users', currentUser.uid), 
-          (docSnap) => {
-            if (docSnap.exists()) {
-              const userData = docSnap.data() as any;
-              updateProfile({ ...userData, uid: currentUser.uid });
-            }
-          }, 
-          `users/${currentUser.uid}`, 
-          OperationType.GET
-        );
-        unsubs.push(unsubProfile);
-
-        // Orders listener (limited to user's orders)
-        const ordersQuery = query(
-          collection(db, 'orders'), 
-          where('userId', '==', currentUser.uid), 
-          orderBy('createdAt', 'desc'), 
-          limit(20)
-        );
-        unsubs.push(subscribeSnapshot(ordersQuery, (s) => setOrders(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any), 'orders'));
-
-        // Activity timestamp update (strictly throttled to once every 2 hours)
-        const lastUpdateKey = `last_active_update_${currentUser.uid}`;
-        try {
-          const lastUpdate = typeof window !== 'undefined' ? localStorage.getItem(lastUpdateKey) : null;
-          const now = Date.now();
-          if (!lastUpdate || now - parseInt(lastUpdate, 10) > 7200000) {
-            updateDoc(doc(db, 'users', currentUser.uid), { lastActive: new Date().toISOString() })
-              .then(() => {
-                try {
-                  if (typeof window !== 'undefined') localStorage.setItem(lastUpdateKey, now.toString());
-                } catch (e) {}
-              })
-              .catch(() => {});
-          }
-        } catch (e) {}
-      }
     };
 
     setupRealtimeSync();
 
-    // 2. Fetch Reference / Static Data in Prioritized Staggered Batches
+    // Fetch Reference / Static Data in Prioritized Staggered Batches
     const fetchStaticData = async () => {
       if (isInitialFetchDoneRef.current) return;
 
@@ -349,5 +310,107 @@ export function useFirestoreSync() {
         } catch (e) {}
       });
     };
-  }, [auth.currentUser?.uid]);
+  }, []); // Strictly empty dependency array: starts once, never affected by Auth state changes
+
+  // 2. User-specific Data Effect - Starts/stops purely based on Auth state without touching public data
+  useEffect(() => {
+    let userUnsubs: (() => void)[] = [];
+    let currentSubscribedUid: string | null = null;
+
+    const unsubAuth = auth.onAuthStateChanged((currentUser) => {
+      const newUid = currentUser ? currentUser.uid : null;
+
+      // Avoid redundant resubscription if UID hasn't changed
+      if (newUid === currentSubscribedUid) return;
+      currentSubscribedUid = newUid;
+
+      // Clean up existing user listeners
+      userUnsubs.forEach(unsub => {
+        try { unsub(); } catch (e) {}
+      });
+      userUnsubs = [];
+
+      if (!currentUser) {
+        // User logged out: clear user-specific data and do not touch public listeners
+        if (import.meta.env.DEV) {
+          console.debug('[Firestore] User logged out: cleaned up user listeners.');
+        }
+        setOrders([]);
+        return;
+      }
+
+      if (import.meta.env.DEV) {
+        console.debug('[Firestore] User listeners started for UID:', currentUser.uid);
+      }
+
+      // User Profile listener
+      try {
+        const unsubProfile = onSnapshot(
+          doc(db, 'users', currentUser.uid),
+          (docSnap) => {
+            if (docSnap.exists()) {
+              const userData = docSnap.data() as any;
+              updateProfile({ ...userData, uid: currentUser.uid });
+            }
+          },
+          (err) => {
+            if (err?.code !== 'permission-denied') {
+              handleFirestoreError(err, OperationType.GET, `users/${currentUser.uid}`);
+            }
+          }
+        );
+        userUnsubs.push(unsubProfile);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.GET, `users/${currentUser.uid}`);
+      }
+
+      // Orders listener (limited to user's orders)
+      try {
+        const ordersQuery = query(
+          collection(db, 'orders'),
+          where('userId', '==', currentUser.uid),
+          orderBy('createdAt', 'desc'),
+          limit(20)
+        );
+        const unsubOrders = onSnapshot(
+          ordersQuery,
+          (s) => {
+            setOrders(s.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+          },
+          (err) => {
+            if (err?.code !== 'permission-denied') {
+              handleFirestoreError(err, OperationType.LIST, 'orders');
+            }
+          }
+        );
+        userUnsubs.push(unsubOrders);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.LIST, 'orders');
+      }
+
+      // Activity timestamp update (strictly throttled to once every 2 hours)
+      const lastUpdateKey = `last_active_update_${currentUser.uid}`;
+      try {
+        const lastUpdate = typeof window !== 'undefined' ? localStorage.getItem(lastUpdateKey) : null;
+        const now = Date.now();
+        if (!lastUpdate || now - parseInt(lastUpdate, 10) > 7200000) {
+          updateDoc(doc(db, 'users', currentUser.uid), { lastActive: new Date().toISOString() })
+            .then(() => {
+              try {
+                if (typeof window !== 'undefined') localStorage.setItem(lastUpdateKey, now.toString());
+              } catch (e) {}
+            })
+            .catch(() => {});
+        }
+      } catch (e) {}
+    });
+
+    return () => {
+      unsubAuth();
+      userUnsubs.forEach(unsub => {
+        try { unsub(); } catch (e) {}
+      });
+      userUnsubs = [];
+    };
+  }, [setOrders, updateProfile]);
 }

@@ -2,15 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getOptimizedImage } from '../lib/cloudinary';
 import { isImageInMemory, markImageLoaded, cacheImage } from '../lib/imageCache';
 
+const ITTIHAD_DEFAULT_LOGO = '/icon.png';
+
 export const getTeamLogoWithFallback = (teamName?: string, logoUrl?: string): string => {
   if (logoUrl && logoUrl.trim().length > 5) {
     return logoUrl.trim();
   }
-  if (!teamName) return 'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777720049/admin_homeLogo/bsxn6a8jxy6yfbyh56df.png';
+  if (!teamName) return ITTIHAD_DEFAULT_LOGO;
   
   const name = teamName.trim().toLowerCase();
 
-  if (name.includes('اتحاد') || name.includes('ittihad')) return 'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777720049/admin_homeLogo/bsxn6a8jxy6yfbyh56df.png';
+  if (name.includes('اتحاد') || name.includes('ittihad')) return ITTIHAD_DEFAULT_LOGO;
   if (name.includes('أهلي') || name.includes('اهلي') || name.includes('ahly')) return 'https://upload.wikimedia.org/wikipedia/en/thumb/e/ef/Al_Ahly_SC_logo.svg/1200px-Al_Ahly_SC_logo.svg.png';
   if (name.includes('زمالك') || name.includes('zamalek')) return 'https://upload.wikimedia.org/wikipedia/en/thumb/0/04/Zamalek_SC_logo.svg/1200px-Zamalek_SC_logo.svg.png';
   if (name.includes('بيراميدز') || name.includes('pyramids')) return 'https://upload.wikimedia.org/wikipedia/en/thumb/c/c9/Pyramids_FC_logo.svg/1200px-Pyramids_FC_logo.svg.png';
@@ -24,7 +26,7 @@ export const getTeamLogoWithFallback = (teamName?: string, logoUrl?: string): st
   if (name.includes('سبورتنج') || name.includes('sporting')) return 'https://upload.wikimedia.org/wikipedia/ar/thumb/3/30/Alexandria_Sporting_Club_Logo.png/1200px-Alexandria_Sporting_Club_Logo.png';
   if (name.includes('أوليمبي') || name.includes('اوليمبي') || name.includes('olympi')) return 'https://upload.wikimedia.org/wikipedia/ar/thumb/3/38/El_Olympi_Club_logo.png/1200px-El_Olympi_Club_logo.png';
 
-  return 'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777720049/admin_homeLogo/bsxn6a8jxy6yfbyh56df.png';
+  return ITTIHAD_DEFAULT_LOGO;
 };
 
 interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
@@ -48,7 +50,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({
   ...props 
 }) => {
   const [hasError, setHasError] = useState(false);
-  const effectiveSrc = teamName ? getTeamLogoWithFallback(teamName, src as string) : (src || fallback || 'https://res.cloudinary.com/dqj6gzwfg/image/upload/v1777720049/admin_homeLogo/bsxn6a8jxy6yfbyh56df.png');
+  const effectiveSrc = teamName ? getTeamLogoWithFallback(teamName, src as string) : (src || fallback || ITTIHAD_DEFAULT_LOGO);
   const optimizedSrc = getOptimizedImage(hasError ? (fallback || getTeamLogoWithFallback(teamName)) : effectiveSrc, width);
 
   // Check if image was already cached/loaded in memory to prevent layout shift or loading flicker

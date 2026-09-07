@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Loader2, Image as ImageIcon } from 'lucide-react';
 import { motion } from 'motion/react';
+import { uploadImage } from '../lib/firebase';
 
 interface ImageUploaderProps {
   folderName: string;
@@ -30,9 +31,6 @@ export default function ImageUploader({
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string>(previewImageUrl);
 
-  const CLOUD_NAME = 'dqj6gzwfg';
-  const UPLOAD_PRESET = 'uhicj3ig';
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleButtonClick = () => {
@@ -54,28 +52,15 @@ export default function ImageUploader({
       // Client-side Resize before upload (only if not skipping)
       const resizedFile = skipResize ? file : await resizeImage(file, 1200, 1200);
       
-      const formData = new FormData();
-      formData.append('file', resizedFile);
-      formData.append('upload_preset', UPLOAD_PRESET);
-      formData.append('folder', folderName);
-
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
+      const downloadUrl = await uploadImage(resizedFile, folderName, file.name);
       
-      if (data.secure_url) {
+      if (downloadUrl) {
         if (showPreview && !iconOnly) {
-          setPreviewUrl(data.secure_url);
+          setPreviewUrl(downloadUrl);
         }
-        onUploadSuccess(data.secure_url);
+        onUploadSuccess(downloadUrl);
       } else {
-        throw new Error(data.error?.message || 'حدث خطأ أثناء رفع الصورة');
+        throw new Error('فشل رفع الصورة إلى التخزين السحابي');
       }
     } catch (error) {
       console.error('Upload Error:', error);
