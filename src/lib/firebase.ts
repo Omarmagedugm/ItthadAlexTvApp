@@ -4,6 +4,7 @@ import { initializeFirestore, doc, getDoc, getDocFromServer, setDoc, serverTimes
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import firebaseConfigJson from '../../firebase-applet-config.json';
 import { requestNotificationPermission as requestOneSignalPermission } from './onesignal';
+import { compressImageIfNeeded, saveImageToFirestore } from './firestoreImageStorage';
 
 // Suppress benign internal timestamp drift warnings
 try {
@@ -139,19 +140,64 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
 };
 
 export const uploadImage = async (file: File | Blob, folder: string, customName?: string): Promise<string> => {
-  const originalName = customName || (file instanceof File ? file.name : `image_${Date.now()}`);
+  const originalName = customName || (file instanceof File ? file.name : `img_${Date.now()}.jpg`);
   const cleanName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 60);
-  const path = `${folder}/${Date.now()}_${cleanName}`;
+  const finalFilename = `${Date.now()}_${cleanName}`;
+  const storagePath = `${folder}/${finalFilename}`;
+
+  // 1. Primary: Direct Firebase Storage Upload (Stores URL + metadata in Firestore only)
   try {
-    const storageRef = ref(storage, path);
-    const metadata = {
-      contentType: file.type || 'image/jpeg',
-      cacheControl: 'public, max-age=31536000',
-    };
-    await uploadBytes(storageRef, file, metadata);
-    return await getDownloadURL(storageRef);
+    const storageRef = ref(storage, storagePath);
+    const contentType = file.type || 'image/jpeg';
+    const snapshot = await uploadBytes(storageRef, file, { 
+      contentType,
+      customMetadata: { originalName }
+    });
+    const downloadUrl = await getDownloadURL(snapshot.ref);
+
+    // Save ONLY metadata & download URL into Firestore app_images (no base64 bloat)
+    try {
+      await setDoc(doc(db, 'app_images', finalFilename), {
+        name: finalFilename,
+        url: downloadUrl,
+        storagePath,
+        provider: 'firebase_storage',
+        contentType,
+        size: file.size || 0,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (metaErr) {
+      console.warn('Could not record metadata in Firestore app_images:', metaErr);
+    }
+
+    return downloadUrl;
+  } catch (storageErr) {
+    console.warn('Direct Firebase Storage upload failed, attempting server upload fallback:', storageErr);
+  }
+
+  // 2. Fallback via server upload endpoint
+  try {
+    const formData = new FormData();
+    formData.append('image', file, finalFilename);
+    const res = await fetch('/api/storage/upload', {
+      method: 'POST',
+      body: formData
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.url) return data.url;
+    }
+  } catch (serverErr) {
+    console.warn('Server storage upload fallback failed:', serverErr);
+  }
+
+  // 3. Fallback: Firestore compressed storage
+  try {
+    const compressed = await compressImageIfNeeded(file);
+    const result = await saveImageToFirestore(finalFilename, compressed.dataUrl, compressed.contentType);
+    return result.url;
   } catch (error) {
-    handleStorageError(error, path);
+    handleStorageError(error, storagePath);
     return '';
   }
 };

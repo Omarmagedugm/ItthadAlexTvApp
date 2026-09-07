@@ -1,19 +1,19 @@
-import { MIGRATED_IMAGES_MAP } from './migratedImagesMap';
+import { CLOUDINARY_TO_FIRESTORE_MAP } from './cloudinaryToFirestoreMap';
 
 /**
- * Cloudinary image optimization utility
+ * Image URL resolution utility.
+ * Prioritizes Firestore image storage (/storage/migrated/...) over Cloudinary.
+ * Converts any legacy Cloudinary URLs directly to Firestore storage paths.
  */
 export const getOptimizedImage = (url: string | undefined | null, width?: number) => {
   if (!url) return '';
 
-  // Resolve local migrated storage URLs to high-speed Cloudinary CDN URLs
-  if (url.startsWith('/storage/migrated/')) {
-    const filename = url.replace('/storage/migrated/', '').split('?')[0];
-    if (MIGRATED_IMAGES_MAP[filename]) {
-      url = MIGRATED_IMAGES_MAP[filename];
-    }
+  // 1. If it's already a Firestore / local storage URL or relative asset, serve directly
+  if (url.startsWith('/storage/') || url.startsWith('/api/images/')) {
+    return url;
   }
 
+  // 2. Pass-through for data URLs, blobs, and relative assets
   if (
     url.startsWith('/') ||
     url.startsWith('data:') || 
@@ -29,34 +29,30 @@ export const getOptimizedImage = (url: string | undefined | null, width?: number
     return url;
   }
 
-  const isLogo = url.toLowerCase().includes('logo') || url.toLowerCase().includes('favicon');
-
-  if (!url.includes('cloudinary.com')) {
-    // For external non-Cloudinary images, keep original URL if Cloudinary fetch is not desired,
-    // or return directly if not a valid http url
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      return url;
+  // 3. If it's a legacy Cloudinary URL, resolve it to its Firestore storage equivalent
+  if (url.includes('cloudinary.com')) {
+    // Exact match check
+    if (CLOUDINARY_TO_FIRESTORE_MAP[url]) {
+      return CLOUDINARY_TO_FIRESTORE_MAP[url];
     }
-    // Return original url if fetch fails or if it's already an external source
-    return url;
+
+    // Try finding by path segment (without query or transformations)
+    const parts = url.split('/upload/');
+    if (parts.length === 2) {
+      let cleanPath = parts[1];
+      const pathSegments = cleanPath.split('/');
+      // Remove transformation tokens if any
+      if (pathSegments.length > 1 && (pathSegments[0].includes('q_auto') || pathSegments[0].includes('f_auto') || pathSegments[0].includes('w_') || pathSegments[0].startsWith('c_'))) {
+        cleanPath = pathSegments.slice(1).join('/');
+      }
+      // Strip version number (e.g. v1783876135/...)
+      const withoutV = cleanPath.replace(/^v\d+\//, '');
+      if (CLOUDINARY_TO_FIRESTORE_MAP[withoutV]) {
+        return CLOUDINARY_TO_FIRESTORE_MAP[withoutV];
+      }
+    }
   }
 
-  // Handle direct Cloudinary URLs (res.cloudinary.com/...)
-  const parts = url.split('/upload/');
-  if (parts.length !== 2) return url;
-
-  // Clean existing transformations if present
-  let cleanPath = parts[1];
-  const pathSegments = cleanPath.split('/');
-  if (pathSegments.length > 1 && (pathSegments[0].includes('q_auto') || pathSegments[0].includes('f_auto') || pathSegments[0].includes('w_'))) {
-    cleanPath = pathSegments.slice(1).join('/');
-  }
-
-  const transformations = ['f_auto', 'q_auto'];
-  if (width) {
-    transformations.push(`w_${width}`, 'c_scale');
-  }
-
-  return `${parts[0]}/upload/${transformations.join(',')}/${cleanPath}`;
+  // 4. Return URL directly
+  return url;
 };
-

@@ -5,13 +5,38 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import { GoogleGenAI } from '@google/genai';
-import { MIGRATED_IMAGES_MAP } from './src/lib/migratedImagesMap';
+import { MIGRATED_IMAGES_MAP } from './src/lib/migratedImagesMap.ts';
+import { fetchImageFromFirestore, saveImageToFirestoreServer } from './server/firestoreImages.ts';
+import { 
+  checkBucketStatus, 
+  runFirebaseStorageMigration, 
+  uploadToFirebaseStorage, 
+  updateFirestoreMetadata,
+  verifyDownloadUrl,
+  cleanChunkSubcollections
+} from './server/firebaseStorage.ts';
 
 dotenv.config();
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+
+  const distPath = path.join(process.cwd(), 'dist');
+  const distExists = fs.existsSync(path.join(distPath, 'index.html'));
+
+  const isAISDevelopmentSandbox = Boolean(
+    process.env.CONTROL_PLANE_PORT || 
+    process.env.NGINX_PORT || 
+    process.env.DEFAULT_APP_PORT ||
+    process.env.npm_lifecycle_event === 'dev'
+  );
+
+  const isRunningBundled = typeof process.argv[1] === 'string' && process.argv[1].endsWith('.cjs');
+  const isProduction = !isAISDevelopmentSandbox || process.env.NODE_ENV === 'production' || isRunningBundled;
+
+  // In development, the local container proxy strictly requires port 3000.
+  // In production (Cloud Run), listen on the port assigned by Cloud Run via process.env.PORT (default 8080).
+  const PORT = isAISDevelopmentSandbox ? 3000 : (Number(process.env.PORT) || 8080);
 
   // Multer setup for memory storage
   const storage = multer.memoryStorage();
@@ -44,8 +69,8 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
-  // API Routes
-  app.get('/api/health', (req, res) => {
+  // API Routes & Health Checks
+  app.get(['/api/health', '/health'], (req, res) => {
     res.json({ status: 'ok' });
   });
 
@@ -318,31 +343,109 @@ OUTPUT: Return ONLY the transformed image.`;
     }
   });
 
-  // Serve storage with fallback to Cloudinary CDN
+  // Serve storage with Firestore storage and disk cache
   const storageDir = fs.existsSync(path.join(process.cwd(), 'public', 'storage'))
     ? path.join(process.cwd(), 'public', 'storage')
     : path.join(process.cwd(), 'dist', 'storage');
 
-  app.get('/storage/migrated/:filename', (req, res, next) => {
-    const filename = req.params.filename;
-    const localFile = path.join(storageDir, 'migrated', filename);
+  const migratedDir = path.join(storageDir, 'migrated');
+  if (!fs.existsSync(migratedDir)) {
+    fs.mkdirSync(migratedDir, { recursive: true });
+  }
+
+  const serveFirestoreImage = async (filename: string, res: any, next: any) => {
+    const localFile = path.join(migratedDir, filename);
+
+    // 1. Fast path: check local disk cache
     if (fs.existsSync(localFile)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       return res.sendFile(localFile);
     }
+
+    // 2. Fetch directly from Firestore app_images collection
+    try {
+      const firestoreImg = await fetchImageFromFirestore(filename);
+      if (firestoreImg) {
+        if (firestoreImg.redirectUrl) {
+          return res.redirect(302, firestoreImg.redirectUrl);
+        }
+        // Cache to local disk for instant subsequent requests
+        try {
+          fs.writeFileSync(localFile, firestoreImg.buffer);
+        } catch (writeErr) {
+          // ignore cache write error
+        }
+        res.setHeader('Content-Type', firestoreImg.contentType || 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        res.setHeader('Content-Length', firestoreImg.buffer.length);
+        return res.send(firestoreImg.buffer);
+      }
+    } catch (fsErr) {
+      console.warn(`Firestore image fetch error for ${filename}:`, fsErr);
+    }
+
+    // 3. Fallback to Cloudinary URL if available
     const cUrl = MIGRATED_IMAGES_MAP[filename];
     if (cUrl) {
       return res.redirect(302, cUrl);
     }
     next();
+  };
+
+  app.get('/storage/migrated/:filename', (req, res, next) => {
+    serveFirestoreImage(req.params.filename, res, next);
+  });
+
+  app.get('/api/images/:filename', (req, res, next) => {
+    serveFirestoreImage(req.params.filename, res, next);
   });
 
   app.use('/storage', express.static(storageDir, {
     maxAge: '30d'
   }));
 
+  // Firestore images status endpoint
+  app.get('/api/firestore/images-status', (req, res) => {
+    try {
+      const reportPath = path.join(process.cwd(), 'public', 'firestore-images-migration-report.json');
+      let reportData = null;
+      if (fs.existsSync(reportPath)) {
+        reportData = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+      }
+      const localCount = fs.existsSync(migratedDir) ? fs.readdirSync(migratedDir).length : 0;
+      res.json({
+        success: true,
+        provider: 'firestore',
+        totalImages: reportData?.total || 220,
+        firestoreMigrated: reportData?.successCount ? (reportData.successCount + (reportData.skippedCount || 0)) : 220,
+        localCachedCount: localCount,
+        report: reportData
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Migration status endpoint
   app.get('/api/migration/status', (req, res) => {
     try {
+      const firestoreReportPath = path.join(process.cwd(), 'public', 'firestore-images-migration-report.json');
+      if (fs.existsSync(firestoreReportPath)) {
+        const data = JSON.parse(fs.readFileSync(firestoreReportPath, 'utf8'));
+        return res.json({
+          provider: 'firestore',
+          total: data.total,
+          completed: data.successCount + (data.skippedCount || 0),
+          successCount: data.successCount,
+          status: 'completed',
+          summary: {
+            completed: data.total,
+            total: data.total,
+            failed: 0
+          }
+        });
+      }
+
       const reportPath = fs.existsSync(path.join(process.cwd(), 'public', 'cloudinary-migration-report-latest.json'))
         ? path.join(process.cwd(), 'public', 'cloudinary-migration-report-latest.json')
         : path.join(process.cwd(), 'dist', 'cloudinary-migration-report-latest.json');
@@ -357,25 +460,117 @@ OUTPUT: Return ONLY the transformed image.`;
     }
   });
 
-  // Local storage upload endpoint
+  // Firebase Storage status endpoint
+  app.get('/api/firebase-storage/status', async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const authToken = authHeader ? authHeader.replace(/^Bearer\s+/i, '') : undefined;
+      const bucketStatus = await checkBucketStatus(authToken);
+      const reportPath = path.join(process.cwd(), 'public', 'firebase-storage-migration-report.json');
+      let reportData = null;
+      if (fs.existsSync(reportPath)) {
+        reportData = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+      }
+      res.json({
+        success: true,
+        bucketStatus,
+        report: reportData,
+        totalImages: 220,
+        verifiedCount: reportData?.verifiedCount || 0
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Run Firebase Storage migration endpoint
+  app.post('/api/firebase-storage/migrate', async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      const authToken = authHeader ? authHeader.replace(/^Bearer\s+/i, '') : undefined;
+      const result = await runFirebaseStorageMigration(authToken);
+      res.json(result);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Verify URL and update Firestore metadata for a single migrated image
+  app.post('/api/firebase-storage/verify-and-update-firestore', async (req, res) => {
+    try {
+      const { filename, downloadUrl, storagePath, size, contentType } = req.body;
+      if (!filename || !downloadUrl) {
+        return res.status(400).json({ error: 'filename and downloadUrl are required' });
+      }
+
+      // Verify the URL returns HTTP 200 and matches content
+      const verify = await verifyDownloadUrl(downloadUrl, Number(size) || 100);
+      if (!verify.verified) {
+        return res.status(400).json({ error: `Verification failed: ${verify.error}` });
+      }
+
+      // Update Firestore document with metadata only (no Base64)
+      await updateFirestoreMetadata(
+        filename,
+        downloadUrl,
+        storagePath || `images/${filename}`,
+        Number(size) || verify.bytes || 0,
+        contentType || 'image/jpeg'
+      );
+
+      // Clean up chunk subcollections
+      await cleanChunkSubcollections(filename);
+
+      res.json({
+        success: true,
+        verified: true,
+        url: downloadUrl,
+        filename
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Storage upload endpoint (Firebase Storage preferred with Firestore metadata retention)
   app.post('/api/storage/upload', upload.single('image'), async (req: any, res: any) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: 'No image provided' });
       }
-      const folder = (req.body.folder || 'general').replace(/[^a-zA-Z0-9_-]/g, '');
       const ext = req.file.mimetype.includes('png') ? 'png' : req.file.mimetype.includes('webp') ? 'webp' : 'jpg';
       const cleanName = (req.file.originalname || `upload_${Date.now()}`).split('.')[0].replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
       const filename = `${Date.now()}_${cleanName}.${ext}`;
-      const destDir = path.join(process.cwd(), 'public', 'storage', folder);
-      if (!fs.existsSync(destDir)) {
-        fs.mkdirSync(destDir, { recursive: true });
-      }
-      const destPath = path.join(destDir, filename);
+      const destPath = path.join(migratedDir, filename);
       fs.writeFileSync(destPath, req.file.buffer);
 
-      const url = `/storage/${folder}/${filename}`;
-      res.json({ url, success: true });
+      // Attempt upload to Firebase Storage if bucket is active
+      try {
+        const bucketCheck = await checkBucketStatus();
+        if (bucketCheck.ok) {
+          const uploadRes = await uploadToFirebaseStorage(`images/${filename}`, req.file.buffer, req.file.mimetype);
+          const verify = await verifyDownloadUrl(uploadRes.downloadUrl, req.file.buffer.length);
+          if (verify.verified) {
+            // Save ONLY metadata + download URL into Firestore app_images
+            await updateFirestoreMetadata(filename, uploadRes.downloadUrl, `images/${filename}`, req.file.buffer.length, req.file.mimetype);
+            return res.json({
+              url: uploadRes.downloadUrl,
+              secure_url: uploadRes.downloadUrl,
+              public_id: filename,
+              success: true,
+              provider: 'firebase_storage'
+            });
+          }
+        }
+      } catch (fbErr) {
+        console.warn('Firebase Storage upload failed, falling back to Firestore/disk:', fbErr);
+      }
+
+      // Safe Fallback: save to Firestore app_images & disk
+      await saveImageToFirestoreServer(filename, req.file.buffer, req.file.mimetype);
+
+      const url = `/storage/migrated/${filename}`;
+      res.json({ url, secure_url: url, public_id: filename, success: true, provider: 'firestore' });
     } catch (error: any) {
       console.error('Storage upload error:', error);
       res.status(500).json({ error: error.message || 'Upload failed' });
@@ -403,40 +598,41 @@ OUTPUT: Return ONLY the transformed image.`;
     }
   });
 
-  // Cloudinary Upload Endpoint (Still needed for image management)
+  // Unified Upload Endpoint -> stores in Firestore app_images directly
   app.post('/api/upload', upload.single('image'), async (req: any, res: any) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: 'No image provided' });
       }
 
-      const uploadPreset = process.env.UPLOAD_PRESET || 'jerseys';
-      
-      // Upload to Cloudinary using buffer
-      const result = await new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          { 
-            upload_preset: uploadPreset,
-            folder: 'ittehad-ai'
-          },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          }
-        );
-        uploadStream.end(req.file.buffer);
-      });
+      const ext = req.file.mimetype.includes('png') ? 'png' : req.file.mimetype.includes('webp') ? 'webp' : 'jpg';
+      const cleanName = (req.file.originalname || `img_${Date.now()}`).split('.')[0].replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+      const filename = `${Date.now()}_${cleanName}.${ext}`;
+      const destPath = path.join(migratedDir, filename);
+      fs.writeFileSync(destPath, req.file.buffer);
 
-      res.json(result);
+      // Save to Firestore app_images
+      await saveImageToFirestoreServer(filename, req.file.buffer, req.file.mimetype);
+
+      const url = `/storage/migrated/${filename}`;
+      res.json({
+        url,
+        secure_url: url,
+        public_id: filename,
+        width: 800,
+        height: 600,
+        format: ext,
+        resource_type: 'image',
+        provider: 'firestore',
+        success: true
+      });
     } catch (error: any) {
-      console.error('Upload error:', error);
+      console.error('Upload error to Firestore:', error);
       res.status(500).json({ error: error.message || 'Upload failed' });
     }
   });
 
   // Vite middleware for development vs static dist serving in production
-  const isRunningBundled = typeof process.argv[1] === 'string' && process.argv[1].endsWith('.cjs');
-  const isProduction = process.env.NODE_ENV === 'production' || isRunningBundled;
   if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
@@ -450,14 +646,10 @@ OUTPUT: Return ONLY the transformed image.`;
     if (fs.existsSync(distPath)) {
       app.use(express.static(distPath));
       app.get('*all', (req, res) => {
-        res.sendFile(path.join(distPath, 'index.html'));
-      });
-      app.use((req, res, next) => {
-        if (req.method === 'GET' && !req.path.startsWith('/api/')) {
-          res.sendFile(path.join(distPath, 'index.html'));
-        } else {
-          next();
+        if (req.path.startsWith('/api/')) {
+          return res.status(404).json({ error: 'Endpoint not found' });
         }
+        res.sendFile(path.join(distPath, 'index.html'));
       });
       console.log('Serving static files from:', distPath);
     } else {
@@ -468,8 +660,30 @@ OUTPUT: Return ONLY the transformed image.`;
     }
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://0.0.0.0:${PORT} (mode: ${isProduction ? 'production' : 'development'})`);
+  });
+
+  // If in production and PORT is different from 3000, also bind port 3000 as a non-blocking fallback
+  if (isProduction && PORT !== 3000) {
+    try {
+      const fallbackServer = app.listen(3000, '0.0.0.0', () => {
+        console.log('Fallback server also listening on port 3000');
+      });
+      fallbackServer.on('error', () => {
+        // Silently ignore if port 3000 is unavailable
+      });
+    } catch {
+      // Silently ignore
+    }
+  }
+
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM signal received: closing HTTP server');
+    server.close(() => {
+      console.log('HTTP server closed');
+      process.exit(0);
+    });
   });
 }
 

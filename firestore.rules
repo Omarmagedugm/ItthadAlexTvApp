@@ -468,6 +468,16 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // Direct Firestore Image Storage & Subcollections
+    match /app_images/{imageId}/{document=**} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /app_images/{imageId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // Global Admin Override
     match /{document=**} {
       allow read, write: if isAdmin();

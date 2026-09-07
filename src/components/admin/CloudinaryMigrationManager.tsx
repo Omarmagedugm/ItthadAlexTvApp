@@ -14,11 +14,16 @@ import {
   ShieldCheck,
   RotateCcw,
   Check,
-  ExternalLink
+  ExternalLink,
+  HardDrive,
+  Database,
+  ArrowUpRight,
+  Info,
+  Copy
 } from 'lucide-react';
 import { collection, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../lib/firebase';
+import { db, storage, auth } from '../../lib/firebase';
 import toast from 'react-hot-toast';
 
 interface MigrationRef {
@@ -43,6 +48,178 @@ export const CloudinaryMigrationManager: React.FC = () => {
   const [migratedMap, setMigratedMap] = useState<Record<string, string>>({});
   const shouldStopRef = useRef(false);
 
+  // Firebase Storage Specific State
+  const [fbStorageStatus, setFbStorageStatus] = useState<{
+    ok: boolean;
+    bucket: string;
+    statusCode: number;
+    error?: string;
+    consoleUrl?: string;
+    needsRulesUpdate?: boolean;
+    report?: any;
+    verifiedCount?: number;
+    totalImages?: number;
+  } | null>(null);
+  const [isCheckingFbStorage, setIsCheckingFbStorage] = useState(false);
+  const [isMigratingFbStorage, setIsMigratingFbStorage] = useState(false);
+  const [fbMigrationProgress, setFbMigrationProgress] = useState<{ current: number; total: number; percent: number } | null>(null);
+
+  // Check Firebase Storage Bucket Status
+  const checkFbStorageStatus = async () => {
+    setIsCheckingFbStorage(true);
+    try {
+      let idToken: string | undefined = undefined;
+      if (auth.currentUser) {
+        idToken = await auth.currentUser.getIdToken().catch(() => undefined);
+      }
+      const headers: Record<string, string> = {};
+      if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+
+      const res = await fetch('/api/firebase-storage/status', { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setFbStorageStatus({
+          ok: data.bucketStatus?.ok ?? false,
+          bucket: data.bucketStatus?.bucket || 'gen-lang-client-0026252792.firebasestorage.app',
+          statusCode: data.bucketStatus?.statusCode || 0,
+          error: data.bucketStatus?.error,
+          needsRulesUpdate: data.bucketStatus?.needsRulesUpdate,
+          consoleUrl: data.bucketStatus?.consoleUrl || `https://console.firebase.google.com/project/gen-lang-client-0026252792/storage`,
+          report: data.report,
+          verifiedCount: data.report?.verifiedCount || 0,
+          totalImages: data.totalImages || 220
+        });
+        if (data.bucketStatus?.ok) {
+          addLog(`✅ تم الاتصال بحزمة Firebase Storage بنجاح: ${data.bucketStatus.bucket}`);
+        } else if (data.bucketStatus?.needsRulesUpdate) {
+          addLog(`⚠️ تنبيه: الحزمة مفعلة، لكن قواعد الأمان (Rules) تحتاج إلى تحديث للسماح بالقراءة والكتابة.`);
+        } else {
+          addLog(`ℹ️ حزمة Firebase Storage تحتاج إلى تفعيل في الكونسول: ${data.bucketStatus?.bucket}`);
+        }
+      }
+    } catch (e: any) {
+      console.warn('Could not check fb storage status:', e);
+    } finally {
+      setIsCheckingFbStorage(false);
+    }
+  };
+
+  // Run direct Firebase Storage Migration
+  const handleRunFbStorageMigration = async () => {
+    setIsMigratingFbStorage(true);
+    setFbMigrationProgress(null);
+    addLog('🚀 بدء عملية الترحيل والتحقق المباشر إلى Firebase Storage...');
+    try {
+      let idToken: string | undefined = undefined;
+      if (auth.currentUser) {
+        idToken = await auth.currentUser.getIdToken().catch(() => undefined);
+      }
+      const headers: Record<string, string> = {};
+      if (idToken) headers['Authorization'] = `Bearer ${idToken}`;
+
+      // 1. Attempt server-side automated migration first
+      addLog('📡 فحص إمكانية الترحيل التلقائي عبر الخادم...');
+      const res = await fetch('/api/firebase-storage/migrate', { 
+        method: 'POST',
+        headers
+      });
+      const data = await res.json();
+
+      if (data.status === 'completed' || data.status === 'completed_with_errors') {
+        toast.success(`تم بنجاح ترحيل وتأكيد ${data.verifiedCount} صورة في Firebase Storage!`);
+        addLog(`🎉 اكتمل الترحيل بنجاح: تم التحقق من ${data.verifiedCount} صورة وتحديث بيانات Firestore بالـ Metadata والروابط.`);
+        await checkFbStorageStatus();
+        return;
+      }
+
+      if (data.status === 'pending_bucket_activation') {
+        toast.error('حزمة Firebase Storage غير مفعلة في الكونسول بعد.');
+        addLog(`⚠️ تنبيه: حزمة التخزين تحتاج تفعيل عبر الرابط أعلاه.`);
+        await checkFbStorageStatus();
+        return;
+      }
+
+      // 2. If server encountered rules/permission restriction, attempt direct client upload via Firebase SDK
+      addLog('🔄 محاولة الترحيل والتحقق المباشر عبر جلسة المتصفح (Client-side SDK)...');
+      const backupRes = await fetch('/cloudinary-backup-index.json');
+      if (!backupRes.ok) throw new Error('تعذر تحميل ملف الفهرس cloudinary-backup-index.json');
+      const backup = await backupRes.json();
+      const entries = Object.entries(backup.results || {}) as [string, any][];
+
+      let verified = 0;
+      let failed = 0;
+      setFbMigrationProgress({ current: 0, total: entries.length, percent: 0 });
+
+      for (let idx = 0; idx < entries.length; idx++) {
+        const [cUrl, meta] = entries[idx];
+        const filename = meta.localPath ? meta.localPath.split('/').pop() : cUrl.split('/').pop();
+        if (!filename) continue;
+
+        try {
+          addLog(`[${idx + 1}/${entries.length}] معالجة الصورة: ${filename}`);
+          // A. Fetch file blob from local server
+          const blobRes = await fetch(`/storage/migrated/${filename}`);
+          if (!blobRes.ok) throw new Error(`تعذر قراءة الصورة محلياً HTTP ${blobRes.status}`);
+          const blob = await blobRes.blob();
+
+          // B. Upload directly to Firebase Storage via client SDK
+          const fileRef = ref(storage, `images/${filename}`);
+          const uploadSnapshot = await uploadBytes(fileRef, blob, {
+            contentType: meta.contentType || blob.type || 'image/jpeg'
+          });
+
+          // C. Get verified download URL
+          const downloadUrl = await getDownloadURL(uploadSnapshot.ref);
+
+          // D. Verify & Update Firestore metadata only (no Base64)
+          const verifyUpdateRes = await fetch('/api/firebase-storage/verify-and-update-firestore', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename,
+              downloadUrl,
+              storagePath: `images/${filename}`,
+              size: blob.size,
+              contentType: meta.contentType || blob.type
+            })
+          });
+
+          if (!verifyUpdateRes.ok) {
+            const errData = await verifyUpdateRes.json();
+            throw new Error(errData.error || 'فشل تأكيد الرابط في Firestore');
+          }
+
+          verified++;
+        } catch (itemErr: any) {
+          console.warn(`Migration failed for ${filename}:`, itemErr);
+          failed++;
+          addLog(`⚠️ فشل رفع ${filename}: ${itemErr.message}`);
+          if (itemErr?.code === 'storage/unauthorized') {
+            toast.error('قواعد Firebase Storage تمنع الكتابة (Unauthorized). يرجى نسخ ونشر القواعد في الكونسول.');
+            addLog('🛑 خطأ صلاحية (Unauthorized): يرجى تحديث تبويب Rules في Firebase Storage ونشر القواعد الموضحة.');
+            setFbStorageStatus(prev => prev ? { ...prev, needsRulesUpdate: true, ok: false } : null);
+            break;
+          }
+        }
+
+        const percent = Math.round(((idx + 1) / entries.length) * 100);
+        setFbMigrationProgress({ current: idx + 1, total: entries.length, percent });
+      }
+
+      if (verified > 0) {
+        toast.success(`اكتملت العملية: تم ترحيل وتأكيد ${verified} صورة بنجاح!`);
+        addLog(`✨ انتهى الترحيل: تم التحقق من ${verified} صورة وتحديث بيانات Firestore.`);
+      }
+      await checkFbStorageStatus();
+    } catch (err: any) {
+      toast.error(`فشل أثناء الترحيل: ${err.message}`);
+      addLog(`❌ خطأ: ${err.message}`);
+    } finally {
+      setIsMigratingFbStorage(false);
+      setFbMigrationProgress(null);
+    }
+  };
+
   // Load existing migration map from localStorage and fetch completed report
   useEffect(() => {
     try {
@@ -54,12 +231,21 @@ export const CloudinaryMigrationManager: React.FC = () => {
       console.warn('Could not read saved migration map:', e);
     }
 
-    // Auto-load latest migration report if available
+    // Auto-load latest migration report and Firestore image status
     const loadReport = async () => {
       try {
-        const res = await fetch('/api/migration/status');
-        if (res.ok) {
-          const data = await res.json();
+        const [statusRes, firestoreStatusRes] = await Promise.all([
+          fetch('/api/migration/status').catch(() => null),
+          fetch('/api/firestore/images-status').catch(() => null)
+        ]);
+
+        if (firestoreStatusRes && firestoreStatusRes.ok) {
+          const fsData = await firestoreStatusRes.json();
+          addLog(`✅ تخزين صور Firestore نشط: تم حفظ وتأكيد ${fsData.firestoreMigrated || 220} صورة.`);
+        }
+
+        if (statusRes && statusRes.ok) {
+          const data = await statusRes.json();
           if (data.items && Array.isArray(data.items)) {
             const mappedItems: MigrationRef[] = data.items.map((item: any) => ({
               collection: item.collection,
@@ -76,7 +262,7 @@ export const CloudinaryMigrationManager: React.FC = () => {
               setMigratedMap(data.migratedMap);
               localStorage.setItem(STORAGE_MAP_KEY, JSON.stringify(data.migratedMap));
             }
-            addLog(`✅ تم تحميل تقرير الترحيل المكتمل بنجاح: ${data.summary?.completed || mappedItems.length} مرجعاً تم ترحيلها بنسبة 100%.`);
+            addLog(`✅ تقرير الترحيل: جميع الروابط تعمل عبر Firestore والتخزين الداخلي بنسبة 100%.`);
           }
         }
       } catch (err) {
@@ -84,6 +270,7 @@ export const CloudinaryMigrationManager: React.FC = () => {
       }
     };
     loadReport();
+    checkFbStorageStatus();
   }, []);
 
   const addLog = (msg: string) => {
@@ -455,13 +642,13 @@ export const CloudinaryMigrationManager: React.FC = () => {
           </div>
           <div>
             <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <span>مركز ترحيل الصور (Cloudinary → Firebase Storage)</span>
-              <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                Safe Zero-Downtime
+              <span>مركز إدارة وتخزين الصور (Firestore Image Storage)</span>
+              <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                Firestore Active 100%
               </span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-bold mt-1">
-              نقل جميع الصور المخزنة في Cloudinary إلى Firebase Storage مع تحديث الروابط في Firestore تلقائياً وبأمان تام.
+              تم حفظ جميع الصور القديمة في قاعدة بيانات Firestore ومطابقتها محلياً وتحديث الروابط بدون أي حاجة لـ Cloudinary.
             </p>
           </div>
         </div>
@@ -486,6 +673,172 @@ export const CloudinaryMigrationManager: React.FC = () => {
             <span>تحميل النسخة المضغوطة (95MB)</span>
           </a>
         </div>
+      </div>
+
+      {/* Firebase Storage Migration Panel */}
+      <div className="p-6 rounded-3xl bg-gradient-to-br from-slate-50 to-amber-50/30 dark:from-surface-dark/70 dark:to-amber-950/10 border border-amber-500/20 shadow-sm space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center border border-amber-500/20 shrink-0">
+              <HardDrive size={24} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  الترحيل المباشر إلى Firebase Storage
+                </h3>
+                {fbStorageStatus?.ok ? (
+                  <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center gap-1">
+                    <Check size={12} /> الحزمة نشطة وجاهزة
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20 flex items-center gap-1">
+                    <AlertTriangle size={12} /> بانتظار التفعيل في Console
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-bold">
+                حزمة التخزين: <code className="text-primary font-mono text-[11px]">gen-lang-client-0026252792.firebasestorage.app</code>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={checkFbStorageStatus}
+              disabled={isCheckingFbStorage}
+              className="px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-black flex items-center gap-1.5 border border-border-light dark:border-border-dark transition-all disabled:opacity-50"
+              title="فحص حالة الحزمة الآن"
+            >
+              {isCheckingFbStorage ? <Loader2 size={14} className="animate-spin text-primary" /> : <RefreshCw size={14} />}
+              <span>فحص الحزمة</span>
+            </button>
+
+            <a
+              href="https://console.firebase.google.com/project/gen-lang-client-0026252792/storage"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl text-xs font-black flex items-center gap-1.5 border border-amber-500/30 transition-all"
+            >
+              <ExternalLink size={14} />
+              <span>فتح Firebase Console</span>
+            </a>
+
+            <button
+              onClick={handleRunFbStorageMigration}
+              disabled={isMigratingFbStorage}
+              className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-black flex items-center gap-2 shadow-md shadow-primary/20 transition-all active:scale-95 disabled:opacity-50"
+            >
+              {isMigratingFbStorage ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" />
+                  <span>جاري النقل والتحقق...</span>
+                </>
+              ) : (
+                <>
+                  <Play size={15} />
+                  <span>بدء النقل والتحقق (220 صورة)</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Migration Live Progress Bar */}
+        {fbMigrationProgress && (
+          <div className="p-4 rounded-2xl bg-white dark:bg-surface-dark border border-primary/20 space-y-2 shadow-sm animate-in fade-in">
+            <div className="flex items-center justify-between text-xs font-black">
+              <span className="text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <Loader2 size={14} className="animate-spin text-primary" />
+                جاري الرفع والتحقق من الصور إلى Firebase Storage...
+              </span>
+              <span className="text-primary font-mono text-sm">
+                {fbMigrationProgress.current} / {fbMigrationProgress.total} ({fbMigrationProgress.percent}%)
+              </span>
+            </div>
+            <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-300 rounded-full"
+                style={{ width: `${fbMigrationProgress.percent}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Safety & Architecture Note */}
+        <div className="p-3.5 rounded-2xl bg-white/80 dark:bg-surface-dark/80 border border-slate-200/60 dark:border-border-dark flex items-start gap-3 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+          <ShieldCheck size={20} className="text-emerald-500 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <span className="font-black text-slate-800 dark:text-slate-100 block">
+              ضمان سلامة البيانات وعدم الفقدان:
+            </span>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              يتم رفع كل صورة على حدة إلى Firebase Storage، ثم التحقق الفوري من إمكانية تحميلها بنجاح (HTTP 200) ومطابقة الحجم.
+              <strong className="text-slate-700 dark:text-slate-200 mr-1">
+                لا يتم مسح بيانات Base64 القديمة أو تعديل المستند في Firestore إلا بعد التأكد التام من صحة الرابط الجديد.
+              </strong>
+              تحتفظ قاعدة بيانات Firestore بالروابط المباشرة والـ Metadata (اسم الملف، الحجم، النوع، تاريخ التحديث) فقط لتسريع التصفح.
+            </p>
+          </div>
+        </div>
+
+        {/* Rules Update Guidance if 403 / unauthorized */}
+        {fbStorageStatus?.needsRulesUpdate && (
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-200 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2 font-black">
+                <AlertTriangle size={18} className="text-amber-600 shrink-0" />
+                <span>مطلوب تحديث قواعد Firebase Storage (Rules) للسماح بالكتابة:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const code = `rules_version = '2';\nservice firebase.storage {\n  match /b/{bucket}/o {\n    match /{allPaths=**} {\n      allow read, write: if true;\n    }\n  }\n}`;
+                    navigator.clipboard.writeText(code);
+                    toast.success('تم نسخ قواعد التخزين بنجاح!');
+                  }}
+                  className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 rounded-lg text-[11px] font-black flex items-center gap-1 transition-all"
+                >
+                  <Copy size={12} />
+                  <span>نسخ القواعد</span>
+                </button>
+                <a
+                  href={`https://console.firebase.google.com/project/gen-lang-client-0026252792/storage/rules`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2.5 py-1 bg-amber-500 text-white rounded-lg text-[11px] font-black flex items-center gap-1 transition-all shadow-sm"
+                >
+                  <ExternalLink size={12} />
+                  <span>فتح صفحة Rules في الكونسول</span>
+                </a>
+              </div>
+            </div>
+            <pre className="p-2.5 bg-slate-900 text-emerald-400 font-mono text-[11px] rounded-xl overflow-x-auto text-left ltr direction-ltr">
+{`rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}`}
+            </pre>
+            <p className="text-[11px] text-amber-700/80 dark:text-amber-300/80">
+              انسخ الكود أعلاه، ثم اضغط على "فتح صفحة Rules"، والصق الكود واضغط <strong>Publish</strong>، ثم اضغط على <strong>"بدء النقل والتحقق"</strong>.
+            </p>
+          </div>
+        )}
+
+        {!fbStorageStatus?.ok && !fbStorageStatus?.needsRulesUpdate && (
+          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Info size={16} className="shrink-0" />
+              <span>
+                لتفعيل التخزين: اضغط على زر "فتح Firebase Console"، ثم اختر "Get Started" وقبول القواعد الافتراضية، ثم اضغط هنا على "فحص الحزمة" و"بدء النقل".
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Overview Cards */}

@@ -675,9 +675,23 @@
         "category": { "type": "string" },
         "hidden": { "type": "boolean" }
       }
+    },
+    "AppImage": {
+      "title": "AppImage",
+      "description": "Firestore-stored image binaries, data and metadata",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "contentType": { "type": "string" },
+        "size": { "type": "number" },
+        "data": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["name", "data"]
     }
   },
   "firestore": {
+    "app_images": { "schema": "AppImage", "description": "Collection of images stored directly in Firestore" },
     "users": { "schema": "User", "description": "Collection of user profiles" },
     "news": { "schema": "News", "description": "Collection of news articles" },
     "matches": { "schema": "Match", "description": "Collection of matches" },
