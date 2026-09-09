@@ -468,6 +468,25 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // Public Audience Services (خدمات الجمهور)
+    match /public_services/{serviceId} {
+      allow read: if true;
+      allow write: if isAdmin() || isLayoutEditor();
+    }
+
+    // Education Videos (فيديوهات التعليم المجاني)
+    match /education_videos/{videoId} {
+      allow read: if true;
+      allow write: if isAdmin() || isLayoutEditor() || isMediaEditor();
+    }
+
+    // Service Suggestions from fans
+    match /service_suggestions/{id} {
+      allow read: if isAdmin() || isLayoutEditor();
+      allow create: if true;
+      allow update, delete: if isAdmin() || isLayoutEditor();
+    }
+
     // Direct Firestore Image Storage & Subcollections
     match /app_images/{imageId}/{document=**} {
       allow read: if true;

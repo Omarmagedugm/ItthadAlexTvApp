@@ -33,6 +33,7 @@ import {
   RotateCcw,
   RadioTower,
   TrendingUp,
+  HeartHandshake,
   X
 } from 'lucide-react';
 
@@ -92,6 +93,7 @@ export default function AdminSidebar({ activeTab, setActiveTab, onClose }: Admin
       { id: 'live', icon: <Radio size={18} />, label: 'البث المباشر', show: hasRole('matches_editor') },
     ]},
     { title: 'محتوى المنصة', items: [
+      { id: 'public-services', icon: <HeartHandshake size={18} className="text-emerald-500" />, label: 'خدمات الجمهور والتعليم 🟢', show: hasRole(['layout_editor', 'user_manager', 'media_editor']) },
       { id: 'club_members', icon: <ShieldCheck size={18} />, label: 'أعضاء النادي', show: hasRole(['members_editor', 'layout_editor', 'user_manager']) },
       { id: 'media', icon: <PlayCircle size={18} />, label: 'المالتيميديا والفيديو', show: hasRole('media_editor') },
       { id: 'music', icon: <Music size={18} />, label: 'المكتبة الموسيقية', show: hasRole('media_editor') },

@@ -3,6 +3,7 @@ import { collection, onSnapshot, query, orderBy, doc, limit, updateDoc, where, g
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { useAppStore } from '../store';
 import { defaultWorldCountries } from '../data/defaultWorldFansData';
+import { defaultPublicServices, defaultEducationVideos } from '../data/defaultServicesData';
 
 export function useFirestoreSync() {
   const { 
@@ -13,7 +14,8 @@ export function useFirestoreSync() {
     setClubCommittees, setClubAnnouncements, setClubServices, setClubTrips, setClubMembersSettings, setMemberDiscounts,
     setBusinesses, setBusinessUpdates, setBusinessReports,
     setWorldCountries, setWorldGroups, setWorldPosts, setWorldEvents, setWorldHelpRequests, setWorldApplications,
-    setAuditLogs
+    setAuditLogs,
+    setServices, setEducationVideos
   } = useAppStore();
 
   const isInitialFetchDoneRef = useRef(false);
@@ -181,6 +183,49 @@ export function useFirestoreSync() {
         OperationType.GET
       );
 
+      // Public Audience Services & Education Videos
+      const unsubPublicServices = subscribeSnapshot(
+        query(collection(db, 'public_services'), limit(50)),
+        (s) => {
+          if (s.empty) {
+            setServices(defaultPublicServices);
+          } else {
+            const seen = new Set<string>();
+            const items: any[] = [];
+            s.docs.forEach(d => {
+              if (d.id && !seen.has(d.id)) {
+                seen.add(d.id);
+                items.push({ id: d.id, ...(d.data() as any) });
+              }
+            });
+            items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            setServices(items);
+          }
+        },
+        'public_services'
+      );
+
+      const unsubEducationVideos = subscribeSnapshot(
+        query(collection(db, 'education_videos'), limit(300)),
+        (s) => {
+          if (s.empty) {
+            setEducationVideos(defaultEducationVideos);
+          } else {
+            const seen = new Set<string>();
+            const items: any[] = [];
+            s.docs.forEach(d => {
+              if (d.id && !seen.has(d.id)) {
+                seen.add(d.id);
+                items.push({ id: d.id, ...(d.data() as any) });
+              }
+            });
+            items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            setEducationVideos(items);
+          }
+        },
+        'education_videos'
+      );
+
       unsubs.push(
         unsubLiveFootball,
         unsubLiveBasketball,
@@ -198,7 +243,9 @@ export function useFirestoreSync() {
         unsubClubCommittees,
         unsubClubTrips,
         unsubMemberDiscounts,
-        unsubClubMembersSettings
+        unsubClubMembersSettings,
+        unsubPublicServices,
+        unsubEducationVideos
       );
     };
 

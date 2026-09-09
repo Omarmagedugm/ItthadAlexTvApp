@@ -17,10 +17,19 @@ import {
   DEFAULT_MEDIA_ITEMS,
   DEFAULT_MEDIA_PLAYLISTS
 } from '../data/defaultMediaData';
+import {
+  PublicService,
+  EducationVideo,
+  defaultPublicServices,
+  defaultEducationVideos,
+  defaultEducationCategories
+} from '../data/defaultServicesData';
+
+export type { PublicService, EducationVideo };
 
 export interface HomeSection {
   id: string;
-  type: 'hero' | 'matches' | 'news' | 'media' | 'history' | 'stadiums' | 'store' | 'polls' | 'live' | 'custom' | 'widget' | 'city' | 'ads' | 'advertise' | 'image' | 'ai_banner' | 'tickets' | 'club_members' | 'club_members_ad' | 'club_members_banner' | 'business' | 'business_directory' | 'ittihad_business' | 'social' | 'social_media' | 'world_fans' | 'world_association' | 'video' | 'video_embed' | 'youtube' | 'facebook';
+  type: 'hero' | 'matches' | 'news' | 'media' | 'history' | 'stadiums' | 'store' | 'polls' | 'live' | 'custom' | 'widget' | 'city' | 'ads' | 'advertise' | 'image' | 'ai_banner' | 'tickets' | 'club_members' | 'club_members_ad' | 'club_members_banner' | 'business' | 'business_directory' | 'ittihad_business' | 'social' | 'social_media' | 'world_fans' | 'world_association' | 'video' | 'video_embed' | 'youtube' | 'facebook' | 'services' | 'public_services';
   title?: string;
   subtitle?: string;
   active: boolean;
@@ -58,6 +67,7 @@ export const DEFAULT_SIDEBAR_ITEMS: SidebarMenuItem[] = [
   { id: 'matches', title: 'جدول المباريات', path: '/matches', icon: 'sports_soccer', iconType: 'material', active: true, order: 2, highlighted: false, group: 'main' },
   { id: 'live', title: 'البث المباشر', path: '/live', icon: 'live_tv', iconType: 'material', active: true, order: 3, highlighted: false, group: 'main' },
   { id: 'world-fans', title: 'رابطة اتحاداوية العالم', path: '/world-fans', icon: 'Globe', iconType: 'lucide', active: true, order: 3.5, highlighted: false, group: 'main' },
+  { id: 'public-services', title: 'خدمات الجمهور', path: '/services', icon: 'volunteer_activism', iconType: 'material', active: true, order: 3.8, badge: 'جديد', badgeColor: '#10b981', highlighted: true, highlightColor: 'emerald', group: 'main' },
   { id: 'fan-zone', title: 'منطقة الجماهير', path: '/fan-zone', icon: 'stadium', iconType: 'material', active: true, order: 4, highlighted: false, group: 'main' },
   { id: 'jersey-tryon', title: 'استوديو المشجع (AI)', path: '/jersey-tryon', icon: 'bolt', iconType: 'material', active: true, order: 5, highlighted: false, group: 'main' },
   { id: 'club-members', title: 'أعضاء النادي', path: '/club-members', icon: 'ShieldCheck', iconType: 'lucide', active: true, order: 6, highlighted: false, group: 'main' },
@@ -618,6 +628,9 @@ interface AppState {
   worldApplications: WorldGroupApplication[];
   homeSections: HomeSection[];
   sidebarMenuItems: SidebarMenuItem[];
+  services: PublicService[];
+  educationVideos: EducationVideo[];
+  educationCategories: string[];
   songs: Song[];
   albums: Album[];
   playlists: Playlist[];
@@ -684,6 +697,15 @@ interface AppState {
   setWorldApplications: (applications: WorldGroupApplication[]) => void;
   setHomeSections: (sections: HomeSection[]) => void;
   setSidebarMenuItems: (items: SidebarMenuItem[]) => void;
+  setServices: (services: PublicService[]) => void;
+  addService: (service: PublicService) => void;
+  updateService: (id: string, item: Partial<PublicService>) => void;
+  deleteService: (id: string) => void;
+  setEducationVideos: (videos: EducationVideo[]) => void;
+  addEducationVideo: (video: EducationVideo) => void;
+  updateEducationVideo: (id: string, item: Partial<EducationVideo>) => void;
+  deleteEducationVideo: (id: string) => void;
+  setEducationCategories: (categories: string[]) => void;
   setSongs: (songs: Song[]) => void;
   setAlbums: (albums: Album[]) => void;
   setPlaylists: (playlists: Playlist[]) => void;
@@ -850,6 +872,7 @@ export const useAppStore = create<AppState>()(
         { id: 'hero', type: 'hero', active: true, order: 0 },
         { id: 'matches', type: 'matches', active: true, order: 1 },
         { id: 'world_fans', type: 'world_fans', active: true, order: 1.1, title: 'رابطة اتحاداوية العالم' },
+        { id: 'public_services', type: 'services', active: true, order: 1.15, title: 'خدمات الجمهور' },
         { id: 'club_members', type: 'club_members', active: true, order: 1.2, title: 'بوابة الأعضاء والأنشطة' },
         { id: 'city', type: 'city', active: true, order: 1.5, title: 'عروس البحر المتوسط' },
         { id: 'news', type: 'news', active: true, order: 2 },
@@ -859,6 +882,9 @@ export const useAppStore = create<AppState>()(
         { id: 'advertise', type: 'advertise', active: true, order: 10 },
       ],
       sidebarMenuItems: DEFAULT_SIDEBAR_ITEMS,
+      services: defaultPublicServices,
+      educationVideos: defaultEducationVideos,
+      educationCategories: defaultEducationCategories,
       songs: [],
       albums: [],
       playlists: [],
@@ -874,20 +900,32 @@ export const useAppStore = create<AppState>()(
       activePlaylist: [],
       undoStack: [],
       auditLogs: [],
-      setNews: (news) => set({ news }),
-      addNews: (item) => set((state) => ({ news: [item, ...state.news] })),
+      setNews: (news) => {
+        const seen = new Set<string>();
+        const unique = news.filter(n => n?.id && !seen.has(n.id) && seen.add(n.id));
+        set({ news: unique });
+      },
+      addNews: (item) => set((state) => ({ news: [item, ...state.news.filter(n => n.id !== item.id)] })),
       deleteNews: (id) => set((state) => ({ news: state.news.filter(n => n.id !== id) })),
       updateNews: (id, updatedItem) => set((state) => ({
         news: state.news.map(n => n.id === id ? { ...n, ...updatedItem } : n)
       })),
-      setMedia: (media) => set({ media }),
-      addMedia: (item) => set((state) => ({ media: [item, ...state.media] })),
+      setMedia: (media) => {
+        const seen = new Set<string>();
+        const unique = media.filter(m => m?.id && !seen.has(m.id) && seen.add(m.id));
+        set({ media: unique });
+      },
+      addMedia: (item) => set((state) => ({ media: [item, ...state.media.filter(m => m.id !== item.id)] })),
       deleteMedia: (id) => set((state) => ({ media: state.media.filter(m => m.id !== id) })),
       updateMedia: (id, updatedItem) => set((state) => ({
         media: state.media.map(m => m.id === id ? { ...m, ...updatedItem } : m)
       })),
-      setMatches: (matches) => set({ matches }),
-      addMatch: (item) => set((state) => ({ matches: [item, ...state.matches] })),
+      setMatches: (matches) => {
+        const seen = new Set<string>();
+        const unique = matches.filter(m => m?.id && !seen.has(m.id) && seen.add(m.id));
+        set({ matches: unique });
+      },
+      addMatch: (item) => set((state) => ({ matches: [item, ...state.matches.filter(m => m.id !== item.id)] })),
       deleteMatch: (id) => set((state) => ({ matches: state.matches.filter(m => m.id !== id) })),
       updateMatch: (id, updatedItem) => set((state) => ({
         matches: state.matches.map(m => m.id === id ? { ...m, ...updatedItem } : m)
@@ -945,6 +983,33 @@ export const useAppStore = create<AppState>()(
       setWorldApplications: (worldApplications) => set({ worldApplications }),
       setHomeSections: (homeSections) => set({ homeSections }),
       setSidebarMenuItems: (sidebarMenuItems) => set({ sidebarMenuItems }),
+      setServices: (services) => {
+        const seen = new Set<string>();
+        const unique = services.filter(s => s?.id && !seen.has(s.id) && seen.add(s.id));
+        set({ services: unique });
+      },
+      addService: (item) => set((state) => ({ services: [item, ...state.services.filter(s => s.id !== item.id)] })),
+      updateService: (id, updatedItem) => set((state) => ({
+        services: state.services.map(s => s.id === id ? { ...s, ...updatedItem } : s)
+      })),
+      deleteService: (id) => set((state) => ({
+        services: state.services.filter(s => s.id !== id)
+      })),
+      setEducationVideos: (educationVideos) => {
+        const seen = new Set<string>();
+        const unique = educationVideos.filter(v => v?.id && !seen.has(v.id) && seen.add(v.id));
+        set({ educationVideos: unique });
+      },
+      addEducationVideo: (item) => set((state) => ({
+        educationVideos: [item, ...state.educationVideos.filter(v => v.id !== item.id)]
+      })),
+      updateEducationVideo: (id, updatedItem) => set((state) => ({
+        educationVideos: state.educationVideos.map(v => v.id === id ? { ...v, ...updatedItem } : v)
+      })),
+      deleteEducationVideo: (id) => set((state) => ({
+        educationVideos: state.educationVideos.filter(v => v.id !== id)
+      })),
+      setEducationCategories: (educationCategories) => set({ educationCategories }),
       setSongs: (songs) => set({ songs }),
       setAlbums: (albums) => set({ albums }),
       setPlaylists: (playlists) => set({ playlists }),

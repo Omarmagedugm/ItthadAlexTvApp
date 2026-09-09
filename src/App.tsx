@@ -54,6 +54,8 @@ const WorldFans = safeLazy(() => import('./pages/WorldFans'));
 const WorldGroupDetail = safeLazy(() => import('./pages/WorldGroupDetail'));
 const CustomPage = safeLazy(() => import('./pages/CustomPage'));
 const SocialMedia = safeLazy(() => import('./pages/SocialMedia'));
+const PublicServices = safeLazy(() => import('./pages/PublicServices'));
+const EducationService = safeLazy(() => import('./pages/EducationService'));
 const PrivacyPolicy = safeLazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = safeLazy(() => import('./pages/TermsOfService'));
 
@@ -426,6 +428,11 @@ function AppContent() {
             <Route path="/world-fans" element={<WorldFans />} />
             <Route path="/world-fans/group/:id" element={<WorldGroupDetail />} />
             <Route path="/world-association" element={<WorldFans />} />
+            <Route path="/services" element={<PublicServices />} />
+            <Route path="/public-services" element={<PublicServices />} />
+            <Route path="/services/education" element={<EducationService />} />
+            <Route path="/education" element={<EducationService />} />
+            <Route path="/education-services" element={<EducationService />} />
             <Route path="/social" element={<SocialMedia />} />
             <Route path="/social-media" element={<SocialMedia />} />
             <Route path="/facebook" element={<SocialMedia />} />

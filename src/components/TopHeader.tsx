@@ -191,6 +191,7 @@ export default function TopHeader() {
               { path: '/fan-zone', label: 'فان زون' },
               { path: '/library', label: 'المكتبة' },
               { path: '/world-fans', label: 'اتحاداوية العالم 🌍' },
+              { path: '/services', label: 'خدمات الجمهور 💚' },
               { path: '/history', label: 'تاريخ النادي' },
               { path: '/discounts', label: 'الخصومات' },
             ].map(item => {

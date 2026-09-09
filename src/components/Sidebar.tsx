@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, db } from '../lib/firebase';
 import { useNavigate } from 'react-router-dom';
-import { X, LayoutDashboard, Flag, MessageSquare, Info, Mail, Home, LogOut, ShieldCheck, FileText, Building2, Globe } from 'lucide-react';
+import { X, LayoutDashboard, Flag, MessageSquare, Info, Mail, Home, LogOut, ShieldCheck, FileText, Building2, Globe, HeartHandshake } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppStore, UserProfile, SidebarMenuItem, DEFAULT_SIDEBAR_ITEMS } from '../store';
 import { getOptimizedImage } from '../lib/cloudinary';
@@ -79,6 +79,9 @@ export default function Sidebar({ isOpen, onClose, profile }: SidebarProps) {
     }
     if (item.icon === 'Globe' || item.id === 'world-fans') {
       return <Globe size={20} className="text-emerald-500 shrink-0" />;
+    }
+    if (item.icon === 'volunteer_activism' || item.id === 'public-services') {
+      return <HeartHandshake size={20} className="text-emerald-500 shrink-0" />;
     }
     if (item.icon === 'Building2' || item.id === 'business') {
       return <Building2 size={20} className="text-emerald-600 dark:text-emerald-400 shrink-0" />;

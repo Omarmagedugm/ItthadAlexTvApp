@@ -107,6 +107,7 @@ import { motion } from 'motion/react';
 import AdminSidebar from '../components/AdminSidebar';
 import AdminSidebarManager from '../components/AdminSidebarManager';
 import AdminHomeSectionsManager from '../components/admin/AdminHomeSectionsManager';
+import AdminServicesManager from '../components/admin/AdminServicesManager';
 import AdminBusiness from '../components/AdminBusiness';
 import AdminWorldFans from '../components/admin/AdminWorldFans';
 import AdminAuditLogs from '../components/admin/AdminAuditLogs';
@@ -116,6 +117,7 @@ import ScoreSelector from '../components/ScoreSelector';
 import ImageUploader from '../components/ImageUploader';
 import LivePlayer from '../components/live/LivePlayer';
 import CsvMatchesImporter from '../components/CsvMatchesImporter';
+import CsvVideosImporter from '../components/admin/CsvVideosImporter';
 import { getOptimizedImage } from '../lib/cloudinary';
 import { logAdminActivity } from '../lib/auditLogger';
 import { DEFAULT_MEDIA_ITEMS, DEFAULT_MEDIA_PLAYLISTS } from '../data/defaultMediaData';
@@ -866,6 +868,7 @@ export default function Admin() {
   const [activeSearchField, setActiveSearchField] = useState<'home' | 'away' | null>(null);
   const [clubSearchQuery, setClubSearchQuery] = useState('');
   const [isCsvImporterOpen, setIsCsvImporterOpen] = useState(false);
+  const [isCsvVideosImporterOpen, setIsCsvVideosImporterOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -2564,6 +2567,7 @@ export default function Admin() {
              activeTab === 'news' ? 'إدارة الأخبار' : 
              activeTab === 'news-categories' ? 'إدارة أقسام الأخبار' :
              activeTab === 'news-tags' ? 'إدارة وسوم الأخبار' :
+             activeTab === 'public-services' ? 'خدمات الجمهور والتعليم المجاني' :
              activeTab === 'fanzone' ? 'إدارة منطقة الجماهير' :
              activeTab === 'media' ? 'إدارة الميديا' : 
              activeTab === 'matches' ? 'إدارة المباريات' : 
@@ -2595,6 +2599,15 @@ export default function Admin() {
                 <span>رفع CSV (إضافة بالجملة)</span>
               </button>
             )}
+            {activeTab === 'media' && (
+              <button 
+                onClick={() => setIsCsvVideosImporterOpen(true)}
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm shadow-emerald-600/20 hover:scale-105 transition-all text-xs"
+              >
+                <FileSpreadsheet size={15} />
+                <span>رفع CSV (فيديوهات بالجملة)</span>
+              </button>
+            )}
             {['news', 'media', 'matches', 'clubs', 'polls', 'predictions', 'products', 'history', 'music', 'books', 'ai-studio'].includes(activeTab) && (
               <button 
                 onClick={openAddModal}
@@ -2608,6 +2621,10 @@ export default function Admin() {
         </div>
 
         <div className="flex flex-col gap-6">
+          {activeTab === 'public-services' && (
+            <AdminServicesManager />
+          )}
+
           {activeTab === 'fanzone' && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
@@ -3802,35 +3819,45 @@ export default function Admin() {
                   </button>
                 </div>
 
-                <button
-                  onClick={async () => {
-                    if (!window.confirm('هل تريد استرجاع كافة صور المالتيميديا الرسمية (12+ صورة وفيديو للألبومات والمباريات) فوراً؟')) return;
-                    const toastId = toast.loading('جاري استرجاع صور المالتيميديا...');
-                    try {
-                      for (const pl of DEFAULT_MEDIA_PLAYLISTS) {
-                        await setDoc(doc(db, 'media_playlists', pl.id), pl, { merge: true });
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setIsCsvVideosImporterOpen(true)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black transition-all shadow-md shadow-emerald-600/20"
+                  >
+                    <FileSpreadsheet size={14} />
+                    <span>رفع فيديوهات CSV (بالجملة) 📁</span>
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      if (!window.confirm('هل تريد استرجاع كافة صور المالتيميديا الرسمية (12+ صورة وفيديو للألبومات والمباريات) فوراً؟')) return;
+                      const toastId = toast.loading('جاري استرجاع صور المالتيميديا...');
+                      try {
+                        for (const pl of DEFAULT_MEDIA_PLAYLISTS) {
+                          await setDoc(doc(db, 'media_playlists', pl.id), pl, { merge: true });
+                        }
+                        for (const item of DEFAULT_MEDIA_ITEMS) {
+                          await setDoc(doc(db, 'media', item.id), item, { merge: true });
+                        }
+                        await logAdminActivity({
+                          action: 'restore',
+                          collectionName: 'media',
+                          collectionLabel: 'المالتيميديا والوسائط',
+                          itemId: 'bulk_media_restore',
+                          itemTitle: 'استرجاع صور وألبومات المالتيميديا الرسمية بالكامل',
+                          details: 'تم استرجاع كافة الصور والألبومات الافتراضية بنجاح'
+                        });
+                        toast.success('تم استرجاع كافة صور الميديا بنجاح 🟢', { id: toastId });
+                      } catch (err: any) {
+                        toast.error(`حدث خطأ: ${err.message}`, { id: toastId });
                       }
-                      for (const item of DEFAULT_MEDIA_ITEMS) {
-                        await setDoc(doc(db, 'media', item.id), item, { merge: true });
-                      }
-                      await logAdminActivity({
-                        action: 'restore',
-                        collectionName: 'media',
-                        collectionLabel: 'المالتيميديا والوسائط',
-                        itemId: 'bulk_media_restore',
-                        itemTitle: 'استرجاع صور وألبومات المالتيميديا الرسمية بالكامل',
-                        details: 'تم استرجاع كافة الصور والألبومات الافتراضية بنجاح'
-                      });
-                      toast.success('تم استرجاع كافة صور الميديا بنجاح 🟢', { id: toastId });
-                    } catch (err: any) {
-                      toast.error(`حدث خطأ: ${err.message}`, { id: toastId });
-                    }
-                  }}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-xl text-xs font-black transition-all shadow-md shadow-emerald-600/20"
-                >
-                  <RotateCcw size={14} />
-                  <span>استرجاع صور الميديا المحذوفة 🔄</span>
-                </button>
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white rounded-xl text-xs font-black transition-all shadow-md"
+                  >
+                    <RotateCcw size={14} />
+                    <span>استرجاع صور الميديا المحذوفة 🔄</span>
+                  </button>
+                </div>
               </div>
 
               {mediaSubTab === 'items' && (
@@ -8159,6 +8186,13 @@ export default function Admin() {
       <CsvMatchesImporter 
         isOpen={isCsvImporterOpen} 
         onClose={() => setIsCsvImporterOpen(false)} 
+      />
+
+      {/* CSV Videos Importer Modal */}
+      <CsvVideosImporter 
+        isOpen={isCsvVideosImporterOpen} 
+        onClose={() => setIsCsvVideosImporterOpen(false)} 
+        defaultDestination="media"
       />
     </div>
   );

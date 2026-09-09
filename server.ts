@@ -32,11 +32,11 @@ async function startServer() {
   );
 
   const isRunningBundled = typeof process.argv[1] === 'string' && process.argv[1].endsWith('.cjs');
-  const isProduction = !isAISDevelopmentSandbox || process.env.NODE_ENV === 'production' || isRunningBundled;
+  const isProduction = process.env.NODE_ENV === 'production' || isRunningBundled || !isAISDevelopmentSandbox;
 
-  // In development, the local container proxy strictly requires port 3000.
-  // In production (Cloud Run), listen on the port assigned by Cloud Run via process.env.PORT (default 8080).
-  const PORT = isAISDevelopmentSandbox ? 3000 : (Number(process.env.PORT) || 8080);
+  // The application container runs an nginx proxy on external port (8080) that strictly proxies to 3000.
+  // Port 3000 is required by the container infrastructure in both dev and production.
+  const PORT = 3000;
 
   // Multer setup for memory storage
   const storage = multer.memoryStorage();
@@ -664,19 +664,9 @@ OUTPUT: Return ONLY the transformed image.`;
     console.log(`Server running on http://0.0.0.0:${PORT} (mode: ${isProduction ? 'production' : 'development'})`);
   });
 
-  // If in production and PORT is different from 3000, also bind port 3000 as a non-blocking fallback
-  if (isProduction && PORT !== 3000) {
-    try {
-      const fallbackServer = app.listen(3000, '0.0.0.0', () => {
-        console.log('Fallback server also listening on port 3000');
-      });
-      fallbackServer.on('error', () => {
-        // Silently ignore if port 3000 is unavailable
-      });
-    } catch {
-      // Silently ignore
-    }
-  }
+  server.on('error', (err: any) => {
+    console.error(`Server error on port ${PORT}:`, err);
+  });
 
   process.on('SIGTERM', () => {
     console.log('SIGTERM signal received: closing HTTP server');

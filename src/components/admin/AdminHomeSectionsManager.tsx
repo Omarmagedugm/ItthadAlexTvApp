@@ -41,6 +41,7 @@ import {
   Copy,
   Info,
   Play,
+  HeartHandshake,
   ExternalLink
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
@@ -56,6 +57,7 @@ export const DEFAULT_HOME_SECTIONS_LIST: HomeSection[] = [
   { id: 'news', type: 'news', active: true, order: 6, title: 'آخر الأخبار الرسمية', spacing: 24 },
   { id: 'media', type: 'media', active: true, order: 7, title: 'ميديا الاتحاد والملخصات', spacing: 24 },
   { id: 'club_members', type: 'club_members', active: true, order: 8, title: 'بوابة الأعضاء والأنشطة', spacing: 24 },
+  { id: 'public_services', type: 'services', active: true, order: 8.5, title: 'خدمات الجمهور والتعليم المجاني 🟢', spacing: 24 },
   { id: 'world_fans', type: 'world_fans', active: true, order: 9, title: 'رابطة اتحاداوية العالم (المغتربين)', spacing: 24 },
   { id: 'business', type: 'business', active: true, order: 10, title: 'اتحاداوي بيزنس (دليل الأعمال)', spacing: 24 },
   { id: 'tickets', type: 'tickets', active: true, order: 11, title: 'حجز وتذاكر المباريات (Live)', spacing: 20 },
@@ -179,6 +181,18 @@ export const SECTION_METADATA: Record<string, { label: string; icon: React.React
     icon: <ImageIcon size={16} />, 
     color: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
     desc: 'عرض صورة بانر مخصصة مع فتح رابط عند الضغط'
+  },
+  services: {
+    label: 'خدمات الجمهور والتعليم المجاني',
+    icon: <HeartHandshake size={16} />,
+    color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+    desc: 'بطاقات الخدمات المجانية وفرص التدريب والتعليم لجمهور النادي'
+  },
+  public_services: {
+    label: 'خدمات الجمهور والتعليم المجاني',
+    icon: <HeartHandshake size={16} />,
+    color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+    desc: 'بطاقات الخدمات المجانية وفرص التدريب والتعليم لجمهور النادي'
   }
 };
 

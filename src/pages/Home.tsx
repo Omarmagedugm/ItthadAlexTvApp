@@ -50,6 +50,7 @@ import HtmlWidget from "../components/HtmlWidget";
 import ClubMembersWidget from "../components/ClubMembersWidget";
 import BusinessWidget from "../components/BusinessWidget";
 import WorldFansWidget from "../components/worldFans/WorldFansWidget";
+import PublicServicesWidget from "../components/widgets/PublicServicesWidget";
 import VideoEmbedWidget from "../components/widgets/VideoEmbedWidget";
 import { SafeImage } from "../components/SafeImage";
 import { getOptimizedImage } from "../lib/cloudinary";
@@ -1412,6 +1413,14 @@ export default function Home() {
         return (
           <motion.section key={section.id} variants={itemVariants}>
             <WorldFansWidget title={section.title} />
+          </motion.section>
+        );
+
+      case "public_services":
+      case "services":
+        return (
+          <motion.section key={section.id} variants={itemVariants}>
+            <PublicServicesWidget />
           </motion.section>
         );
 
