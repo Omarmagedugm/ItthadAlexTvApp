@@ -22,8 +22,12 @@ async function startServer() {
   const app = express();
 
   const distPath = path.resolve(process.cwd(), 'dist');
+  const isAISDevelopmentSandbox = Boolean(
+    process.env.CONTROL_PLANE_PORT &&
+    (process.env.npm_lifecycle_event === 'dev' || process.env.NODE_ENV !== 'production')
+  );
   const isBundled = typeof __filename !== 'undefined' && __filename.endsWith('.cjs');
-  const isProduction = process.env.NODE_ENV === 'production' || isBundled;
+  const isProduction = !isAISDevelopmentSandbox || isBundled || process.env.NODE_ENV === 'production';
 
   // The application container runs an nginx proxy on external port (8080) that strictly proxies to 3000.
   // Port 3000 is required by the container infrastructure in both dev and production.
@@ -632,9 +636,9 @@ OUTPUT: Return ONLY the transformed image.`;
     });
     app.use(vite.middlewares);
   } else {
-    const staticPath = (typeof __dirname !== 'undefined' && fs.existsSync(path.join(__dirname, 'index.html')))
-      ? __dirname
-      : distPath;
+    const staticPath = fs.existsSync(path.join(distPath, 'index.html'))
+      ? distPath
+      : ((typeof __dirname !== 'undefined' && fs.existsSync(path.join(__dirname, 'index.html'))) ? __dirname : distPath);
 
     if (fs.existsSync(staticPath) && fs.existsSync(path.join(staticPath, 'index.html'))) {
       app.use(express.static(staticPath));
