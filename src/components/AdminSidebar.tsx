@@ -119,7 +119,6 @@ export default function AdminSidebar({ activeTab, setActiveTab, onClose }: Admin
     { title: 'النظام والإدارة', items: [
       { id: 'audit-logs', icon: <RotateCcw size={18} className="text-emerald-500" />, label: 'سجل العمليات وسلة المحذوفات', show: isSuperAdmin || hasRole('user_manager') },
       { id: 'users', icon: <UsersIcon size={18} />, label: 'إدارة الأعضاء والصلاحيات', show: isSuperAdmin || hasRole('user_manager') },
-      { id: 'notifications', icon: <Bell size={18} />, label: 'إرسال إشعارات', show: isSuperAdmin || hasRole('user_manager') },
       { id: 'settings', icon: <SettingsIcon size={18} />, label: 'إعدادات النظام', show: isSuperAdmin },
       { id: 'backup', icon: <Database size={18} />, label: 'نسخة احتياطية', show: isSuperAdmin },
     ]}

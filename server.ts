@@ -21,18 +21,9 @@ dotenv.config();
 async function startServer() {
   const app = express();
 
-  const distPath = path.join(process.cwd(), 'dist');
-  const distExists = fs.existsSync(path.join(distPath, 'index.html'));
-
-  const isAISDevelopmentSandbox = Boolean(
-    process.env.CONTROL_PLANE_PORT || 
-    process.env.NGINX_PORT || 
-    process.env.DEFAULT_APP_PORT ||
-    process.env.npm_lifecycle_event === 'dev'
-  );
-
-  const isRunningBundled = typeof process.argv[1] === 'string' && process.argv[1].endsWith('.cjs');
-  const isProduction = process.env.NODE_ENV === 'production' || isRunningBundled || !isAISDevelopmentSandbox;
+  const distPath = path.resolve(process.cwd(), 'dist');
+  const isBundled = typeof __filename !== 'undefined' && __filename.endsWith('.cjs');
+  const isProduction = process.env.NODE_ENV === 'production' || isBundled;
 
   // The application container runs an nginx proxy on external port (8080) that strictly proxies to 3000.
   // Port 3000 is required by the container infrastructure in both dev and production.
@@ -641,17 +632,19 @@ OUTPUT: Return ONLY the transformed image.`;
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    const staticPath = (typeof __dirname !== 'undefined' && fs.existsSync(path.join(__dirname, 'index.html')))
+      ? __dirname
+      : distPath;
 
-    if (fs.existsSync(distPath)) {
-      app.use(express.static(distPath));
+    if (fs.existsSync(staticPath) && fs.existsSync(path.join(staticPath, 'index.html'))) {
+      app.use(express.static(staticPath));
       app.get('*all', (req, res) => {
         if (req.path.startsWith('/api/')) {
           return res.status(404).json({ error: 'Endpoint not found' });
         }
-        res.sendFile(path.join(distPath, 'index.html'));
+        res.sendFile(path.join(staticPath, 'index.html'));
       });
-      console.log('Serving static files from:', distPath);
+      console.log('Serving static files from:', staticPath);
     } else {
       console.error('DIST folder not found! Build may have failed.');
       app.get('*all', (req, res) => {
@@ -677,4 +670,7 @@ OUTPUT: Return ONLY the transformed image.`;
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error('Fatal server startup error:', err);
+  process.exit(1);
+});

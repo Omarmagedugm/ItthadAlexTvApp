@@ -73,6 +73,7 @@ import {
   Phone,
   AtSign,
   Bell,
+  ExternalLink,
   Download,
   Database,
   Shield,
@@ -542,7 +543,6 @@ export default function Admin() {
   const [rssSources, setRssSources] = useState<any[]>([]);
   const [rssNews, setRssNews] = useState<any[]>([]);
   const [backups, setBackups] = useState<any[]>([]);
-  const [sentNotifications, setSentNotifications] = useState<any[]>([]);
   const [customPages, setCustomPages] = useState<any[]>([]);
   const [jerseys, setJerseys] = useState<any[]>([]);
   const [aiConfig, setAiConfig] = useState<any>({ enabled: true, clubLogo: '' });
@@ -565,22 +565,12 @@ export default function Admin() {
   useEffect(() => {
     if (!profile.uid || !hasAdminAccess) return;
 
-    let unsubNotifs = () => {};
     let unsubPages = () => {};
     let unsubJerseys = () => {};
     let unsubAiConfig = () => {};
     let unsubUsage = () => {};
 
     try {
-      const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(20));
-      unsubNotifs = onSnapshot(q, (snapshot) => {
-        setSentNotifications(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      }, (error) => {
-        if (error.code !== 'permission-denied') {
-          handleFirestoreError(error, OperationType.LIST, 'notifications');
-        }
-      });
-      
       const qPages = query(collection(db, 'custom_pages'), orderBy('createdAt', 'desc'));
       unsubPages = onSnapshot(qPages, (snapshot) => {
         const pagesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -622,7 +612,6 @@ export default function Admin() {
     }
     
     return () => { 
-      unsubNotifs(); 
       unsubPages(); 
       unsubJerseys(); 
       unsubAiConfig(); 
@@ -742,103 +731,6 @@ export default function Admin() {
     }
   };
 
-  const [notificationForm, setNotificationForm] = useState({ 
-    title: '', 
-    body: '', 
-    target: 'all',
-    type: 'match',
-    url: '/live' 
-  });
-  const [isSending, setIsSending] = useState(false);
-  const [onesignalApiKeyInput, setOnesignalApiKeyInput] = useState(() => appSettings?.onesignalRestApiKey || '');
-  const [isSavingKey, setIsSavingKey] = useState(false);
-
-  useEffect(() => {
-    if (appSettings?.onesignalRestApiKey) {
-      setOnesignalApiKeyInput(appSettings.onesignalRestApiKey);
-    }
-  }, [appSettings?.onesignalRestApiKey]);
-
-  const handleSaveOneSignalKey = async () => {
-    setIsSavingKey(true);
-    try {
-      await setDoc(doc(db, 'settings', 'general'), {
-        onesignalRestApiKey: onesignalApiKeyInput.trim(),
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
-      toast.success('تم حفظ مفتاح OneSignal REST API بنجاح 🔑');
-    } catch (e: any) {
-      console.error('Error saving OneSignal key:', e);
-      toast.error('حدث خطأ أثناء حفظ المفتاح: ' + e?.message);
-    } finally {
-      setIsSavingKey(false);
-    }
-  };
-
-  const handleSendNotification = async () => {
-    if (!notificationForm.title.trim() || !notificationForm.body.trim()) return toast.error('يرجى ملء جميع الحقول');
-    setIsSending(true);
-    try {
-      const isMatch = notificationForm.type === 'match' || 
-                      notificationForm.url.includes('/live') || 
-                      /⚽|🟢|🟨|🟥|🔄|🏁|هدف|مباراة|طرد|تبديل/i.test(`${notificationForm.title} ${notificationForm.body}`);
-      
-      const targetUrl = notificationForm.url || (isMatch ? '/live' : '/');
-
-      // 1. Save to in-app Firestore notifications drawer
-      await addDoc(collection(db, 'notifications'), {
-        title: notificationForm.title,
-        body: notificationForm.body,
-        target: notificationForm.target || 'all',
-        type: isMatch ? 'match' : 'general',
-        url: targetUrl,
-        isMatch: isMatch,
-        readBy: [],
-        createdAt: new Date().toISOString()
-      });
-
-      // 2. Dispatch OneSignal Web Push Notification to all subscribed devices
-      try {
-        const apiKey = onesignalApiKeyInput.trim() || appSettings?.onesignalRestApiKey || '';
-        const pushRes = await fetch('/api/onesignal/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: notificationForm.title,
-            body: notificationForm.body,
-            url: targetUrl,
-            type: isMatch ? 'match' : 'general',
-            isMatch: isMatch,
-            target: notificationForm.target || 'all',
-            apiKey: apiKey || undefined
-          })
-        });
-        const pushData = await pushRes.json();
-        if (pushData.delivered) {
-          toast.success(`تم إرسال الإشعار بنجاح عبر OneSignal 🚀 (${pushData.recipients || 'الأجهزة المشتركة'})`);
-        } else if (pushData.noSubscribers) {
-          toast.success('تم حفظ الإشعار وسيعرض للمستخدمين فور تفعيل الإشعارات 🔔');
-        } else if (pushData.warning) {
-          console.info('[OneSignal Admin Note]:', pushData.warning);
-          toast.success('تم حفظ الإشعار في التطبيق 🔔');
-        } else if (pushData.error) {
-          toast.error('ملاحظة OneSignal: ' + JSON.stringify(pushData.error));
-        } else {
-          toast.success('تم إرسال الإشعار بنجاح');
-        }
-      } catch (pushErr) {
-        console.warn('OneSignal API dispatch error (push may require server configuration):', pushErr);
-        toast.success('تم حفظ الإشعار في التطبيق');
-      }
-
-      setNotificationForm({ title: '', body: '', target: 'all', type: 'match', url: '/live' });
-    } catch (e) {
-      console.error(e);
-      toast.error('حدث خطأ أثناء الإرسال');
-    } finally {
-      setIsSending(false);
-    }
-  };
   const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'processing' | 'delivered'>('all');
   const [comments, setComments] = useState<any[]>([]);
   const [fanComments, setFanComments] = useState<any[]>([]);
@@ -1007,7 +899,6 @@ export default function Admin() {
       'polls': ['layout_editor', 'user_manager'],
       'users': ['user_manager'],
       'audit-logs': ['user_manager', 'admin'],
-      'notifications': ['user_manager'],
       'posts': ['user_manager'],
       'fan-comments': ['user_manager'],
       'predictions': ['user_manager', 'matches_editor'],
@@ -1041,7 +932,7 @@ export default function Admin() {
   // Redirection logic based on role permissions
   useEffect(() => {
     if (!isTabAllowed(activeTab)) {
-      const allowedTabs = ['overview', 'news', 'news-categories', 'news-tags', 'fanzone', 'world-fans', 'media', 'music', 'books', 'matches', 'live', 'clubs', 'club_members', 'products', 'orders', 'business', 'layout', 'sidebar-menu', 'city', 'history', 'ai-studio', 'polls', 'predictions', 'posts', 'fan-comments', 'comments', 'audit-logs', 'users', 'notifications', 'settings', 'backup'];
+      const allowedTabs = ['overview', 'news', 'news-categories', 'news-tags', 'fanzone', 'world-fans', 'media', 'music', 'books', 'matches', 'live', 'clubs', 'club_members', 'products', 'orders', 'business', 'layout', 'sidebar-menu', 'city', 'history', 'ai-studio', 'polls', 'predictions', 'posts', 'fan-comments', 'comments', 'audit-logs', 'users', 'settings', 'backup'];
       const firstAllowed = allowedTabs.find(tab => isTabAllowed(tab));
       if (firstAllowed) {
         setActiveTab(firstAllowed as any);
@@ -2573,7 +2464,6 @@ export default function Admin() {
              activeTab === 'matches' ? 'إدارة المباريات' : 
              activeTab === 'posts' ? 'منشورات الجماهير' :
              activeTab === 'predictions' ? 'إدارة توقعات المباريات' :
-             activeTab === 'notifications' ? 'إرسال الإشعارات' :
              activeTab === 'audit-logs' ? 'سجل نشاط المشرفين وسلة المحذوفات' :
              activeTab === 'users' ? 'إدارة الأعضاء' : 
              activeTab === 'settings' ? 'إعدادات التطبيق' : 
@@ -4869,248 +4759,6 @@ export default function Admin() {
             </div>
           )}
 
-          {activeTab === 'notifications' && (
-            <div className="space-y-6">
-              {/* OneSignal Configuration & Status Banner */}
-              <div className="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-2xl p-5 shadow-lg border border-slate-800 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/20 text-primary flex items-center justify-center font-black">
-                      <Bell size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-black flex items-center gap-2">
-                        ربط إشعارات OneSignal Web Push
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                          {onesignalApiKeyInput.trim() ? 'متصل بنجاح 🟢' : 'جاهز للربط ⚡'}
-                        </span>
-                      </h4>
-                      <p className="text-[11px] text-slate-400">إرسال إشعارات فورية لجميع أجهزة المتابعين (iPhone, Android, Desktop)</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                  <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
-                    <span className="text-[10px] font-black text-slate-400 block mb-1">OneSignal App ID (معرف التطبيق)</span>
-                    <span className="font-mono text-emerald-400 font-bold text-xs select-all break-all">f93522a8-2af6-40a7-aa4e-25fc0e21e572</span>
-                  </div>
-
-                  <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 flex flex-col justify-between gap-2">
-                    <div>
-                      <span className="text-[10px] font-black text-slate-400 block mb-1">OneSignal REST API Key (مفتاح الإرسال)</span>
-                      <input 
-                        type="password"
-                        value={onesignalApiKeyInput}
-                        onChange={(e) => setOnesignalApiKeyInput(e.target.value)}
-                        placeholder="أدخل مفتاح REST API Key من لوحة OneSignal..."
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono placeholder:text-slate-600 focus:border-primary outline-none"
-                      />
-                    </div>
-                    <div className="flex items-center justify-end gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={handleSaveOneSignalKey}
-                        disabled={isSavingKey}
-                        className="px-3 py-1 bg-primary hover:bg-primary/90 text-white rounded-lg font-black text-[10px] transition-all flex items-center gap-1 shadow-sm"
-                      >
-                        {isSavingKey ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                        حفظ المفتاح
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-card-dark rounded-xl p-5 shadow-sm space-y-5 border border-border-light dark:border-border-dark">
-                <div className="pb-4 border-b border-border-light dark:border-border-dark flex items-center justify-between">
-                   <div>
-                     <h3 className="text-sm font-black mb-1">إرسال إشعار لحظي</h3>
-                     <p className="text-[10px] text-slate-500 font-bold">إرسال إشعارات لجميع المستخدمين أو لمستخدم محدد</p>
-                   </div>
-                   <Bell className="text-primary opacity-20" size={32} />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 mb-2 block">نماذج سريعة لإشعارات المباريات (فتح البث المباشر /live تلقائياً):</label>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <button
-                      type="button"
-                      onClick={() => setNotificationForm({
-                        title: '⚽ هدف لصالح الاتحاد السكندري!',
-                        body: 'جوووووول! هدف جديد لزعيم الثغر، اضغط لمتابعة البث المباشر الآن!',
-                        target: 'all',
-                        type: 'match',
-                        url: '/live'
-                      })}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-xs font-black border border-emerald-200 dark:border-emerald-800/40 hover:scale-105 transition-all flex items-center gap-1.5"
-                    >
-                      <span>⚽</span> هدف
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setNotificationForm({
-                        title: '🟢 بداية المباراة الآن!',
-                        body: 'صافرة البداية انطلقت! شاهد البث المباشر وأحداث المباراة فوراً.',
-                        target: 'all',
-                        type: 'match',
-                        url: '/live'
-                      })}
-                      className="px-3 py-1.5 rounded-xl bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 text-xs font-black border border-green-200 dark:border-green-800/40 hover:scale-105 transition-all flex items-center gap-1.5"
-                    >
-                      <span>🟢</span> بداية المباراة
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setNotificationForm({
-                        title: '🟨 إنذار وبطاقة صفراء',
-                        body: 'الحكم يشهر بطاقة صفراء خلال مجريات اللقاء، تابع البث المباشر.',
-                        target: 'all',
-                        type: 'match',
-                        url: '/live'
-                      })}
-                      className="px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 text-xs font-black border border-amber-200 dark:border-amber-800/40 hover:scale-105 transition-all flex items-center gap-1.5"
-                    >
-                      <span>🟨</span> بطاقة صفراء
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setNotificationForm({
-                        title: '🟥 بطاقة حمراء وطرد!',
-                        body: 'حالة طرد في اللقاء! تابع تفاصيل وأحداث المباراة عبر البث المباشر.',
-                        target: 'all',
-                        type: 'match',
-                        url: '/live'
-                      })}
-                      className="px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-black border border-red-200 dark:border-red-800/40 hover:scale-105 transition-all flex items-center gap-1.5"
-                    >
-                      <span>🟥</span> طرد
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setNotificationForm({
-                        title: '🔄 تبديل في صفوف الفريق',
-                        body: 'تغيير فني وتكتيكي جديد في أرضية الملعب! تابع مجريات المباراة مباشرة.',
-                        target: 'all',
-                        type: 'match',
-                        url: '/live'
-                      })}
-                      className="px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 text-xs font-black border border-purple-200 dark:border-purple-800/40 hover:scale-105 transition-all flex items-center gap-1.5"
-                    >
-                      <span>🔄</span> تبديل
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setNotificationForm({
-                        title: '🏁 نهاية المباراة',
-                        body: 'صافرة النهاية! تابع الآن ملخص المباراة وردود الفعل والتحليل الفني.',
-                        target: 'all',
-                        type: 'match',
-                        url: '/live'
-                      })}
-                      className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-black border border-blue-200 dark:border-blue-800/40 hover:scale-105 transition-all flex items-center gap-1.5"
-                    >
-                      <span>🏁</span> نهاية المباراة
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 mb-1.5 block">عنوان الإشعار</label>
-                  <input 
-                    type="text" 
-                    value={notificationForm.title} 
-                    onChange={(e) => setNotificationForm({...notificationForm, title: e.target.value})}
-                    className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm font-bold focus:border-primary outline-none transition-colors"
-                    placeholder="مثال: ⚽ هدف لصالح الاتحاد السكندري!"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 mb-1.5 block">نص الإشعار</label>
-                  <textarea 
-                    value={notificationForm.body} 
-                    onChange={(e) => setNotificationForm({...notificationForm, body: e.target.value})}
-                    className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm font-bold focus:border-primary outline-none transition-colors min-h-[100px] resize-none"
-                    placeholder="محتوى الإشعار وتفاصيله..."
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 mb-1.5 block">الجمهور المستهدف (all للجميع أو UID)</label>
-                  <input 
-                    type="text" 
-                    value={notificationForm.target} 
-                    onChange={(e) => setNotificationForm({...notificationForm, target: e.target.value})}
-                    className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-sm font-mono focus:border-primary outline-none transition-colors text-left"
-                    dir="ltr"
-                  />
-                </div>
-                <button 
-                  onClick={handleSendNotification} 
-                  disabled={isSending}
-                  className="w-full bg-primary text-white py-4 rounded-2xl font-black text-sm shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform active:scale-95"
-                >
-                  {isSending ? <Loader2 className="animate-spin" size={18} /> : <Bell size={18} />}
-                  إرسال الإشعار
-                </button>
-              </div>
-
-              <div className="bg-white dark:bg-card-dark rounded-xl p-5 shadow-sm border border-border-light dark:border-border-dark">
-                <div className="flex items-center justify-between mb-4 pb-4 border-b border-border-light dark:border-border-dark">
-                  <h3 className="text-sm font-black">سجل الإشعارات المرسلة</h3>
-                  <button 
-                    onClick={async () => {
-                      if (confirm('هل أنت متأكد من حذف جميع الإشعارات؟')) {
-                        const snap = await getDocs(collection(db, 'notifications'));
-                        const batch = snap.docs.map(d => deleteDoc(doc(db, 'notifications', d.id)));
-                        await Promise.all(batch);
-                        toast.success('تم حذف جميع الإشعارات');
-                      }
-                    }}
-                    className="text-[10px] font-black text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1"
-                  >
-                    <Trash2 size={12} />
-                    حذف الكل
-                  </button>
-                </div>
-                
-                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                  {sentNotifications.map((n: any) => (
-                    <div key={n.id} className="p-4 bg-white dark:bg-surface-dark rounded-2xl border border-border-light dark:border-border-dark flex items-center justify-between gap-4 group hover:shadow-md transition-all">
-                      <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-card-dark flex items-center justify-center text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-all">
-                        <Bell size={18} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-xs font-black truncate text-slate-800 dark:text-white mb-0.5">{n.title}</h4>
-                        <p className="text-[10px] text-slate-500 font-bold truncate">{n.body}</p>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <span className="text-[8px] text-slate-400 font-black uppercase tracking-wider">{new Date(n.createdAt).toLocaleDateString('ar-EG')}</span>
-                          <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                          <span className="text-[8px] font-black text-primary uppercase">MEMBER: {n.target || 'ALL'}</span>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => handleDelete('notifications', n.id)}
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all shrink-0"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  ))}
-                  {sentNotifications.length === 0 && (
-                    <div className="py-20 text-center bg-slate-50/50 dark:bg-surface-dark/50 rounded-[28px] border-2 border-dashed border-slate-200 dark:border-border-dark">
-                       <Bell className="mx-auto text-slate-300 mb-2" size={40} />
-                       <p className="text-slate-400 font-black text-xs uppercase tracking-widest">لا توجد إشعارات مرسلة</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
           {activeTab === 'backup' && (
             <div className="flex flex-col gap-6">
               <div className="flex flex-col text-right px-2">
@@ -5248,6 +4896,50 @@ export default function Admin() {
                       placeholder="اكتب تفاصيل الرسالة المعروضة للجماهير..."
                       className="w-full p-2.5 rounded-xl border border-amber-300/60 dark:border-amber-900/60 bg-white dark:bg-card-dark text-xs font-bold text-slate-900 dark:text-white focus:border-amber-500 outline-none resize-none"
                     />
+                  </div>
+                </div>
+              </div>
+
+              {/* OneSignal Web Push Integration Status & Link */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white border border-slate-800 space-y-4 shadow-md">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/20 text-primary flex items-center justify-center font-black shrink-0">
+                      <Bell size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black flex items-center gap-2">
+                        ربط إشعارات OneSignal Web Push
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          متصل بنجاح 🟢
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-slate-400">
+                        التطبيق مربوط بالكامل مع OneSignal، ويتم إرسال كافة الإشعارات الفورية مباشرة واحترافياً من موقع OneSignal الرسمي.
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href="https://dashboard.onesignal.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-black transition-all shadow-sm hover:scale-105 active:scale-95 shrink-0"
+                  >
+                    <span>لوحة تحكم OneSignal</span>
+                    <ExternalLink size={14} />
+                  </a>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                  <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
+                    <span className="text-[10px] font-black text-slate-400 block mb-1">OneSignal App ID (معرف التطبيق النشط)</span>
+                    <span className="font-mono text-emerald-400 font-bold text-xs select-all break-all">f93522a8-2af6-40a7-aa4e-25fc0e21e572</span>
+                  </div>
+                  <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 flex flex-col justify-center">
+                    <span className="text-[10px] font-black text-slate-400 block mb-1">طريقة الإرسال المعتمدة</span>
+                    <span className="text-xs text-slate-300 font-medium">
+                      يتم إرسال الحملات والرسائل لجميع المشتركين مباشرة من خلال موقع OneSignal الرسمي (Messages &gt; New Push).
+                    </span>
                   </div>
                 </div>
               </div>

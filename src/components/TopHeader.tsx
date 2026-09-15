@@ -2,7 +2,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Menu, Bell, Search, ChevronRight, Sun, Moon, Settings, BellRing } from 'lucide-react';
 import { useAppStore } from '../store';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Sidebar from './Sidebar';
 import { auth } from '../lib/firebase';
 import { requestNotificationPermission, isNotificationPermissionGranted } from '../lib/onesignal';
@@ -18,13 +18,34 @@ export default function TopHeader() {
     return typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'denied';
   });
   const [isActivating, setIsActivating] = useState(false);
+  const desktopNavRef = useRef<HTMLElement>(null);
 
-  const lightLogo = appSettings?.headerLogoLight || appSettings?.appLogo || '/icon.png';
-  const darkLogo = appSettings?.headerLogoDark || appSettings?.appLogo || '/icon.png';
-  const currentLogo = theme === 'dark' ? darkLogo : lightLogo;
+  // Auto-scroll active desktop navigation item into view
+  useEffect(() => {
+    if (desktopNavRef.current) {
+      const activeEl = desktopNavRef.current.querySelector<HTMLElement>('[data-active="true"]');
+      if (activeEl) {
+        activeEl.scrollIntoView({
+          behavior: 'smooth',
+          inline: 'center',
+          block: 'nearest'
+        });
+      }
+    }
+  }, [location.pathname]);
+
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+
+  // Only use an image logo if a custom header logo or custom app logo is configured (avoiding the generic icon.png fallback)
+  const customLightLogo = appSettings?.headerLogoLight || (appSettings?.appLogo && appSettings.appLogo !== '/icon.png' ? appSettings.appLogo : '');
+  const customDarkLogo = appSettings?.headerLogoDark || (appSettings?.appLogo && appSettings.appLogo !== '/icon.png' ? appSettings.appLogo : '');
+  const currentLogo = appSettings?.logoType === 'text' 
+    ? '' 
+    : (theme === 'dark' ? (customDarkLogo || customLightLogo) : (customLightLogo || customDarkLogo));
 
   useEffect(() => {
     setImageError(false);
+    setIsImageLoaded(false);
   }, [currentLogo]);
 
   // Keep permission state in sync with browser efficiently via focus/visibilitychange
@@ -163,19 +184,28 @@ export default function TopHeader() {
 
             <Link to="/" className="flex items-center gap-2 py-0.5 min-w-0 shrink">
               {currentLogo && !imageError ? (
-                <img 
-                  src={currentLogo} 
-                  alt="قناة الاتحاد السكندري" 
-                  style={{
-                    height: `${logoHeight}px`,
-                    maxHeight: '92px'
-                  }}
-                  className="w-auto max-w-[150px] sm:max-w-[200px] md:max-w-[250px] lg:max-w-[300px] object-contain drop-shadow-md transition-all duration-300 shrink" 
-                  referrerPolicy="no-referrer"
-                  onError={() => setImageError(true)}
-                />
+                <>
+                  {!isImageLoaded && (
+                    <h1 className="text-base sm:text-lg md:text-xl font-black tracking-tight text-primary-dark dark:text-white uppercase truncate max-w-[170px] sm:max-w-[240px]">
+                      {appSettings?.logoText || 'قناة الاتحاد السكندري'}
+                    </h1>
+                  )}
+                  <img 
+                    src={currentLogo} 
+                    alt="قناة الاتحاد السكندري" 
+                    style={{
+                      height: `${logoHeight}px`,
+                      maxHeight: '92px',
+                      display: isImageLoaded ? 'block' : 'none'
+                    }}
+                    className="w-auto max-w-[150px] sm:max-w-[200px] md:max-w-[250px] lg:max-w-[300px] object-contain drop-shadow-md transition-all duration-300 shrink" 
+                    referrerPolicy="no-referrer"
+                    onLoad={() => setIsImageLoaded(true)}
+                    onError={() => setImageError(true)}
+                  />
+                </>
               ) : (
-                <h1 className="text-base sm:text-lg md:text-xl font-black tracking-tight text-primary-dark dark:text-white uppercase truncate max-w-[160px] sm:max-w-[220px]">
+                <h1 className="text-base sm:text-lg md:text-xl font-black tracking-tight text-primary-dark dark:text-white uppercase truncate max-w-[170px] sm:max-w-[240px]">
                   {appSettings?.logoText || 'قناة الاتحاد السكندري'}
                 </h1>
               )}
@@ -183,27 +213,38 @@ export default function TopHeader() {
           </div>
 
           {/* Desktop Navigation Links (Visible on PC / Tablet) */}
-          <nav className="hidden md:flex items-center gap-1 lg:gap-1.5 flex-nowrap shrink whitespace-nowrap overflow-x-auto no-scrollbar py-1">
+          <nav 
+            id="desktop-main-menu"
+            ref={desktopNavRef}
+            onWheel={(e) => {
+              if (e.deltaY !== 0 && desktopNavRef.current) {
+                desktopNavRef.current.scrollLeft += e.deltaY;
+              }
+            }}
+            aria-label="القائمة الرئيسية"
+            style={{ borderRadius: '25px' }}
+            className="hidden md:flex items-center gap-1.5 flex-nowrap shrink whitespace-nowrap overflow-x-auto no-scrollbar scroll-smooth px-3 py-1.5 bg-gradient-to-r from-[#0B3D2E] via-primary to-[#0B3D2E] text-white rounded-[25px] shadow-md shadow-primary/20 border border-emerald-500/30 max-w-xl lg:max-w-2xl xl:max-w-3xl select-none"
+          >
             {[
               { path: '/', label: 'الرئيسية' },
               { path: '/news', label: 'الأخبار' },
               { path: '/matches', label: 'المباريات' },
-              { path: '/fan-zone', label: 'فان زون' },
-              { path: '/library', label: 'المكتبة' },
+              { path: '/live', label: 'البث المباشر 🔴' },
+              { path: '/fan-zone', label: 'فان زون ⚽' },
               { path: '/world-fans', label: 'اتحاداوية العالم 🌍' },
-              { path: '/services', label: 'خدمات الجمهور 💚' },
-              { path: '/history', label: 'تاريخ النادي' },
-              { path: '/discounts', label: 'الخصومات' },
+              { path: '/library', label: 'المكتبة' },
+              { path: '/social', label: 'سوشيال ميديا' },
             ].map(item => {
               const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
               return (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`px-2.5 lg:px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-200 shrink-0 ${
+                  data-active={isActive ? "true" : "false"}
+                  className={`px-3 lg:px-3.5 py-1 rounded-[20px] text-xs font-black transition-all duration-200 shrink-0 ${
                     isActive 
-                      ? 'bg-primary text-white shadow-sm shadow-primary/30' 
-                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-surface-dark hover:text-primary'
+                      ? 'bg-white text-primary-dark shadow-sm' 
+                      : 'text-white/85 hover:text-white hover:bg-white/15'
                   }`}
                 >
                   {item.label}

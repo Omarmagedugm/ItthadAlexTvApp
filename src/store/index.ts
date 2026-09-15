@@ -782,7 +782,7 @@ export const useAppStore = create<AppState>()(
         headerLogoSize: 'medium',
         headerLogoHeight: 48,
         logoType: 'image',
-        logoText: 'الاتحاد السكندري',
+        logoText: 'قناة الاتحاد السكندري',
         defaultSport: 'auto',
         liveViewMode: 'both',
         facebookPageUrl: 'https://www.facebook.com/Itthadalexchannel',
