@@ -34,6 +34,7 @@ import {
   RadioTower,
   TrendingUp,
   HeartHandshake,
+  Sliders,
   X
 } from 'lucide-react';
 
@@ -79,6 +80,7 @@ export default function AdminSidebar({ activeTab, setActiveTab, onClose }: Admin
     { title: 'الرئيسية', items: [
       { id: 'overview', icon: <LayoutDashboard size={18} />, label: 'لوحة القيادة', show: true },
       { id: 'analytics', icon: <TrendingUp size={18} className="text-emerald-500" />, label: 'الإحصاءات والتفاعل ⚡', show: true },
+      { id: 'sections-control', icon: <Sliders size={18} className="text-emerald-500" />, label: 'التحكم في الأقسام (ON/OFF)', show: isSuperAdmin || hasRole('layout_editor') },
       { id: 'layout', icon: <LayoutDashboard size={18} />, label: 'إدارة الصفحة الرئيسية', show: hasRole('layout_editor') },
       { id: 'sidebar-menu', icon: <Menu size={18} />, label: 'ترتيب القائمة الجانبية', show: hasRole('layout_editor') },
     ]},

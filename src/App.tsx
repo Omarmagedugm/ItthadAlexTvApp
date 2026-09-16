@@ -69,6 +69,17 @@ import BottomNav from './components/BottomNav';
 import TopHeader from './components/TopHeader';
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
+import { ManagedSectionKey } from './types/sections';
+
+function FeatureGuardRoute({ sectionKey, component: Component }: { sectionKey: ManagedSectionKey; component: React.ComponentType<any> }) {
+  const isEnabled = useAppStore(state => state.sectionFlags[sectionKey] !== false);
+  
+  if (!isEnabled) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <Component />;
+}
 
 function VercelAnalytics() {
   try {
@@ -415,7 +426,7 @@ function AppContent() {
             <Route path="/fan-zone" element={<FanZone />} />
             <Route path="/jersey-tryon" element={<JerseyTryOn />} />
             <Route path="/history" element={<History />} />
-            <Route path="/store" element={<Store />} />
+            <Route path="/store" element={<FeatureGuardRoute sectionKey="fanStore" component={Store} />} />
             <Route path="/bookmarks" element={<Bookmarks />} />
             <Route path="/library" element={<Library />} />
             <Route path="/club-members" element={<ClubMembers />} />
@@ -423,16 +434,16 @@ function AppContent() {
             <Route path="/club-members/discounts/:id" element={<DiscountDetailPage />} />
             <Route path="/discounts" element={<DiscountsPage />} />
             <Route path="/discounts/:id" element={<DiscountDetailPage />} />
-            <Route path="/business" element={<BusinessDirectory />} />
-            <Route path="/business/:id" element={<BusinessDetail />} />
-            <Route path="/world-fans" element={<WorldFans />} />
-            <Route path="/world-fans/group/:id" element={<WorldGroupDetail />} />
-            <Route path="/world-association" element={<WorldFans />} />
-            <Route path="/services" element={<PublicServices />} />
-            <Route path="/public-services" element={<PublicServices />} />
-            <Route path="/services/education" element={<EducationService />} />
-            <Route path="/education" element={<EducationService />} />
-            <Route path="/education-services" element={<EducationService />} />
+            <Route path="/business" element={<FeatureGuardRoute sectionKey="itthadawyBusiness" component={BusinessDirectory} />} />
+            <Route path="/business/:id" element={<FeatureGuardRoute sectionKey="itthadawyBusiness" component={BusinessDetail} />} />
+            <Route path="/world-fans" element={<FeatureGuardRoute sectionKey="worldFans" component={WorldFans} />} />
+            <Route path="/world-fans/group/:id" element={<FeatureGuardRoute sectionKey="worldFans" component={WorldGroupDetail} />} />
+            <Route path="/world-association" element={<FeatureGuardRoute sectionKey="worldFans" component={WorldFans} />} />
+            <Route path="/services" element={<FeatureGuardRoute sectionKey="fanServices" component={PublicServices} />} />
+            <Route path="/public-services" element={<FeatureGuardRoute sectionKey="fanServices" component={PublicServices} />} />
+            <Route path="/services/education" element={<FeatureGuardRoute sectionKey="fanServices" component={EducationService} />} />
+            <Route path="/education" element={<FeatureGuardRoute sectionKey="fanServices" component={EducationService} />} />
+            <Route path="/education-services" element={<FeatureGuardRoute sectionKey="fanServices" component={EducationService} />} />
             <Route path="/social" element={<SocialMedia />} />
             <Route path="/social-media" element={<SocialMedia />} />
             <Route path="/facebook" element={<SocialMedia />} />

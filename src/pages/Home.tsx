@@ -96,6 +96,7 @@ export default function Home() {
     stadiumOpacity,
     setStadiumOpacity,
     dataLoaded,
+    sectionFlags,
     aiConfig: storeAiConfig
   } = useAppStore();
   const [clarityOpen, setClarityOpen] = useState(false);
@@ -1410,6 +1411,7 @@ export default function Home() {
 
       case "world_fans":
       case "world_association":
+        if (sectionFlags.worldFans === false) return null;
         return (
           <motion.section key={section.id} variants={itemVariants}>
             <WorldFansWidget title={section.title} />
@@ -1418,6 +1420,7 @@ export default function Home() {
 
       case "public_services":
       case "services":
+        if (sectionFlags.fanServices === false) return null;
         return (
           <motion.section key={section.id} variants={itemVariants}>
             <PublicServicesWidget />
@@ -1427,11 +1430,18 @@ export default function Home() {
       case "business":
       case "business_directory":
       case "ittihad_business":
+        if (sectionFlags.itthadawyBusiness === false) return null;
         return (
           <motion.section key={section.id} variants={itemVariants}>
             <BusinessWidget title={section.title} />
           </motion.section>
         );
+
+      case "store":
+      case "fan_store":
+      case "shop":
+        if (sectionFlags.fanStore === false) return null;
+        return null;
 
       case "tickets":
         return (

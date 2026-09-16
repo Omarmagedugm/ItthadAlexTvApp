@@ -24,8 +24,10 @@ import {
   defaultEducationVideos,
   defaultEducationCategories
 } from '../data/defaultServicesData';
+import { SectionFlags, DEFAULT_SECTION_FLAGS } from '../types/sections';
 
-export type { PublicService, EducationVideo };
+export type { PublicService, EducationVideo, SectionFlags };
+export { DEFAULT_SECTION_FLAGS };
 
 export interface HomeSection {
   id: string;
@@ -563,6 +565,7 @@ interface AppState {
   predictions: PredictionItem[];
   fanPosts: FanPostItem[];
   users: UserProfile[];
+  sectionFlags: SectionFlags;
   aiConfig: { enabled: boolean; bannerTitle?: string; bannerDescription?: string; bannerImage?: string; bannerOpacity?: number; clubLogo?: string; userDailyLimit?: number };
   appSettings: {
     appName: string;
@@ -665,6 +668,7 @@ interface AppState {
   setUsers: (users: UserProfile[]) => void;
   updateUser: (uid: string, item: Partial<UserProfile>) => void;
   deleteUser: (uid: string) => void;
+  setSectionFlags: (flags: Partial<SectionFlags>) => void;
   setSettings: (settings: any) => void;
   updateLiveStream: (stream: Partial<LiveStream>) => void;
   updateLiveStreams: (streams: { football?: Partial<LiveStream>; basketball?: Partial<LiveStream>; programs?: Partial<LiveStream>; custom?: Partial<LiveStream> }) => void;
@@ -774,6 +778,7 @@ export const useAppStore = create<AppState>()(
       predictions: [],
       fanPosts: [],
       users: [],
+      sectionFlags: DEFAULT_SECTION_FLAGS,
       appSettings: {
         appName: 'قناة الاتحاد السكندري',
         appLogo: '/icon.png',
@@ -940,6 +945,9 @@ export const useAppStore = create<AppState>()(
       })),
       deleteUser: (uid) => set((state) => ({
         users: state.users.filter(u => u.uid !== uid)
+      })),
+      setSectionFlags: (flags) => set((state) => ({ 
+        sectionFlags: { ...state.sectionFlags, ...flags } 
       })),
       setSettings: (settings) => set((state) => ({ appSettings: { ...state.appSettings, ...settings } })),
       setAiConfig: (config) => set((state) => ({ aiConfig: { ...state.aiConfig, ...config } })),

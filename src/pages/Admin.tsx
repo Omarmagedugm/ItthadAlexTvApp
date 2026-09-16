@@ -108,6 +108,7 @@ import { motion } from 'motion/react';
 import AdminSidebar from '../components/AdminSidebar';
 import AdminSidebarManager from '../components/AdminSidebarManager';
 import AdminHomeSectionsManager from '../components/admin/AdminHomeSectionsManager';
+import AdminSectionFlagsManager from '../components/admin/AdminSectionFlagsManager';
 import AdminServicesManager from '../components/admin/AdminServicesManager';
 import AdminBusiness from '../components/AdminBusiness';
 import AdminWorldFans from '../components/admin/AdminWorldFans';
@@ -2670,6 +2671,10 @@ export default function Admin() {
             </div>
           )}
 
+          {activeTab === 'sections-control' && (
+            <AdminSectionFlagsManager />
+          )}
+
           {activeTab === 'layout' && (
             <div className="space-y-8">
               <AdminHomeSectionsManager />
@@ -4942,6 +4947,11 @@ export default function Admin() {
                     </span>
                   </div>
                 </div>
+              </div>
+
+              {/* Centralized Section Flags Manager */}
+              <div className="pt-2">
+                <AdminSectionFlagsManager />
               </div>
 
               <div className="pb-4 border-b border-border-light dark:border-border-dark">

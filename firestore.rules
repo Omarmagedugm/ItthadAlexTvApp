@@ -114,6 +114,11 @@ service cloud.firestore {
       allow write: if isAdmin() || isLayoutEditor();
     }
 
+    match /appSettings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin() || isLayoutEditor();
+    }
+
     // Media
     function isValidMedia(data) {
       return data.title is string && data.title.size() <= 500 &&

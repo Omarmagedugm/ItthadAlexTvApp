@@ -15,7 +15,8 @@ export function useFirestoreSync() {
     setBusinesses, setBusinessUpdates, setBusinessReports,
     setWorldCountries, setWorldGroups, setWorldPosts, setWorldEvents, setWorldHelpRequests, setWorldApplications,
     setAuditLogs,
-    setServices, setEducationVideos
+    setServices, setEducationVideos,
+    sectionFlags, setSectionFlags
   } = useAppStore();
 
   const isInitialFetchDoneRef = useRef(false);
@@ -101,6 +102,34 @@ export function useFirestoreSync() {
         }
       }, 'settings/global', OperationType.GET);
 
+      // Centralized Section Flags Toggle listener (Ultra-lightweight single document)
+      const unsubAppSections = subscribeSnapshot(doc(db, 'appSettings', 'sections'), (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          setSectionFlags({
+            fanServices: data.fanServices !== false,
+            worldFans: data.worldFans !== false,
+            fanStore: data.fanStore !== false,
+            itthadawyBusiness: data.itthadawyBusiness !== false,
+            ...data
+          });
+        }
+      }, 'appSettings/sections', OperationType.GET);
+
+      // Fallback check for settings/sections
+      const unsubSettingsSections = subscribeSnapshot(doc(db, 'settings', 'sections'), (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          setSectionFlags({
+            fanServices: data.fanServices !== false,
+            worldFans: data.worldFans !== false,
+            fanStore: data.fanStore !== false,
+            itthadawyBusiness: data.itthadawyBusiness !== false,
+            ...data
+          });
+        }
+      }, 'settings/sections', OperationType.GET);
+
       // Dynamic collections with strict limits
       const unsubMatches = subscribeSnapshot(
         query(collection(db, 'matches'), orderBy('date', 'desc'), limit(30)), 
@@ -183,49 +212,6 @@ export function useFirestoreSync() {
         OperationType.GET
       );
 
-      // Public Audience Services & Education Videos
-      const unsubPublicServices = subscribeSnapshot(
-        query(collection(db, 'public_services'), limit(50)),
-        (s) => {
-          if (s.empty) {
-            setServices(defaultPublicServices);
-          } else {
-            const seen = new Set<string>();
-            const items: any[] = [];
-            s.docs.forEach(d => {
-              if (d.id && !seen.has(d.id)) {
-                seen.add(d.id);
-                items.push({ id: d.id, ...(d.data() as any) });
-              }
-            });
-            items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-            setServices(items);
-          }
-        },
-        'public_services'
-      );
-
-      const unsubEducationVideos = subscribeSnapshot(
-        query(collection(db, 'education_videos'), limit(300)),
-        (s) => {
-          if (s.empty) {
-            setEducationVideos(defaultEducationVideos);
-          } else {
-            const seen = new Set<string>();
-            const items: any[] = [];
-            s.docs.forEach(d => {
-              if (d.id && !seen.has(d.id)) {
-                seen.add(d.id);
-                items.push({ id: d.id, ...(d.data() as any) });
-              }
-            });
-            items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-            setEducationVideos(items);
-          }
-        },
-        'education_videos'
-      );
-
       unsubs.push(
         unsubLiveFootball,
         unsubLiveBasketball,
@@ -233,6 +219,8 @@ export function useFirestoreSync() {
         unsubLiveCustom,
         unsubLayout,
         unsubGlobalSettings,
+        unsubAppSections,
+        unsubSettingsSections,
         unsubMatches,
         unsubNews,
         unsubFanPosts,
@@ -243,9 +231,7 @@ export function useFirestoreSync() {
         unsubClubCommittees,
         unsubClubTrips,
         unsubMemberDiscounts,
-        unsubClubMembersSettings,
-        unsubPublicServices,
-        unsubEducationVideos
+        unsubClubMembersSettings
       );
     };
 
@@ -301,7 +287,7 @@ export function useFirestoreSync() {
           setDataLoaded(true);
         }
 
-        // Priority 2: Staggered Secondary Data (Media, Songs, Books, World Fans, Businesses)
+        // Priority 2: Staggered Secondary Core Media Data (Media, Songs, Books)
         // Loaded smoothly in the background without blocking the UI thread
         setTimeout(async () => {
           if (!isMounted) return;
@@ -312,29 +298,7 @@ export function useFirestoreSync() {
               fetchCol('albums', setAlbums, query(collection(db, 'albums'), limit(30))),
               fetchCol('playlists', setPlaylists, query(collection(db, 'playlists'), limit(30))),
               fetchCol('books', setBooks, query(collection(db, 'books'), limit(30))),
-              fetchCol('media_playlists', setMediaPlaylists, query(collection(db, 'media_playlists'), limit(30))),
-              fetchCol('products', setProducts, query(collection(db, 'products'), limit(30))),
-              fetchCol('businesses', setBusinesses, query(collection(db, 'businesses'), limit(30))),
-              fetchCol('business_updates', setBusinessUpdates, query(collection(db, 'business_updates'), limit(30))),
-              fetchCol('business_reports', setBusinessReports, query(collection(db, 'business_reports'), limit(30))),
-              fetchCol('world_countries', (data) => {
-                if (!data || data.length === 0) {
-                  setWorldCountries(defaultWorldCountries);
-                } else {
-                  const merged = [...defaultWorldCountries];
-                  data.forEach((vc: any) => {
-                    const idx = merged.findIndex(m => m.id === vc.id);
-                    if (idx >= 0) merged[idx] = { ...merged[idx], ...vc };
-                    else merged.push(vc);
-                  });
-                  setWorldCountries(merged);
-                }
-              }),
-              fetchCol('world_groups', setWorldGroups, query(collection(db, 'world_groups'), limit(30))),
-              fetchCol('world_posts', setWorldPosts, query(collection(db, 'world_posts'), orderBy('createdAt', 'desc'), limit(30))),
-              fetchCol('world_events', setWorldEvents, query(collection(db, 'world_events'), orderBy('date', 'asc'), limit(20))),
-              fetchCol('world_help_requests', setWorldHelpRequests, query(collection(db, 'world_help_requests'), orderBy('createdAt', 'desc'), limit(20))),
-              fetchCol('world_applications', setWorldApplications, query(collection(db, 'world_applications'), limit(20)))
+              fetchCol('media_playlists', setMediaPlaylists, query(collection(db, 'media_playlists'), limit(30)))
             ]);
           } catch (bgErr) {
             console.warn('Background data fetch notice:', bgErr);
@@ -358,6 +322,161 @@ export function useFirestoreSync() {
       });
     };
   }, []); // Strictly empty dependency array: starts once, never affected by Auth state changes
+
+  // 2. Controlled Feature Flag Section Sync: strictly reads Firestore ONLY when a section is enabled
+  useEffect(() => {
+    let isMounted = true;
+    const sectionUnsubs: (() => void)[] = [];
+
+    const safeSubscribe = (q: any, onNext: (snap: any) => void, path: string) => {
+      try {
+        const unsub = onSnapshot(
+          q,
+          (snap) => {
+            if (isMounted) onNext(snap);
+          },
+          (err) => {
+            if (err?.code !== 'permission-denied') {
+              handleFirestoreError(err, OperationType.LIST, path);
+            }
+          }
+        );
+        sectionUnsubs.push(unsub);
+        return unsub;
+      } catch (err) {
+        handleFirestoreError(err, OperationType.LIST, path);
+        return () => {};
+      }
+    };
+
+    const fetchCol = async (col: string, setter: (d: any) => void, q?: any) => {
+      try {
+        const s = await getDocs(q || query(collection(db, col), limit(50)));
+        if (!isMounted) return;
+        const data = s.docs.map(d => ({ id: d.id, uid: d.id, ...(d.data() as any) }));
+        if (data) setter(data);
+      } catch (e) {
+        console.warn(`Fetch ${col} failed`, e);
+      }
+    };
+
+    // 1. Fan Services & Education
+    if (sectionFlags.fanServices !== false) {
+      safeSubscribe(
+        query(collection(db, 'public_services'), limit(50)),
+        (s) => {
+          if (s.empty) {
+            setServices(defaultPublicServices);
+          } else {
+            const seen = new Set<string>();
+            const items: any[] = [];
+            s.docs.forEach(d => {
+              if (d.id && !seen.has(d.id)) {
+                seen.add(d.id);
+                items.push({ id: d.id, ...(d.data() as any) });
+              }
+            });
+            items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            setServices(items);
+          }
+        },
+        'public_services'
+      );
+
+      safeSubscribe(
+        query(collection(db, 'education_videos'), limit(300)),
+        (s) => {
+          if (s.empty) {
+            setEducationVideos(defaultEducationVideos);
+          } else {
+            const seen = new Set<string>();
+            const items: any[] = [];
+            s.docs.forEach(d => {
+              if (d.id && !seen.has(d.id)) {
+                seen.add(d.id);
+                items.push({ id: d.id, ...(d.data() as any) });
+              }
+            });
+            items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            setEducationVideos(items);
+          }
+        },
+        'education_videos'
+      );
+    }
+
+    // 2. World Fans Association
+    if (sectionFlags.worldFans !== false) {
+      const fetchWorldFans = async () => {
+        try {
+          await Promise.allSettled([
+            fetchCol('world_countries', (data) => {
+              if (!data || data.length === 0) {
+                setWorldCountries(defaultWorldCountries);
+              } else {
+                const merged = [...defaultWorldCountries];
+                data.forEach((vc: any) => {
+                  const idx = merged.findIndex(m => m.id === vc.id);
+                  if (idx >= 0) merged[idx] = { ...merged[idx], ...vc };
+                  else merged.push(vc);
+                });
+                setWorldCountries(merged);
+              }
+            }, query(collection(db, 'world_countries'), limit(50))),
+            fetchCol('world_groups', setWorldGroups, query(collection(db, 'world_groups'), limit(30))),
+            fetchCol('world_posts', setWorldPosts, query(collection(db, 'world_posts'), orderBy('createdAt', 'desc'), limit(30))),
+            fetchCol('world_events', setWorldEvents, query(collection(db, 'world_events'), orderBy('date', 'asc'), limit(20))),
+            fetchCol('world_help_requests', setWorldHelpRequests, query(collection(db, 'world_help_requests'), orderBy('createdAt', 'desc'), limit(20))),
+            fetchCol('world_applications', setWorldApplications, query(collection(db, 'world_applications'), limit(20)))
+          ]);
+        } catch (e) {
+          console.warn('World fans fetch notice:', e);
+        }
+      };
+      fetchWorldFans();
+    }
+
+    // 3. Fan Store
+    if (sectionFlags.fanStore !== false) {
+      const fetchStore = async () => {
+        try {
+          const snap = await getDocs(query(collection(db, 'products'), limit(30)));
+          if (isMounted) setProducts(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
+        } catch (err) {
+          handleFirestoreError(err, OperationType.LIST, 'products');
+        }
+      };
+      fetchStore();
+    }
+
+    // 4. Itthadawy Business
+    if (sectionFlags.itthadawyBusiness !== false) {
+      const fetchBusiness = async () => {
+        try {
+          await Promise.allSettled([
+            fetchCol('businesses', setBusinesses, query(collection(db, 'businesses'), limit(30))),
+            fetchCol('business_updates', setBusinessUpdates, query(collection(db, 'business_updates'), limit(30))),
+            fetchCol('business_reports', setBusinessReports, query(collection(db, 'business_reports'), limit(30)))
+          ]);
+        } catch (e) {
+          console.warn('Business fetch notice:', e);
+        }
+      };
+      fetchBusiness();
+    }
+
+    return () => {
+      isMounted = false;
+      sectionUnsubs.forEach(unsub => {
+        try { unsub(); } catch (e) {}
+      });
+    };
+  }, [
+    sectionFlags.fanServices,
+    sectionFlags.worldFans,
+    sectionFlags.fanStore,
+    sectionFlags.itthadawyBusiness
+  ]);
 
   // 2. User-specific Data Effect - Starts/stops purely based on Auth state without touching public data
   useEffect(() => {

@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 export default function TopHeader() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { profile, theme, toggleTheme, appSettings } = useAppStore();
+  const { profile, theme, toggleTheme, appSettings, sectionFlags } = useAppStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [permission, setPermission] = useState<string>(() => {
@@ -231,7 +231,7 @@ export default function TopHeader() {
               { path: '/matches', label: 'المباريات' },
               { path: '/live', label: 'البث المباشر 🔴' },
               { path: '/fan-zone', label: 'فان زون ⚽' },
-              { path: '/world-fans', label: 'اتحاداوية العالم 🌍' },
+              ...(sectionFlags.worldFans !== false ? [{ path: '/world-fans', label: 'اتحاداوية العالم 🌍' }] : []),
               { path: '/library', label: 'المكتبة' },
               { path: '/social', label: 'سوشيال ميديا' },
             ].map(item => {

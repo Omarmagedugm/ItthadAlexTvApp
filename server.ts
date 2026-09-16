@@ -22,12 +22,9 @@ async function startServer() {
   const app = express();
 
   const distPath = path.resolve(process.cwd(), 'dist');
-  const isAISDevelopmentSandbox = Boolean(
-    process.env.CONTROL_PLANE_PORT &&
-    (process.env.npm_lifecycle_event === 'dev' || process.env.NODE_ENV !== 'production')
-  );
   const isBundled = typeof __filename !== 'undefined' && __filename.endsWith('.cjs');
-  const isProduction = !isAISDevelopmentSandbox || isBundled || process.env.NODE_ENV === 'production';
+  const isDev = process.env.npm_lifecycle_event === 'dev' && !isBundled;
+  const isProduction = !isDev || isBundled || process.env.NODE_ENV === 'production';
 
   // The application container runs an nginx proxy on external port (8080) that strictly proxies to 3000.
   // Port 3000 is required by the container infrastructure in both dev and production.
@@ -65,8 +62,8 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
 
   // API Routes & Health Checks
-  app.get(['/api/health', '/health'], (req, res) => {
-    res.json({ status: 'ok' });
+  app.get(['/api/health', '/health', '/healthz', '/_health', '/_ah/health'], (req, res) => {
+    res.status(200).json({ status: 'ok', time: new Date().toISOString() });
   });
 
   // OneSignal Push Notification Dispatch Endpoint (Secure Server-Side with REST API Key)
@@ -628,21 +625,29 @@ OUTPUT: Return ONLY the transformed image.`;
   });
 
   // Vite middleware for development vs static dist serving in production
+  let viteLoaded = false;
   if (!isProduction) {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+      viteLoaded = true;
+    } catch (viteErr) {
+      console.warn('Vite development server could not be started, falling back to static files:', viteErr);
+    }
+  }
+
+  if (isProduction || !viteLoaded) {
     const staticPath = fs.existsSync(path.join(distPath, 'index.html'))
       ? distPath
       : ((typeof __dirname !== 'undefined' && fs.existsSync(path.join(__dirname, 'index.html'))) ? __dirname : distPath);
 
     if (fs.existsSync(staticPath) && fs.existsSync(path.join(staticPath, 'index.html'))) {
       app.use(express.static(staticPath));
-      app.get('*all', (req, res) => {
+      app.use((req, res) => {
         if (req.path.startsWith('/api/')) {
           return res.status(404).json({ error: 'Endpoint not found' });
         }
@@ -651,12 +656,13 @@ OUTPUT: Return ONLY the transformed image.`;
       console.log('Serving static files from:', staticPath);
     } else {
       console.error('DIST folder not found! Build may have failed.');
-      app.get('*all', (req, res) => {
+      app.use((req, res) => {
         res.status(500).send('Application is building or failed to build. Please check logs.');
       });
     }
   }
 
+  // Primary container port: 3000 (Required for internal reverse proxy and container sandbox)
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT} (mode: ${isProduction ? 'production' : 'development'})`);
   });
@@ -664,6 +670,27 @@ OUTPUT: Return ONLY the transformed image.`;
   server.on('error', (err: any) => {
     console.error(`Server error on port ${PORT}:`, err);
   });
+
+  // If deployed to Cloud Run or external container where PORT environment variable is designated (e.g. 8080),
+  // also bind a listener to process.env.PORT to satisfy Cloud Run's ingress routing and health checks.
+  const envPort = process.env.PORT ? parseInt(process.env.PORT, 10) : null;
+  if (envPort && envPort !== PORT) {
+    try {
+      const externalServer = app.listen(envPort, '0.0.0.0', () => {
+        console.log(`Cloud Run ingress listener active on http://0.0.0.0:${envPort}`);
+      });
+      externalServer.on('error', (err: any) => {
+        if (err.code === 'EADDRINUSE') {
+          // In dev/sandbox environment, port 8080 is already bound by the reverse proxy; ignore safely.
+          console.log(`Port ${envPort} already managed by infrastructure proxy, using port ${PORT}`);
+        } else {
+          console.error(`Ingress port ${envPort} warning:`, err);
+        }
+      });
+    } catch (e) {
+      console.warn(`Could not bind secondary port ${envPort}:`, e);
+    }
+  }
 
   process.on('SIGTERM', () => {
     console.log('SIGTERM signal received: closing HTTP server');

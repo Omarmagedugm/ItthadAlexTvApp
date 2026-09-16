@@ -16,7 +16,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, onClose, profile }: SidebarProps) {
-  const { appSettings, customPages, aiConfig, sidebarMenuItems } = useAppStore();
+  const { appSettings, customPages, aiConfig, sidebarMenuItems, sectionFlags } = useAppStore();
   const navigate = useNavigate();
   
   // High-level admin check
@@ -57,6 +57,10 @@ export default function Sidebar({ isOpen, onClose, profile }: SidebarProps) {
     .filter(item => item.active !== false)
     .filter(item => {
       if (item.id === 'jersey-tryon' && aiConfig?.enabled === false) return false;
+      if (sectionFlags.fanServices === false && (item.id === 'public-services' || item.id === 'services' || item.path === '/services' || item.path === '/public-services' || item.path?.startsWith('/services') || item.path?.startsWith('/education'))) return false;
+      if (sectionFlags.worldFans === false && (item.id === 'world-fans' || item.path === '/world-fans' || item.path === '/world-association')) return false;
+      if (sectionFlags.fanStore === false && (item.id === 'store' || item.path === '/store')) return false;
+      if (sectionFlags.itthadawyBusiness === false && (item.id === 'business' || item.path === '/business' || item.path?.startsWith('/business'))) return false;
       return true;
     })
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
