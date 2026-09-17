@@ -11,13 +11,14 @@ import {
   Calendar, 
   Trophy, 
   MapPin, 
-  Dribbble,
-  Info
+  Info,
+  ShieldCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, addDoc } from 'firebase/firestore';
-import { useAppStore } from '../store';
+import { collection, doc, writeBatch } from 'firebase/firestore';
+import { useAppStore, MatchItem, ClubItem } from '../store';
+import { logAdminActivity } from '../lib/auditLogger';
 
 export interface ParsedMatchRow {
   id: string;
@@ -33,7 +34,7 @@ export interface ParsedMatchRow {
   competition: string;
   stadium: string;
   status: 'upcoming' | 'live' | 'finished';
-  sport: 'football' | 'basketball' | 'other';
+  sport: 'football' | 'basketball';
   isValid: boolean;
   validationError?: string;
 }
@@ -46,6 +47,13 @@ interface CsvMatchesImporterProps {
 
 const DEFAULT_HOME_LOGO = '/icon.png';
 const DEFAULT_AWAY_LOGO = '/icon.png';
+
+// Convert Arabic-Indic numerals to standard ASCII numerals
+function normalizeNumerals(str: string): string {
+  if (!str) return '';
+  const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  return str.replace(/[٠-٩]/g, (d) => arabicNumerals.indexOf(d).toString());
+}
 
 // Robust CSV Line Parser that handles quotes, escaped quotes, and different delimiters
 function parseCsvLine(line: string, delimiter: string = ','): string[] {
@@ -75,6 +83,9 @@ function parseCsvLine(line: string, delimiter: string = ','): string[] {
   return result;
 }
 
+// Clean payload to prevent Firestore "Unsupported field value: undefined" errors
+const cleanPayload = <T,>(obj: T): T => JSON.parse(JSON.stringify(obj));
+
 export default function CsvMatchesImporter({ isOpen, onClose, onSuccess }: CsvMatchesImporterProps) {
   const { clubs } = useAppStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -91,10 +102,10 @@ export default function CsvMatchesImporter({ isOpen, onClose, onSuccess }: CsvMa
   const downloadSampleCsv = () => {
     const sampleHeaders = 'الفريق المضيف,الفريق الضيف,التاريخ,الوقت,البطولة,الملعب,الحالة,الرياضة,نتيجة المضيف,نتيجة الضيف\n';
     const sampleData = [
-      'الاتحاد السكندري,الأهلي,2026-09-15,19:00,الدوري المصري الممتاز,ستاد الإسكندرية,upcoming,football,-,-',
-      'الاتحاد السكندري,الزمالك,2026-09-22,21:00,الدوري المصري الممتاز,ستاد الإسكندرية,upcoming,football,-,-',
-      'الاتحاد السكندري,بيراميدز,2026-10-05,18:30,كأس مصر,ستاد الإسكندرية,upcoming,football,-,-',
-      'الاتحاد السكندري,الأهلي السكندري,2026-10-12,18:00,دوري السلة السوبر,صالة الشاطبي,upcoming,basketball,-,-'
+      'الاتحاد السكندري,الأهلي,2026-09-25,19:00,الدوري المصري الممتاز,ستاد الإسكندرية,upcoming,football,-,-',
+      'الاتحاد السكندري,الزمالك,2026-10-02,21:00,الدوري المصري الممتاز,ستاد الإسكندرية,upcoming,football,-,-',
+      'الاتحاد السكندري,بيراميدز,2026-10-15,18:30,كأس مصر,ستاد الإسكندرية,upcoming,football,-,-',
+      'الاتحاد السكندري,سبورتنج,2026-10-22,18:00,دوري السوبر لكرة السلة,صالة الشاطبي,upcoming,basketball,-,-'
     ].join('\n');
 
     const csvContent = '\uFEFF' + sampleHeaders + sampleData; // UTF-8 BOM for Excel Arabic support
@@ -139,37 +150,84 @@ export default function CsvMatchesImporter({ isOpen, onClose, onSuccess }: CsvMa
     try {
       setIsProcessingFile(true);
       
-      // Normalize newlines
-      const lines = csvText.split(/\r\n|\n|\r/).filter(line => line.trim().length > 0);
+      // Normalize newlines and strip BOM
+      const cleanText = csvText.replace(/^\uFEFF/, '').trim();
+      const lines = cleanText.split(/\r\n|\n|\r/).filter(line => line.trim().length > 0);
       if (lines.length < 2) {
-        toast.error('ملف CSV فارغ أو لا يحتوي على بيانات مباريات');
+        toast.error('ملف CSV فارغ أو لا يحتوي على صفوف بيانات');
         setIsProcessingFile(false);
         return;
       }
 
-      // Determine delimiter (, or ;)
+      // Determine delimiter (, or ; or \t)
       const firstLine = lines[0];
-      const delimiter = firstLine.includes(';') && !firstLine.includes(',') ? ';' : ',';
+      let delimiter = ',';
+      if (firstLine.includes('\t') && !firstLine.includes(',')) {
+        delimiter = '\t';
+      } else if (firstLine.includes(';') && !firstLine.includes(',')) {
+        delimiter = ';';
+      }
 
-      const rawHeaders = parseCsvLine(firstLine, delimiter).map(h => h.toLowerCase().trim());
+      const rawHeaders = parseCsvLine(firstLine, delimiter).map(h => 
+        h.replace(/^\uFEFF/, '').trim().toLowerCase()
+      );
 
-      // Header index mapping helper
+      // Header index mapping helper with relaxed Arabic & English matching
       const getHeaderIndex = (aliases: string[]): number => {
-        return rawHeaders.findIndex(h => aliases.some(alias => h.includes(alias.toLowerCase())));
+        return rawHeaders.findIndex(h => {
+          const cleanH = h.replace(/[\s_\-]/g, '').toLowerCase();
+          return aliases.some(alias => {
+            const cleanAlias = alias.replace(/[\s_\-]/g, '').toLowerCase();
+            return cleanH === cleanAlias || cleanH.includes(cleanAlias) || cleanAlias.includes(cleanH);
+          });
+        });
       };
 
-      const homeTeamIdx = getHeaderIndex(['homeTeam', 'home_team', 'الفريق المضيف', 'الفريق الأول', 'المضيف', 'فريق 1', 'الفريق1']);
-      const awayTeamIdx = getHeaderIndex(['awayTeam', 'away_team', 'الفريق الضيف', 'الفريق الثاني', 'الضيف', 'فريق 2', 'الفريق2']);
-      const dateIdx = getHeaderIndex(['date', 'match_date', 'التاريخ', 'تاريخ المباراة', 'تاريخ']);
-      const timeIdx = getHeaderIndex(['time', 'match_time', 'الوقت', 'توقيت المباراة', 'التوقيت', 'وقت']);
-      const competitionIdx = getHeaderIndex(['competition', 'league', 'tournament', 'البطولة', 'المسابقة', 'الدوري']);
-      const stadiumIdx = getHeaderIndex(['stadium', 'venue', 'location', 'الملعب', 'اسم الملعب', 'المكان']);
-      const statusIdx = getHeaderIndex(['status', 'الحالة']);
-      const sportIdx = getHeaderIndex(['sport', 'الرياضة', 'نوع الرياضة']);
-      const homeScoreIdx = getHeaderIndex(['homeScore', 'home_score', 'نتيجة المضيف', 'أهداف المضيف', 'اهداف المضيف']);
-      const awayScoreIdx = getHeaderIndex(['awayScore', 'away_score', 'نتيجة الضيف', 'أهداف الضيف', 'اهداف الضيف']);
-      const homeLogoIdx = getHeaderIndex(['homeLogo', 'home_logo', 'شعار المضيف']);
-      const awayLogoIdx = getHeaderIndex(['awayLogo', 'away_logo', 'شعار الضيف']);
+      const homeTeamIdx = getHeaderIndex([
+        'hometeam', 'home_team', 'home team', 'home', 'الفريق المضيف', 'المضيف', 'فريق مضيف', 
+        'الفريق الأول', 'الفريق1', 'فريق 1', 'صاحب الأرض', 'الأول', 'مضيف', 'نادي 1', 'مستضيف'
+      ]);
+      const awayTeamIdx = getHeaderIndex([
+        'awayteam', 'away_team', 'away team', 'away', 'الفريق الضيف', 'الضيف', 'فريق ضيف', 
+        'الفريق الثاني', 'الفريق2', 'فريق 2', 'الخصم', 'المنافس', 'فريق الخصم', 'الفريق المنافس', 
+        'الفرق المنافسة', 'الثاني', 'ضيف', 'نادي 2', 'opponent', 'guest', 'visitor'
+      ]);
+      const matchIdx = getHeaderIndex([
+        'match', 'game', 'fixture', 'المباراة', 'المباراه', 'اللقاء', 'طرفي المباراة', 'المواجهة'
+      ]);
+      const dateIdx = getHeaderIndex([
+        'date', 'match_date', 'matchdate', 'التاريخ', 'تاريخ المباراة', 'تاريخ', 'يوم'
+      ]);
+      const timeIdx = getHeaderIndex([
+        'time', 'match_time', 'matchtime', 'الوقت', 'توقيت المباراة', 'التوقيت', 'وقت', 'الساعة', 'ميعاد'
+      ]);
+      const competitionIdx = getHeaderIndex([
+        'competition', 'league', 'tournament', 'البطولة', 'المسابقة', 'الدوري', 'كأس', 'المنافسة'
+      ]);
+      const stadiumIdx = getHeaderIndex([
+        'stadium', 'venue', 'location', 'pitch', 'الملعب', 'اسم الملعب', 'المكان', 'الاستاد', 'صالة'
+      ]);
+      const statusIdx = getHeaderIndex([
+        'status', 'الحالة', 'حالة المباراة'
+      ]);
+      const sportIdx = getHeaderIndex([
+        'sport', 'الرياضة', 'نوع الرياضة', 'اللعبة'
+      ]);
+      const scoreIdx = getHeaderIndex([
+        'score', 'result', 'النتيجة', 'نتيجة المباراة', 'نتيجة اللقاء'
+      ]);
+      const homeScoreIdx = getHeaderIndex([
+        'homescore', 'home_score', 'نتيجة المضيف', 'أهداف المضيف', 'اهداف المضيف', 'أهداف الأول', 'اهداف الأول'
+      ]);
+      const awayScoreIdx = getHeaderIndex([
+        'awayscore', 'away_score', 'نتيجة الضيف', 'أهداف الضيف', 'اهداف الضيف', 'أهداف الخصم', 'اهداف الخصم', 'أهداف الثاني', 'اهداف الثاني'
+      ]);
+      const homeLogoIdx = getHeaderIndex([
+        'homelogo', 'home_logo', 'شعار المضيف', 'شعار الفريق الأول'
+      ]);
+      const awayLogoIdx = getHeaderIndex([
+        'awaylogo', 'away_logo', 'شعار الضيف', 'شعار الخصم', 'شعار الفريق الثاني'
+      ]);
 
       const parsed: ParsedMatchRow[] = [];
 
@@ -177,39 +235,82 @@ export default function CsvMatchesImporter({ isOpen, onClose, onSuccess }: CsvMa
         const row = parseCsvLine(lines[i], delimiter);
         if (row.length === 0 || (row.length === 1 && !row[0])) continue;
 
-        const homeTeamRaw = homeTeamIdx !== -1 && row[homeTeamIdx] ? row[homeTeamIdx] : 'الاتحاد السكندري';
-        const awayTeamRaw = awayTeamIdx !== -1 && row[awayTeamIdx] ? row[awayTeamIdx] : '';
-        const dateRaw = dateIdx !== -1 && row[dateIdx] ? row[dateIdx] : '';
-        const timeRaw = timeIdx !== -1 && row[timeIdx] ? row[timeIdx] : '19:00';
-        const compRaw = competitionIdx !== -1 && row[competitionIdx] ? row[competitionIdx] : 'الدوري المصري الممتاز';
-        const stadiumRaw = stadiumIdx !== -1 && row[stadiumIdx] ? row[stadiumIdx] : 'ستاد الإسكندرية';
-        const statusRaw = statusIdx !== -1 && row[statusIdx] ? row[statusIdx].toLowerCase() : 'upcoming';
-        const sportRaw = sportIdx !== -1 && row[sportIdx] ? row[sportIdx].toLowerCase() : 'football';
-        const homeScoreRaw = homeScoreIdx !== -1 && row[homeScoreIdx] ? row[homeScoreIdx] : '-';
-        const awayScoreRaw = awayScoreIdx !== -1 && row[awayScoreIdx] ? row[awayScoreIdx] : '-';
-        const homeLogoRaw = homeLogoIdx !== -1 && row[homeLogoIdx] ? row[homeLogoIdx] : '';
-        const awayLogoRaw = awayLogoIdx !== -1 && row[awayLogoIdx] ? row[awayLogoIdx] : '';
+        let homeTeamRaw = homeTeamIdx !== -1 && row[homeTeamIdx] ? row[homeTeamIdx].trim() : '';
+        let awayTeamRaw = awayTeamIdx !== -1 && row[awayTeamIdx] ? row[awayTeamIdx].trim() : '';
+
+        // If there is a combined "Match" column (e.g. "الاتحاد السكندري ضد الأهلي" or "الاتحاد × الزمالك")
+        if ((!homeTeamRaw || !awayTeamRaw) && matchIdx !== -1 && row[matchIdx]) {
+          const matchCell = row[matchIdx].trim();
+          const splitDelimiters = [' ضد ', ' vs ', ' vs. ', ' × ', ' x ', ' - '];
+          for (const d of splitDelimiters) {
+            if (matchCell.includes(d)) {
+              const parts = matchCell.split(d);
+              if (parts.length >= 2) {
+                if (!homeTeamRaw) homeTeamRaw = parts[0].trim();
+                if (!awayTeamRaw) awayTeamRaw = parts[1].trim();
+                break;
+              }
+            }
+          }
+        }
+
+        // Contextual fallback: in Al Ittihad club app, if only one team is mentioned, it's Al Ittihad vs Opponent
+        if (!homeTeamRaw && awayTeamRaw) {
+          homeTeamRaw = 'الاتحاد السكندري';
+        } else if (homeTeamRaw && !awayTeamRaw) {
+          if (homeTeamRaw.includes('الاتحاد') || homeTeamRaw.toLowerCase().includes('ittihad')) {
+            awayTeamRaw = ''; // Missing opponent
+          } else {
+            awayTeamRaw = homeTeamRaw;
+            homeTeamRaw = 'الاتحاد السكندري';
+          }
+        } else if (!homeTeamRaw && !awayTeamRaw) {
+          homeTeamRaw = 'الاتحاد السكندري';
+        }
+
+        const dateRaw = dateIdx !== -1 && row[dateIdx] ? normalizeNumerals(row[dateIdx].trim()) : '';
+        const timeRaw = timeIdx !== -1 && row[timeIdx] ? normalizeNumerals(row[timeIdx].trim()) : '19:00';
+        const compRaw = competitionIdx !== -1 && row[competitionIdx] ? row[competitionIdx].trim() : 'الدوري المصري الممتاز';
+        const stadiumRaw = stadiumIdx !== -1 && row[stadiumIdx] ? row[stadiumIdx].trim() : 'ستاد الإسكندرية';
+        const statusRaw = statusIdx !== -1 && row[statusIdx] ? row[statusIdx].trim().toLowerCase() : 'upcoming';
+        const sportRaw = sportIdx !== -1 && row[sportIdx] ? row[sportIdx].trim().toLowerCase() : 'football';
+
+        // Scores parsing (handles combined "2 - 1" or separate columns)
+        let homeScoreRaw = homeScoreIdx !== -1 && row[homeScoreIdx] ? normalizeNumerals(row[homeScoreIdx].trim()) : '';
+        let awayScoreRaw = awayScoreIdx !== -1 && row[awayScoreIdx] ? normalizeNumerals(row[awayScoreIdx].trim()) : '';
+        if ((!homeScoreRaw || !awayScoreRaw) && scoreIdx !== -1 && row[scoreIdx]) {
+          const scoreCell = normalizeNumerals(row[scoreIdx].trim());
+          const scoreParts = scoreCell.split(/[-:–]/);
+          if (scoreParts.length === 2) {
+            if (!homeScoreRaw) homeScoreRaw = scoreParts[0].trim();
+            if (!awayScoreRaw) awayScoreRaw = scoreParts[1].trim();
+          }
+        }
+
+        const homeLogoRaw = homeLogoIdx !== -1 && row[homeLogoIdx] ? row[homeLogoIdx].trim() : '';
+        const awayLogoRaw = awayLogoIdx !== -1 && row[awayLogoIdx] ? row[awayLogoIdx].trim() : '';
 
         // Validation check
         let isValid = true;
         let validationError = '';
 
-        if (!awayTeamRaw) {
+        if (!awayTeamRaw || awayTeamRaw === 'الاتحاد السكندري' || awayTeamRaw === 'الاتحاد') {
           isValid = false;
-          validationError = 'اسم الفريق الضيف مطلوب';
+          validationError = 'اسم الفريق المنافس غير محدد بدقة';
         }
 
-        // Parse date and time
+        // Parse date and time safely
         let isoDate = new Date().toISOString();
         let displayDate = dateRaw || 'غير محدد';
         let displayTime = timeRaw || '19:00';
 
         if (dateRaw) {
           try {
-            // Handle YYYY-MM-DD or DD/MM/YYYY or YYYY/MM/DD
             let formattedDateStr = dateRaw.trim();
-            if (formattedDateStr.includes('/')) {
-              const parts = formattedDateStr.split('/');
+            // Handle delimiters / or - or .
+            if (formattedDateStr.includes('/') || formattedDateStr.includes('.')) {
+              const sep = formattedDateStr.includes('/') ? '/' : '.';
+              const parts = formattedDateStr.split(sep);
               if (parts.length === 3) {
                 if (parts[0].length === 4) {
                   // YYYY/MM/DD
@@ -221,7 +322,10 @@ export default function CsvMatchesImporter({ isOpen, onClose, onSuccess }: CsvMa
               }
             }
 
-            const cleanTime = timeRaw ? timeRaw.trim() : '19:00';
+            let cleanTime = timeRaw ? timeRaw.trim() : '19:00';
+            if (cleanTime.length === 4 && cleanTime.includes(':')) {
+              cleanTime = '0' + cleanTime;
+            }
             const fullDateString = `${formattedDateStr}T${cleanTime.length === 5 ? cleanTime + ':00' : cleanTime}`;
             const d = new Date(fullDateString);
             
@@ -229,7 +333,6 @@ export default function CsvMatchesImporter({ isOpen, onClose, onSuccess }: CsvMa
               isoDate = d.toISOString();
               displayDate = formattedDateStr;
             } else {
-              // Try fallback direct Date parse
               const fallbackD = new Date(dateRaw);
               if (!isNaN(fallbackD.getTime())) {
                 isoDate = fallbackD.toISOString();
@@ -249,7 +352,7 @@ export default function CsvMatchesImporter({ isOpen, onClose, onSuccess }: CsvMa
         }
 
         // Determine Sport
-        let finalSport: 'football' | 'basketball' | 'other' = 'football';
+        let finalSport: 'football' | 'basketball' = 'football';
         if (sportRaw.includes('سلة') || sportRaw.includes('basket')) {
           finalSport = 'basketball';
         }
@@ -279,10 +382,13 @@ export default function CsvMatchesImporter({ isOpen, onClose, onSuccess }: CsvMa
       }
 
       setParsedRows(parsed);
+      const validCount = parsed.filter(r => r.isValid).length;
       if (parsed.length === 0) {
-        toast.error('لم يتم العثور على أي مباريات صحيحة في الملف');
+        toast.error('لم يتم العثور على أي بيانات مباريات في الملف');
+      } else if (validCount === 0) {
+        toast.error('تم قراءة الملف ولكن لا توجد صفوف صالحة. يرجى التأكد من تسمية الأعمدة واسم الفريق المنافس.');
       } else {
-        toast.success(`تم تحليل ${parsed.length} مباراة من الملف`);
+        toast.success(`تم قراءة ${parsed.length} مباراة من الملف (${validCount} جاهزة للحفظ)`);
       }
     } catch (err) {
       console.error('CSV Processing error:', err);
@@ -327,6 +433,7 @@ export default function CsvMatchesImporter({ isOpen, onClose, onSuccess }: CsvMa
     setParsedRows(prev => prev.filter(r => r.id !== id));
   };
 
+  // Perform atomic batch import and directly update local Zustand store
   const handleImportAll = async () => {
     const validRows = parsedRows.filter(r => r.isValid);
     if (validRows.length === 0) {
@@ -337,63 +444,107 @@ export default function CsvMatchesImporter({ isOpen, onClose, onSuccess }: CsvMa
     setIsUploading(true);
     setUploadProgress({ current: 0, total: validRows.length });
 
-    let countSuccess = 0;
+    const createdMatches: MatchItem[] = [];
+    const newClubsToRegister: ClubItem[] = [];
+    const currentClubs = useAppStore.getState().clubs || [];
+    const registeredClubNames = new Set(currentClubs.map(c => c.name.trim().toLowerCase()));
 
-    for (let i = 0; i < validRows.length; i++) {
-      const row = validRows[i];
-      setUploadProgress({ current: i + 1, total: validRows.length });
+    try {
+      // Chunk into batches of 200 (well within Firestore 500 limit)
+      const BATCH_SIZE = 200;
+      for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
+        const chunk = validRows.slice(i, i + BATCH_SIZE);
+        const batch = writeBatch(db);
 
-      const payload = {
-        homeTeam: row.homeTeam,
-        awayTeam: row.awayTeam,
-        homeLogo: row.homeLogo,
-        awayLogo: row.awayLogo,
-        homeScore: row.homeScore,
-        awayScore: row.awayScore,
-        date: row.date,
-        competition: row.competition,
-        status: row.status,
-        stadium: row.stadium,
-        stadiumImage: '',
-        stadiumOpacity: 0.2,
-        timerStartTime: null,
-        timerBaseMinute: 0,
-        isTimerRunning: false,
-        isMatchDay: false,
-        featured: false,
-        sport: row.sport
-      };
+        for (const row of chunk) {
+          const matchRef = doc(collection(db, 'matches'));
+          const payload: MatchItem = {
+            id: matchRef.id,
+            homeTeam: row.homeTeam || 'الاتحاد السكندري',
+            awayTeam: row.awayTeam,
+            homeLogo: row.homeLogo || DEFAULT_HOME_LOGO,
+            awayLogo: row.awayLogo || DEFAULT_AWAY_LOGO,
+            homeScore: row.homeScore || (row.status === 'upcoming' ? '-' : '0'),
+            awayScore: row.awayScore || (row.status === 'upcoming' ? '-' : '0'),
+            date: row.date,
+            competition: row.competition || 'الدوري المصري الممتاز',
+            status: row.status,
+            stadium: row.stadium || 'ستاد الإسكندرية',
+            stadiumImage: '',
+            stadiumOpacity: 0.2,
+            timerStartTime: null,
+            timerBaseMinute: 0,
+            isTimerRunning: false,
+            isMatchDay: false,
+            featured: false,
+            sport: row.sport
+          };
 
-      try {
-        await addDoc(collection(db, 'matches'), payload);
-        countSuccess++;
+          batch.set(matchRef, cleanPayload(payload));
+          createdMatches.push(payload);
 
-        // Auto add clubs if they don't exist in clubs collection
-        const checkAndAddClub = async (name: string, logo: string) => {
-          if (name && name !== 'الاتحاد' && name !== 'الاتحاد السكندري' && !clubs.find(c => c.name === name)) {
-            try {
-              await addDoc(collection(db, 'clubs'), { name, logo });
-            } catch (err) {
-              console.error('Error adding club:', err);
+          // Check if opponent club should be added to clubs collection
+          const checkOpponent = (name: string, logo: string) => {
+            const clean = (name || '').trim().toLowerCase();
+            if (clean && !clean.includes('الاتحاد') && !clean.includes('ittihad') && !registeredClubNames.has(clean)) {
+              registeredClubNames.add(clean);
+              const clubRef = doc(collection(db, 'clubs'));
+              const clubData: ClubItem = {
+                id: clubRef.id,
+                name: name.trim(),
+                logo: logo || DEFAULT_AWAY_LOGO
+              };
+              batch.set(clubRef, cleanPayload(clubData));
+              newClubsToRegister.push(clubData);
             }
-          }
-        };
-        await checkAndAddClub(row.homeTeam, row.homeLogo);
-        await checkAndAddClub(row.awayTeam, row.awayLogo);
+          };
 
-      } catch (err) {
-        console.error(`Error importing match ${row.homeTeam} vs ${row.awayTeam}:`, err);
-        handleFirestoreError(err, OperationType.CREATE, 'matches');
+          checkOpponent(row.homeTeam, row.homeLogo);
+          checkOpponent(row.awayTeam, row.awayLogo);
+        }
+
+        await batch.commit();
+        setUploadProgress({ 
+          current: Math.min(i + BATCH_SIZE, validRows.length), 
+          total: validRows.length 
+        });
       }
-    }
 
-    setIsUploading(false);
-    toast.success(`تم استيراد ${countSuccess} مباراة بنجاح!`);
-    
-    if (onSuccess) {
-      onSuccess();
+      // 1. Immediately update Zustand Store so the matches appear instantly in Admin list
+      useAppStore.setState(state => {
+        const existingIds = new Set(state.matches.map(m => m.id));
+        const deduplicatedNew = createdMatches.filter(m => !existingIds.has(m.id));
+        return {
+          matches: [...deduplicatedNew, ...state.matches],
+          clubs: newClubsToRegister.length > 0 ? [...newClubsToRegister, ...state.clubs] : state.clubs
+        };
+      });
+
+      // 2. Log activity in Admin Audit Logs
+      await logAdminActivity({
+        action: 'create',
+        collectionName: 'matches',
+        collectionLabel: 'جدول المباريات',
+        itemId: `bulk_csv_${Date.now()}`,
+        itemTitle: `استيراد ${createdMatches.length} مباراة بالجملة عبر CSV`,
+        details: `تم استيراد ${createdMatches.length} مباراة بنجاح إلى جدول المباريات في لوحة التحكم`
+      });
+
+      toast.success(`تم استيراد وحفظ ${createdMatches.length} مباراة بنجاح في الجدول! ⚽`);
+      setParsedRows([]);
+
+      if (onSuccess) {
+        onSuccess();
+      }
+      onClose();
+
+    } catch (err: any) {
+      console.error('Error batch importing matches from CSV:', err);
+      handleFirestoreError(err, OperationType.CREATE, 'matches');
+      toast.error('حدث خطأ أثناء حفظ المباريات في قاعدة البيانات: ' + (err?.message || 'تحقق من الصلاحيات'));
+    } finally {
+      setIsUploading(false);
     }
-    onClose();
   };
 
   return (
@@ -408,7 +559,7 @@ export default function CsvMatchesImporter({ isOpen, onClose, onSuccess }: CsvMa
             </div>
             <div>
               <h2 className="text-lg font-black text-slate-900 dark:text-white">إضافة مباريات بالجملة (CSV)</h2>
-              <p className="text-xs font-bold text-slate-500">رفع جدول المباريات دفعة واحدة عبر ملف CSV</p>
+              <p className="text-xs font-bold text-slate-500">رفع جدول المباريات دفعة واحدة وحفظه مباشرة في قاعدة البيانات</p>
             </div>
           </div>
           
@@ -425,14 +576,14 @@ export default function CsvMatchesImporter({ isOpen, onClose, onSuccess }: CsvMa
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
           
           {/* Instructions and Sample Download */}
-          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
-              <Info className="text-blue-500 shrink-0 mt-0.5" size={18} />
-              <div className="text-xs font-bold text-blue-900 dark:text-blue-200 leading-relaxed">
-                يمكنك إعداد ملف CSV أو شيت Excel يحتوي على الأعمدة التالية:
+              <Info className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" size={18} />
+              <div className="text-xs font-bold text-emerald-950 dark:text-emerald-200 leading-relaxed">
+                يدعم النظام ملفات CSV وجداول Excel المصدرة بالعربية أو الإنجليزية:
                 <br />
                 <span className="text-[11px] opacity-80">
-                  الفريق المضيف، الفريق الضيف، التاريخ، الوقت، البطولة، الملعب، الحالة، الرياضة
+                  الفريق المضيف (أو الخصم)، الفريق الضيف، التاريخ، الوقت، البطولة، الملعب، الحالة، الرياضة
                 </span>
               </div>
             </div>
@@ -440,7 +591,7 @@ export default function CsvMatchesImporter({ isOpen, onClose, onSuccess }: CsvMa
             <button
               onClick={downloadSampleCsv}
               type="button"
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-black shadow-sm shrink-0 transition-all active:scale-95"
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-black shadow-sm shrink-0 transition-all active:scale-95"
             >
               <Download size={14} />
               تحميل نموذج CSV
@@ -477,7 +628,7 @@ export default function CsvMatchesImporter({ isOpen, onClose, onSuccess }: CsvMa
                   اسحب ملف CSV هنا أو انقر للاختيار من الجهاز
                 </p>
                 <p className="text-xs font-bold text-slate-400 mt-1">
-                  يدعم صيغ .csv مع ترميز UTF-8
+                  يدعم صيغ .csv مع ترميز UTF-8 وفواصل (,) أو (;) أو Tabs
                 </p>
               </div>
             </div>
@@ -625,12 +776,12 @@ export default function CsvMatchesImporter({ isOpen, onClose, onSuccess }: CsvMa
               {isUploading ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  <span>جاري استيراد ({uploadProgress.current}/{uploadProgress.total})...</span>
+                  <span>جاري حفظ ({uploadProgress.current}/{uploadProgress.total})...</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 size={16} />
-                  <span>استيراد جميع المباريات ({parsedRows.filter(r => r.isValid).length})</span>
+                  <span>حفظ واستيراد المباريات ({parsedRows.filter(r => r.isValid).length})</span>
                 </>
               )}
             </button>

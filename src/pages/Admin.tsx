@@ -7888,6 +7888,9 @@ export default function Admin() {
       <CsvMatchesImporter 
         isOpen={isCsvImporterOpen} 
         onClose={() => setIsCsvImporterOpen(false)} 
+        onSuccess={() => {
+          toast.success('تم تحديث جدول المباريات في لوحة التحكم');
+        }}
       />
 
       {/* CSV Videos Importer Modal */}

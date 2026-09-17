@@ -132,7 +132,7 @@ export function useFirestoreSync() {
 
       // Dynamic collections with strict limits
       const unsubMatches = subscribeSnapshot(
-        query(collection(db, 'matches'), orderBy('date', 'desc'), limit(30)), 
+        query(collection(db, 'matches'), orderBy('date', 'desc'), limit(100)), 
         (snap) => {
           setMatches(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any);
         }, 
