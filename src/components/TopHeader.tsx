@@ -34,18 +34,30 @@ export default function TopHeader() {
     }
   }, [location.pathname]);
 
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  // Page logo is PNG by default (/icon.png or custom configured logo)
+  const customLightLogo = appSettings?.headerLogoLight || appSettings?.appLogo || '/icon.png';
+  const customDarkLogo = appSettings?.headerLogoDark || appSettings?.appLogo || '/icon.png';
+  const currentLogo = (theme === 'dark' ? (customDarkLogo || customLightLogo) : (customLightLogo || customDarkLogo)) || '/icon.png';
 
-  // Only use an image logo if a custom header logo or custom app logo is configured (avoiding the generic icon.png fallback)
-  const customLightLogo = appSettings?.headerLogoLight || (appSettings?.appLogo && appSettings.appLogo !== '/icon.png' ? appSettings.appLogo : '');
-  const customDarkLogo = appSettings?.headerLogoDark || (appSettings?.appLogo && appSettings.appLogo !== '/icon.png' ? appSettings.appLogo : '');
-  const currentLogo = appSettings?.logoType === 'text' 
-    ? '' 
-    : (theme === 'dark' ? (customDarkLogo || customLightLogo) : (customLightLogo || customDarkLogo));
+  // Check if image is already cached/loaded to avoid text flash during client navigation
+  const [isImageLoaded, setIsImageLoaded] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const img = new Image();
+      img.src = currentLogo;
+      return img.complete && img.naturalWidth > 0;
+    }
+    return false;
+  });
 
   useEffect(() => {
     setImageError(false);
-    setIsImageLoaded(false);
+    if (typeof window !== 'undefined') {
+      const img = new Image();
+      img.src = currentLogo;
+      if (img.complete && img.naturalWidth > 0) {
+        setIsImageLoaded(true);
+      }
+    }
   }, [currentLogo]);
 
   // Keep permission state in sync with browser efficiently via focus/visibilitychange
@@ -183,31 +195,34 @@ export default function TopHeader() {
             )}
 
             <Link to="/" className="flex items-center gap-2 py-0.5 min-w-0 shrink">
-              {currentLogo && !imageError ? (
-                <>
-                  {!isImageLoaded && (
-                    <h1 className="text-base sm:text-lg md:text-xl font-black tracking-tight text-primary-dark dark:text-white uppercase truncate max-w-[170px] sm:max-w-[240px]">
-                      {appSettings?.logoText || 'قناة الاتحاد السكندري'}
-                    </h1>
-                  )}
-                  <img 
-                    src={currentLogo} 
-                    alt="قناة الاتحاد السكندري" 
-                    style={{
-                      height: `${logoHeight}px`,
-                      maxHeight: '92px',
-                      display: isImageLoaded ? 'block' : 'none'
-                    }}
-                    className="w-auto max-w-[150px] sm:max-w-[200px] md:max-w-[250px] lg:max-w-[300px] object-contain drop-shadow-md transition-all duration-300 shrink" 
-                    referrerPolicy="no-referrer"
-                    onLoad={() => setIsImageLoaded(true)}
-                    onError={() => setImageError(true)}
-                  />
-                </>
-              ) : (
-                <h1 className="text-base sm:text-lg md:text-xl font-black tracking-tight text-primary-dark dark:text-white uppercase truncate max-w-[170px] sm:max-w-[240px]">
+              {/* Written text logo: only shown before the image loads or as fallback if image errors */}
+              {(!isImageLoaded || imageError) && (
+                <h1 className="text-base sm:text-lg md:text-xl font-black tracking-tight text-primary-dark dark:text-white uppercase truncate max-w-[170px] sm:max-w-[240px] animate-pulse">
                   {appSettings?.logoText || 'قناة الاتحاد السكندري'}
                 </h1>
+              )}
+
+              {/* PNG Page Logo Image */}
+              {!imageError && (
+                <img 
+                  src={currentLogo} 
+                  alt={appSettings?.appName || "قناة الاتحاد السكندري"} 
+                  style={{
+                    height: `${logoHeight}px`,
+                    maxHeight: '92px',
+                    display: isImageLoaded ? 'block' : 'none'
+                  }}
+                  className="w-auto max-w-[150px] sm:max-w-[200px] md:max-w-[250px] lg:max-w-[300px] object-contain drop-shadow-md transition-all duration-300 shrink" 
+                  referrerPolicy="no-referrer"
+                  onLoad={() => {
+                    setIsImageLoaded(true);
+                    setImageError(false);
+                  }}
+                  onError={() => {
+                    setImageError(true);
+                    setIsImageLoaded(false);
+                  }}
+                />
               )}
             </Link>
           </div>

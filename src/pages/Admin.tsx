@@ -2128,6 +2128,7 @@ export default function Admin() {
   const handleTimerAction = async (action: 'start' | 'pause' | 'reset', match: any) => {
     let updates: any = {};
     const now = new Date().toISOString();
+    const isBasketball = match.sport === 'basketball';
     
     if (action === 'start') {
       updates = {
@@ -2135,17 +2136,29 @@ export default function Admin() {
         timerStartTime: now,
         status: 'live'
       };
+      if (isBasketball && (!match.timerBaseMinute || match.timerBaseMinute === 0)) {
+        updates.timerBaseMinute = 10;
+      }
     } else if (action === 'pause') {
       const elapsed = match.timerStartTime ? Math.floor((new Date().getTime() - new Date(match.timerStartTime).getTime()) / 60000) : 0;
-      updates = {
-        isTimerRunning: false,
-        timerBaseMinute: (match.timerBaseMinute || 0) + elapsed,
-        timerStartTime: null
-      };
+      if (isBasketball) {
+        const base = (match.timerBaseMinute !== undefined && match.timerBaseMinute !== null && match.timerBaseMinute !== '') ? Number(match.timerBaseMinute) : 10;
+        updates = {
+          isTimerRunning: false,
+          timerBaseMinute: Math.max(0, base - elapsed),
+          timerStartTime: null
+        };
+      } else {
+        updates = {
+          isTimerRunning: false,
+          timerBaseMinute: (match.timerBaseMinute || 0) + elapsed,
+          timerStartTime: null
+        };
+      }
     } else if (action === 'reset') {
       updates = {
         isTimerRunning: false,
-        timerBaseMinute: 0,
+        timerBaseMinute: isBasketball ? 10 : 0,
         timerStartTime: null,
         status: 'upcoming'
       };
@@ -2242,11 +2255,19 @@ export default function Admin() {
   }, [clubStats.length, clubTitles.length, historyEvents.length, stadiums.length]);
 
   const calculateCurrentMinute = (match: any) => {
-    if (!match.isTimerRunning || !match.timerStartTime) return Number(match.timerBaseMinute || 0);
+    const isBasketball = match.sport === 'basketball';
+    const defaultBase = isBasketball ? 10 : 0;
+    const baseMin = (match.timerBaseMinute !== undefined && match.timerBaseMinute !== null && match.timerBaseMinute !== '')
+      ? Number(match.timerBaseMinute)
+      : defaultBase;
+    if (!match.isTimerRunning || !match.timerStartTime) return baseMin;
     const start = new Date(match.timerStartTime).getTime();
-    if (isNaN(start)) return Number(match.timerBaseMinute || 0);
+    if (isNaN(start)) return baseMin;
     const elapsed = Math.max(0, Math.floor((new Date().getTime() - start) / 60000));
-    return Number(match.timerBaseMinute || 0) + elapsed;
+    if (isBasketball) {
+      return Math.max(0, baseMin - elapsed);
+    }
+    return baseMin + elapsed;
   };
 
   const sortHistoryList = <T extends { order?: number }>(items: T[], fallbackSort?: (a: T, b: T) => number): T[] => {
@@ -4354,7 +4375,9 @@ export default function Admin() {
                   <span className="text-sm font-black ml-1">{item.homeScore} - {item.awayScore}</span>
                   {item.status === 'live' && (
                     <div className="flex items-center gap-1 bg-slate-50 dark:bg-surface-dark px-2 py-1 rounded-lg border border-border-light dark:border-border-dark">
-                      <span className="text-[10px] font-black tabular-nums">{calculateCurrentMinute(item)}'</span>
+                      <span className="text-[10px] font-black tabular-nums">
+                        {item.sport === 'basketball' ? `${calculateCurrentMinute(item)}:00 (تنازلي)` : `${calculateCurrentMinute(item)}'`}
+                      </span>
                       <button 
                         onClick={() => handleTimerAction(item.isTimerRunning ? 'pause' : 'start', item)}
                         className={`p-1 rounded-md transition-colors ${item.isTimerRunning ? 'text-orange-500 bg-orange-50' : 'text-green-500 bg-green-50'}`}
@@ -4901,50 +4924,6 @@ export default function Admin() {
                       placeholder="اكتب تفاصيل الرسالة المعروضة للجماهير..."
                       className="w-full p-2.5 rounded-xl border border-amber-300/60 dark:border-amber-900/60 bg-white dark:bg-card-dark text-xs font-bold text-slate-900 dark:text-white focus:border-amber-500 outline-none resize-none"
                     />
-                  </div>
-                </div>
-              </div>
-
-              {/* OneSignal Web Push Integration Status & Link */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white border border-slate-800 space-y-4 shadow-md">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/20 text-primary flex items-center justify-center font-black shrink-0">
-                      <Bell size={20} />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-black flex items-center gap-2">
-                        ربط إشعارات OneSignal Web Push
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                          متصل بنجاح 🟢
-                        </span>
-                      </h4>
-                      <p className="text-[11px] text-slate-400">
-                        التطبيق مربوط بالكامل مع OneSignal، ويتم إرسال كافة الإشعارات الفورية مباشرة واحترافياً من موقع OneSignal الرسمي.
-                      </p>
-                    </div>
-                  </div>
-                  <a
-                    href="https://dashboard.onesignal.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-black transition-all shadow-sm hover:scale-105 active:scale-95 shrink-0"
-                  >
-                    <span>لوحة تحكم OneSignal</span>
-                    <ExternalLink size={14} />
-                  </a>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                  <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
-                    <span className="text-[10px] font-black text-slate-400 block mb-1">OneSignal App ID (معرف التطبيق النشط)</span>
-                    <span className="font-mono text-emerald-400 font-bold text-xs select-all break-all">f93522a8-2af6-40a7-aa4e-25fc0e21e572</span>
-                  </div>
-                  <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60 flex flex-col justify-center">
-                    <span className="text-[10px] font-black text-slate-400 block mb-1">طريقة الإرسال المعتمدة</span>
-                    <span className="text-xs text-slate-300 font-medium">
-                      يتم إرسال الحملات والرسائل لجميع المشتركين مباشرة من خلال موقع OneSignal الرسمي (Messages &gt; New Push).
-                    </span>
                   </div>
                 </div>
               </div>
@@ -7441,12 +7420,14 @@ export default function Admin() {
                        </select>
                      </div>
                      <div>
-                       <label className="text-[10px] font-black text-slate-500 mb-1 block">الدقيقة الحالية</label>
+                       <label className="text-[10px] font-black text-slate-500 mb-1 block">
+                         {formData.sport === 'basketball' ? 'الدقيقة الابتدائية للعد التنازلي' : 'الدقيقة الحالية'}
+                       </label>
                        <input 
                          type="number" 
-                         placeholder="0" 
+                         placeholder={formData.sport === 'basketball' ? '10' : '0'} 
                          className="w-full p-3 rounded-xl border border-border-light bg-slate-50 dark:bg-surface-dark dark:border-border-dark text-slate-800 dark:text-white text-sm font-bold" 
-                         value={formData.timerBaseMinute || 0} 
+                         value={formData.timerBaseMinute ?? (formData.sport === 'basketball' ? 10 : 0)} 
                          onChange={(e) => setFormData({...formData, timerBaseMinute: e.target.value})} 
                        />
                      </div>

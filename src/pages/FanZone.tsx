@@ -160,11 +160,19 @@ export default function FanZone() {
     }
   }, [activeCommentPost]);
   const calculateCurrentMinute = (match: any) => {
-    if (!match.isTimerRunning || !match.timerStartTime) return Number(match.timerBaseMinute || 0);
+    const isBasketball = match.sport === 'basketball';
+    const defaultBase = isBasketball ? 10 : 0;
+    const baseMin = (match.timerBaseMinute !== undefined && match.timerBaseMinute !== null && match.timerBaseMinute !== '')
+      ? Number(match.timerBaseMinute)
+      : defaultBase;
+    if (!match.isTimerRunning || !match.timerStartTime) return baseMin;
     const start = new Date(match.timerStartTime).getTime();
-    if (isNaN(start)) return Number(match.timerBaseMinute || 0);
+    if (isNaN(start)) return baseMin;
     const elapsed = Math.max(0, Math.floor((new Date().getTime() - start) / 60000));
-    return Number(match.timerBaseMinute || 0) + elapsed;
+    if (isBasketball) {
+      return Math.max(0, baseMin - elapsed);
+    }
+    return baseMin + elapsed;
   };
 
   const [chatMessage, setChatMessage] = useState('');
@@ -2057,7 +2065,9 @@ export default function FanZone() {
                         {nextMatch.status === 'live' && (
                           <div className="flex items-center gap-1 sm:gap-2 px-3 py-1.5 bg-red-500 rounded-full shadow-glow-red animate-pulse">
                              <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                             <span className="text-[10px] font-black tabular-nums tracking-widest">LIVE {calculateCurrentMinute(nextMatch)}'</span>
+                             <span className="text-[10px] font-black tabular-nums tracking-widest">
+                               LIVE {nextMatch.sport === 'basketball' ? `${calculateCurrentMinute(nextMatch)}:00` : `${calculateCurrentMinute(nextMatch)}'`}
+                             </span>
                           </div>
                         )}
                         {nextMatch.status === 'upcoming' && (

@@ -111,20 +111,46 @@ export default function Matches() {
     }
   };
 
+  const [currentTimestamp, setCurrentTimestamp] = useState(() => Date.now());
+  const hasLiveRunningMatch = matches.some(m => m.status === 'live' && m.isTimerRunning);
+
+  useEffect(() => {
+    if (!hasLiveRunningMatch) return;
+    const interval = setInterval(() => setCurrentTimestamp(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [hasLiveRunningMatch]);
+
   const calculateCurrentTimeFormat = (match: any) => {
+    const isBasketball = match.sport === 'basketball';
+    const defaultBase = isBasketball ? 10 : 0;
+    const baseMin = (match.timerBaseMinute !== undefined && match.timerBaseMinute !== null && match.timerBaseMinute !== '')
+      ? Number(match.timerBaseMinute)
+      : defaultBase;
+
     if (!match.isTimerRunning || !match.timerStartTime) {
-      return `${String(match.timerBaseMinute || 0).padStart(2, '0')}:00'`;
+      return `${String(baseMin).padStart(2, '0')}:00${isBasketball ? '' : "'"}`;
     }
     const start = new Date(match.timerStartTime).getTime();
     if (isNaN(start)) {
-      return `${String(match.timerBaseMinute || 0).padStart(2, '0')}:00'`;
+      return `${String(baseMin).padStart(2, '0')}:00${isBasketball ? '' : "'"}`;
     }
-    const totalSeconds = Math.max(0, Math.floor((new Date().getTime() - start) / 1000));
-    const baseSeconds = Number(match.timerBaseMinute || 0) * 60;
-    const currentSeconds = baseSeconds + totalSeconds;
-    const mm = Math.floor(currentSeconds / 60);
-    const ss = currentSeconds % 60;
-    return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}'`;
+    const totalSeconds = Math.max(0, Math.floor((currentTimestamp - start) / 1000));
+    
+    if (isBasketball) {
+      // Basketball countdown timer
+      const baseSeconds = baseMin * 60;
+      const remainingSeconds = Math.max(0, baseSeconds - totalSeconds);
+      const mm = Math.floor(remainingSeconds / 60);
+      const ss = remainingSeconds % 60;
+      return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+    } else {
+      // Football count up
+      const baseSeconds = baseMin * 60;
+      const currentSeconds = baseSeconds + totalSeconds;
+      const mm = Math.floor(currentSeconds / 60);
+      const ss = currentSeconds % 60;
+      return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}'`;
+    }
   };
 
   const sortedMatches = [...matches].sort((a, b) => {

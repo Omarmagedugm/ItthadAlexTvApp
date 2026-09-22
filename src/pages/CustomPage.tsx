@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import TopHeader from '../components/TopHeader';
-import BottomNav from '../components/BottomNav';
 import { useAppStore } from '../store';
 
 export default function CustomPage() {
@@ -66,11 +64,9 @@ export default function CustomPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-background-dark text-slate-900 dark:text-white pb-[80px]">
-        <TopHeader />
         <div className="flex items-center justify-center p-8">
           <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
         </div>
-        <BottomNav />
       </div>
     );
   }
@@ -79,7 +75,6 @@ export default function CustomPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-background-dark text-slate-900 dark:text-white pb-[80px]">
-      <TopHeader />
       <div className="px-4 py-6" id="custom-page-content">
         <h1 className="text-2xl font-black mb-6 border-b-2 border-primary inline-block pb-1">{pageData.title}</h1>
         {/* Render HTML content safely or iframe based on content */}
@@ -93,7 +88,6 @@ export default function CustomPage() {
           />
         )}
       </div>
-      <BottomNav />
     </div>
   );
 }

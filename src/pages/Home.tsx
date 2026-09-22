@@ -65,15 +65,29 @@ function LiveMatchTimeDisplay({ match }: { match: any }) {
   }, [match?.isTimerRunning, match?.timerStartTime]);
 
   if (!match) return null;
+  const isBasketball = match.sport === 'basketball';
+  const defaultBase = isBasketball ? 10 : 0;
+  const baseMin = (match.timerBaseMinute !== undefined && match.timerBaseMinute !== null && match.timerBaseMinute !== '')
+    ? Number(match.timerBaseMinute)
+    : defaultBase;
+
   if (!match.isTimerRunning || !match.timerStartTime) {
-    return <span>{`${String(match.timerBaseMinute || 0).padStart(2, '0')}:00'`}</span>;
+    return <span>{`${String(baseMin).padStart(2, '0')}:00${isBasketball ? '' : "'"}`}</span>;
   }
   const start = new Date(match.timerStartTime).getTime();
   if (isNaN(start)) {
-    return <span>{`${String(match.timerBaseMinute || 0).padStart(2, '0')}:00'`}</span>;
+    return <span>{`${String(baseMin).padStart(2, '0')}:00${isBasketball ? '' : "'"}`}</span>;
   }
   const totalSeconds = Math.max(0, Math.floor((now - start) / 1000));
-  const baseSeconds = Number(match.timerBaseMinute || 0) * 60;
+  if (isBasketball) {
+    // Basketball countdown timer
+    const baseSeconds = baseMin * 60;
+    const remainingSeconds = Math.max(0, baseSeconds - totalSeconds);
+    const mm = Math.floor(remainingSeconds / 60);
+    const ss = remainingSeconds % 60;
+    return <span>{`${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`}</span>;
+  }
+  const baseSeconds = baseMin * 60;
   const currentSeconds = baseSeconds + totalSeconds;
   const mm = Math.floor(currentSeconds / 60);
   const ss = currentSeconds % 60;
@@ -261,12 +275,17 @@ export default function Home() {
           const now = new Date();
           const start = match.timerStartTime ? new Date(match.timerStartTime) : now;
           const diffMinutes = Math.floor((now.getTime() - start.getTime()) / 60000);
-          updates.timerBaseMinute = (match.timerBaseMinute || 0) + diffMinutes;
+          if (match.sport === 'basketball') {
+            const currentBase = typeof match.timerBaseMinute === 'number' ? match.timerBaseMinute : (Number(match.timerBaseMinute) || 10);
+            updates.timerBaseMinute = Math.max(0, currentBase - diffMinutes);
+          } else {
+            updates.timerBaseMinute = (match.timerBaseMinute || 0) + diffMinutes;
+          }
         }
       } else if (newStatus === 'live' && match.status !== 'live') {
         updates.isTimerRunning = true;
         updates.timerStartTime = new Date().toISOString();
-        updates.timerBaseMinute = 0;
+        updates.timerBaseMinute = match.sport === 'basketball' ? (match.timerBaseMinute ?? 10) : 0;
       } else if (newStatus === 'finished') {
         updates.isTimerRunning = false;
       }
