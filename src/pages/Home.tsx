@@ -1,12 +1,12 @@
 import { Link, useNavigate } from "react-router-dom";
 import { updateDoc, serverTimestamp } from "firebase/firestore";
-import { useAppStore, HomeSection } from "../store";
+import { useAppStore, HomeSection, isStreamHidden } from "../store";
 import { auth, db, handleFirestoreError, OperationType } from "../lib/firebase";
 import toast from "react-hot-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { motion, AnimatePresence } from "motion/react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import {
   Menu,
   LayoutDashboard,
@@ -43,17 +43,25 @@ import {
   Building2,
 } from "lucide-react";
 import { onSnapshot, doc } from "firebase/firestore";
-import Sidebar from "../components/Sidebar";
-import AdvertiseWidget from "../components/AdvertiseWidget";
-import TicketsWidget from "../components/TicketsWidget";
-import HtmlWidget from "../components/HtmlWidget";
-import ClubMembersWidget from "../components/ClubMembersWidget";
-import BusinessWidget from "../components/BusinessWidget";
-import WorldFansWidget from "../components/worldFans/WorldFansWidget";
-import PublicServicesWidget from "../components/widgets/PublicServicesWidget";
-import VideoEmbedWidget from "../components/widgets/VideoEmbedWidget";
+import HomeSkeleton from "../components/HomeSkeleton";
 import { SafeImage } from "../components/SafeImage";
 import { getOptimizedImage } from "../lib/cloudinary";
+
+// Lazy-loaded secondary widgets to accelerate initial page paint
+const AdvertiseWidget = lazy(() => import("../components/AdvertiseWidget"));
+const TicketsWidget = lazy(() => import("../components/TicketsWidget"));
+const HtmlWidget = lazy(() => import("../components/HtmlWidget"));
+const ClubMembersWidget = lazy(() => import("../components/ClubMembersWidget"));
+const BusinessWidget = lazy(() => import("../components/BusinessWidget"));
+const WorldFansWidget = lazy(() => import("../components/worldFans/WorldFansWidget"));
+const PublicServicesWidget = lazy(() => import("../components/widgets/PublicServicesWidget"));
+const VideoEmbedWidget = lazy(() => import("../components/widgets/VideoEmbedWidget"));
+
+function WidgetSkeletonFallback() {
+  return (
+    <div className="w-full h-32 rounded-3xl bg-slate-100/60 dark:bg-surface-dark/40 border border-slate-200/50 dark:border-white/5 animate-pulse" />
+  );
+}
 
 function LiveMatchTimeDisplay({ match }: { match: any }) {
   const [now, setNow] = useState(() => Date.now());
@@ -422,11 +430,11 @@ export default function Home() {
                     <img 
                       src={userAvatar} 
                       alt={rawName} 
-                      className="w-11 h-11 rounded-2xl object-cover border-2 border-emerald-500/40 group-hover:border-emerald-500 shadow-md shadow-emerald-500/10 transition-all ring-2 ring-emerald-500/20"
+                      className="w-11 h-11 rounded-full object-cover ring-2 ring-primary/30 group-hover:ring-primary transition-all"
                       referrerPolicy="no-referrer"
                     />
                   ) : (
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-600 via-primary to-teal-700 border-2 border-white/20 flex items-center justify-center text-white font-black shadow-md shadow-primary/20 group-hover:scale-105 transition-all">
+                    <div className="w-11 h-11 rounded-full bg-primary flex items-center justify-center text-white font-bold group-hover:scale-105 transition-all">
                       <span className="text-base font-black">
                         {rawName.charAt(0)}
                       </span>
@@ -439,10 +447,9 @@ export default function Home() {
 
                 <div className="flex flex-col text-right">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight group-hover:text-primary transition-colors flex items-center gap-1.5">
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors flex items-center gap-1.5">
                       <span className="text-slate-500 dark:text-slate-400 font-bold text-sm">أهلاً،</span>
                       <span className="text-primary dark:text-emerald-400 font-black">{rawName}</span>
-                      <span className="text-sm">👋</span>
                     </h2>
                     {userTier === 'premium' && (
                       <span className="bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-500/30 flex items-center gap-0.5 shadow-xs">
@@ -775,10 +782,10 @@ export default function Home() {
                         <Link
                           to={
                             heroMatch.status === "live" ||
-                            (!liveStreams.football?.hidden && liveStreams.football?.isActive) ||
-                            (!liveStreams.basketball?.hidden && liveStreams.basketball?.isActive) ||
-                            (!liveStreams.programs?.hidden && liveStreams.programs?.isActive) ||
-                            (!liveStreams.custom?.hidden && liveStreams.custom?.isActive)
+                            (!isStreamHidden(liveStreams.football) && liveStreams.football?.isActive) ||
+                            (!isStreamHidden(liveStreams.basketball) && liveStreams.basketball?.isActive) ||
+                            (!isStreamHidden(liveStreams.programs) && liveStreams.programs?.isActive) ||
+                            (!isStreamHidden(liveStreams.custom) && liveStreams.custom?.isActive)
                               ? "/live"
                               : "/matches"
                           }
@@ -786,18 +793,18 @@ export default function Home() {
                         >
                           <span className="material-symbols-outlined !text-[20px] group-hover/btn:translate-x-1 transition-transform">
                             {heroMatch.status === "live" ||
-                            (!liveStreams.football?.hidden && liveStreams.football?.isActive) ||
-                            (!liveStreams.basketball?.hidden && liveStreams.basketball?.isActive) ||
-                            (!liveStreams.programs?.hidden && liveStreams.programs?.isActive) ||
-                            (!liveStreams.custom?.hidden && liveStreams.custom?.isActive)
+                            (!isStreamHidden(liveStreams.football) && liveStreams.football?.isActive) ||
+                            (!isStreamHidden(liveStreams.basketball) && liveStreams.basketball?.isActive) ||
+                            (!isStreamHidden(liveStreams.programs) && liveStreams.programs?.isActive) ||
+                            (!isStreamHidden(liveStreams.custom) && liveStreams.custom?.isActive)
                               ? "sensors"
                               : "event"}
                           </span>
                           {heroMatch.status === "live" ||
-                          (!liveStreams.football?.hidden && liveStreams.football?.isActive) ||
-                          (!liveStreams.basketball?.hidden && liveStreams.basketball?.isActive) ||
-                          (!liveStreams.programs?.hidden && liveStreams.programs?.isActive) ||
-                          (!liveStreams.custom?.hidden && liveStreams.custom?.isActive)
+                          (!isStreamHidden(liveStreams.football) && liveStreams.football?.isActive) ||
+                          (!isStreamHidden(liveStreams.basketball) && liveStreams.basketball?.isActive) ||
+                          (!isStreamHidden(liveStreams.programs) && liveStreams.programs?.isActive) ||
+                          (!isStreamHidden(liveStreams.custom) && liveStreams.custom?.isActive)
                             ? "دخول البث"
                             : "التفاصيل"}
                         </Link>
@@ -836,10 +843,10 @@ export default function Home() {
 
       case "live":
         if (
-          (!liveStreams.football?.hidden && liveStreams.football?.isActive) ||
-          (!liveStreams.basketball?.hidden && liveStreams.basketball?.isActive) ||
-          (!liveStreams.programs?.hidden && liveStreams.programs?.isActive) ||
-          (!liveStreams.custom?.hidden && liveStreams.custom?.isActive)
+          (!isStreamHidden(liveStreams.football) && liveStreams.football?.isActive) ||
+          (!isStreamHidden(liveStreams.basketball) && liveStreams.basketball?.isActive) ||
+          (!isStreamHidden(liveStreams.programs) && liveStreams.programs?.isActive) ||
+          (!isStreamHidden(liveStreams.custom) && liveStreams.custom?.isActive)
         ) {
           return (
             <motion.section
@@ -862,25 +869,25 @@ export default function Home() {
                       بث مباشر متاح الآن
                     </span>
                     <div className="flex flex-wrap gap-2 mt-1">
-                      {!liveStreams.football?.hidden && liveStreams.football?.isActive && (
+                      {!isStreamHidden(liveStreams.football) && liveStreams.football?.isActive && (
                         <span className="text-[8px] font-black bg-primary text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
                           <span className="material-symbols-outlined !text-[10px]">sports_soccer</span>
                           كرة القدم
                         </span>
                       )}
-                      {!liveStreams.basketball?.hidden && liveStreams.basketball?.isActive && (
+                      {!isStreamHidden(liveStreams.basketball) && liveStreams.basketball?.isActive && (
                         <span className="text-[8px] font-black bg-orange-600 text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
                           <span className="material-symbols-outlined !text-[10px]">sports_basketball</span>
                           كرة السلة
                         </span>
                       )}
-                      {!liveStreams.programs?.hidden && liveStreams.programs?.isActive && (
+                      {!isStreamHidden(liveStreams.programs) && liveStreams.programs?.isActive && (
                         <span className="text-[8px] font-black bg-indigo-600 text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
                           <span className="material-symbols-outlined !text-[10px]">live_tv</span>
                           برامج
                         </span>
                       )}
-                      {!liveStreams.custom?.hidden && liveStreams.custom?.isActive && (
+                      {!isStreamHidden(liveStreams.custom) && liveStreams.custom?.isActive && (
                         <span className="text-[8px] font-black bg-emerald-600 text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
                           <span className="material-symbols-outlined !text-[10px]">sensors</span>
                           {liveStreams.custom?.customName?.trim() || 'بث خاص'}
@@ -1346,7 +1353,9 @@ export default function Home() {
             variants={itemVariants}
             className="overflow-hidden rounded-2xl shadow-sm"
           >
-            <HtmlWidget htmlCode={section.htmlCode} id={section.id} />
+            <Suspense fallback={<WidgetSkeletonFallback />}>
+              <HtmlWidget htmlCode={section.htmlCode} id={section.id} />
+            </Suspense>
           </motion.section>
         );
 
@@ -1360,15 +1369,17 @@ export default function Home() {
             key={section.id}
             variants={itemVariants}
           >
-            <VideoEmbedWidget 
-              id={section.id}
-              title={section.title}
-              subtitle={section.subtitle}
-              videoUrl={section.videoUrl}
-              videoType={section.videoType}
-              aspectRatio={section.aspectRatio}
-              autoplay={section.autoplay}
-            />
+            <Suspense fallback={<WidgetSkeletonFallback />}>
+              <VideoEmbedWidget 
+                id={section.id}
+                title={section.title}
+                subtitle={section.subtitle}
+                videoUrl={section.videoUrl}
+                videoType={section.videoType}
+                aspectRatio={section.aspectRatio}
+                autoplay={section.autoplay}
+              />
+            </Suspense>
           </motion.section>
         );
 
@@ -1415,7 +1426,9 @@ export default function Home() {
       case "advertise":
         return (
           <motion.section key={section.id} variants={itemVariants}>
-            <AdvertiseWidget />
+            <Suspense fallback={<WidgetSkeletonFallback />}>
+              <AdvertiseWidget />
+            </Suspense>
           </motion.section>
         );
 
@@ -1424,7 +1437,9 @@ export default function Home() {
       case "club_members_banner":
         return (
           <motion.section key={section.id} variants={itemVariants}>
-            <ClubMembersWidget title={section.title} />
+            <Suspense fallback={<WidgetSkeletonFallback />}>
+              <ClubMembersWidget title={section.title} />
+            </Suspense>
           </motion.section>
         );
 
@@ -1433,7 +1448,9 @@ export default function Home() {
         if (sectionFlags.worldFans === false) return null;
         return (
           <motion.section key={section.id} variants={itemVariants}>
-            <WorldFansWidget title={section.title} />
+            <Suspense fallback={<WidgetSkeletonFallback />}>
+              <WorldFansWidget title={section.title} />
+            </Suspense>
           </motion.section>
         );
 
@@ -1442,7 +1459,9 @@ export default function Home() {
         if (sectionFlags.fanServices === false) return null;
         return (
           <motion.section key={section.id} variants={itemVariants}>
-            <PublicServicesWidget />
+            <Suspense fallback={<WidgetSkeletonFallback />}>
+              <PublicServicesWidget />
+            </Suspense>
           </motion.section>
         );
 
@@ -1452,7 +1471,9 @@ export default function Home() {
         if (sectionFlags.itthadawyBusiness === false) return null;
         return (
           <motion.section key={section.id} variants={itemVariants}>
-            <BusinessWidget title={section.title} />
+            <Suspense fallback={<WidgetSkeletonFallback />}>
+              <BusinessWidget title={section.title} />
+            </Suspense>
           </motion.section>
         );
 
@@ -1465,7 +1486,9 @@ export default function Home() {
       case "tickets":
         return (
           <motion.section key={section.id} variants={itemVariants}>
-            <TicketsWidget title={section.title} link={section.link} />
+            <Suspense fallback={<WidgetSkeletonFallback />}>
+              <TicketsWidget title={section.title} link={section.link} />
+            </Suspense>
           </motion.section>
         );
 
@@ -2113,18 +2136,9 @@ export default function Home() {
     },
   } as const;
 
-  if (!dataLoaded && news.length === 0 && matches.length === 0) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] gap-4 px-8 text-center bg-background-light dark:bg-background-dark">
-        <div className="relative">
-          <div className="h-12 w-12 border-3 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="h-2 w-2 bg-primary rounded-full animate-ping"></div>
-          </div>
-        </div>
-        <span className="text-xs text-slate-400 dark:text-slate-500 font-bold animate-pulse">جاري التحميل...</span>
-      </div>
-    );
+  const hasContent = news.length > 0 || matches.length > 0;
+  if (!dataLoaded && !hasContent) {
+    return <HomeSkeleton />;
   }
 
   const isEmpty = dataLoaded && news.length === 0 && matches.length === 0;
@@ -2184,6 +2198,7 @@ export default function Home() {
           return (
             <div
               key={section.id}
+              className={index > 3 ? "cv-auto" : ""}
               style={{ marginBottom: `${section.spacing ?? 24}px` }}
             >
               {content}
@@ -2192,22 +2207,25 @@ export default function Home() {
         })}
 
         <motion.footer variants={itemVariants} className="mt-12 mb-6 text-center px-4 border-t border-slate-100 dark:border-slate-800/40 pt-8">
-          <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-bold text-slate-700 dark:text-slate-300 tracking-wider">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 text-[9px] sm:text-[10px] font-bold text-slate-700 dark:text-slate-300 tracking-normal sm:tracking-wider whitespace-nowrap overflow-x-auto no-scrollbar">
             <a 
               href="https://itthadalextv.com/privacy-policy" 
-              className="hover:text-primary transition-colors hover:underline"
+              className="hover:text-primary transition-colors hover:underline whitespace-nowrap shrink-0"
             >
               Privacy Policy (سياسة الخصوصية)
             </a>
-            <span className="text-slate-300 dark:text-slate-700 font-normal">|</span>
+            <span className="text-slate-300 dark:text-slate-700 font-normal shrink-0">|</span>
             <a 
               href="https://itthadalextv.com/terms" 
-              className="hover:text-primary transition-colors hover:underline"
+              className="hover:text-primary transition-colors hover:underline whitespace-nowrap shrink-0"
             >
               Terms of Service (شروط الخدمة)
             </a>
           </div>
-          <p className="mt-4 text-[10px] font-medium text-slate-400/60 dark:text-slate-500/40 uppercase tracking-tighter">
+          <p className="mt-2.5 text-[10px] sm:text-xs font-bold text-slate-600 dark:text-slate-300">
+            تصميم وتطوير : عمر ماجد
+          </p>
+          <p className="mt-2 text-[8px] font-medium text-slate-400/60 dark:text-slate-500/40 uppercase tracking-tighter">
             © {new Date().getFullYear()} Ittihad Alexandria Fan App
           </p>
         </motion.footer>
