@@ -168,36 +168,34 @@ export default function TopHeader() {
     <>
       {/* Spacer to prevent content from going under the fixed header */}
       <div style={{ height: `calc(env(safe-area-inset-top) + ${spacerHeight}px)` }} className="w-full"></div>
-      <header id="global-header" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8px)' }} className="fixed top-0 inset-x-0 w-full z-50 bg-background-light/85 dark:bg-background-dark/85 backdrop-blur-xl border-b border-border-light/40 dark:border-border-dark/40 px-3 sm:px-4 md:px-8 pb-2.5 shadow-sm">
+      <header id="global-header" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8px)' }} className="fixed top-0 inset-x-0 w-full z-50 glass-header border-b border-black/5 dark:border-white/[0.07] px-3 sm:px-4 md:px-8 pb-2.5 transition-colors duration-200">
         <div className="flex items-center justify-between gap-2 w-full max-w-7xl mx-auto">
           {/* Right Section: Mobile Menu / Back + Logo */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
             {isHome ? (
-              <motion.button 
+              <button 
                 id="menu-button"
                 aria-label="القائمة الرئيسية"
-                whileTap={{ scale: 0.9 }}
                 onClick={() => setIsMenuOpen(true)}
-                className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all duration-300"
+                className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full glass-chip text-slate-600 dark:text-slate-300 hover:text-primary active:scale-95 transition-all duration-200 cursor-pointer"
               >
                 <Menu size={22} strokeWidth={2.5} />
-              </motion.button>
+              </button>
             ) : (
-              <motion.button 
+              <button 
                 id="back-button"
                 aria-label="الرجوع للصفحة السابقة"
-                whileTap={{ scale: 0.9 }}
                 onClick={() => navigate(-1)}
-                className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all duration-300"
+                className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full glass-chip text-slate-600 dark:text-slate-300 hover:text-primary active:scale-95 transition-all duration-200 cursor-pointer"
               >
                 <ChevronRight size={24} className="rotate-180" />
-              </motion.button>
+              </button>
             )}
 
             <Link to="/" className="flex items-center gap-2 py-0.5 min-w-0 shrink">
               {/* Written text logo: only shown before the image loads or as fallback if image errors */}
               {(!isImageLoaded || imageError) && (
-                <h1 className="text-base sm:text-lg md:text-xl font-black tracking-tight text-primary-dark dark:text-white uppercase truncate max-w-[170px] sm:max-w-[240px] animate-pulse">
+                <h1 className="text-base sm:text-lg md:text-xl font-bold text-primary-dark dark:text-white truncate max-w-[170px] sm:max-w-[240px]">
                   {appSettings?.logoText || 'قناة الاتحاد السكندري'}
                 </h1>
               )}
@@ -212,7 +210,7 @@ export default function TopHeader() {
                     maxHeight: '92px',
                     display: isImageLoaded ? 'block' : 'none'
                   }}
-                  className="w-auto max-w-[150px] sm:max-w-[200px] md:max-w-[250px] lg:max-w-[300px] object-contain drop-shadow-md transition-all duration-300 shrink" 
+                  className="w-auto max-w-[150px] sm:max-w-[200px] md:max-w-[250px] lg:max-w-[300px] object-contain transition-all duration-300 shrink" 
                   referrerPolicy="no-referrer"
                   onLoad={() => {
                     setIsImageLoaded(true);
@@ -237,8 +235,7 @@ export default function TopHeader() {
               }
             }}
             aria-label="القائمة الرئيسية"
-            style={{ borderRadius: '25px' }}
-            className="hidden md:flex items-center gap-1.5 flex-nowrap shrink whitespace-nowrap overflow-x-auto no-scrollbar scroll-smooth px-3 py-1.5 bg-gradient-to-r from-[#0B3D2E] via-primary to-[#0B3D2E] text-white rounded-[25px] shadow-md shadow-primary/20 border border-emerald-500/30 max-w-xl lg:max-w-2xl xl:max-w-3xl select-none"
+            className="hidden md:flex items-center gap-1 flex-nowrap shrink whitespace-nowrap overflow-x-auto no-scrollbar scroll-smooth max-w-xl lg:max-w-2xl xl:max-w-3xl select-none"
           >
             {[
               { path: '/', label: 'الرئيسية' },
@@ -256,10 +253,10 @@ export default function TopHeader() {
                   key={item.path}
                   to={item.path}
                   data-active={isActive ? "true" : "false"}
-                  className={`px-3 lg:px-3.5 py-1 rounded-[20px] text-xs font-black transition-all duration-200 shrink-0 ${
+                  className={`px-3.5 py-2 rounded-full text-[13px] font-semibold transition-colors duration-200 shrink-0 ${
                     isActive 
-                      ? 'bg-white text-primary-dark shadow-sm' 
-                      : 'text-white/85 hover:text-white hover:bg-white/15'
+                      ? 'bg-primary text-white' 
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/10'
                   }`}
                 >
                   {item.label}
@@ -271,15 +268,14 @@ export default function TopHeader() {
           {/* Left Action Icons */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {isAdmin && location.pathname.includes('/admin') && (
-              <motion.button 
-                whileTap={{ scale: 0.9 }}
+              <button 
                 onClick={() => navigate(-1)}
                 aria-label="رجوع للصفحة السابقة"
-                className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-500 dark:text-slate-400 hover:text-primary transition-all duration-300 shadow-sm cursor-pointer"
+                className="flex h-10 w-10 items-center justify-center rounded-full glass-chip text-slate-500 dark:text-slate-400 hover:text-primary active:scale-95 transition-all duration-200 shadow-sm cursor-pointer"
                 title="رجوع للصفحة السابقة"
               >
                 <ChevronRight size={22} strokeWidth={2.5} />
-              </motion.button>
+              </button>
             )}
             {isAdmin && !location.pathname.includes('/admin') && (
               <Link 
@@ -289,7 +285,7 @@ export default function TopHeader() {
                   } catch (e) { return 'overview'; }
                 })()}`}
                 aria-label="لوحة التحكم"
-                className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-500 dark:text-slate-400 hover:text-primary transition-all duration-300 shadow-sm cursor-pointer"
+                className="flex h-10 w-10 items-center justify-center rounded-full glass-chip text-slate-500 dark:text-slate-400 hover:text-primary active:scale-95 transition-all duration-200 shadow-sm cursor-pointer"
                 title="لوحة التحكم"
               >
                 <Settings size={20} strokeWidth={2.5} />
@@ -297,17 +293,16 @@ export default function TopHeader() {
             )}
 
             {/* OneSignal Web Push Notifications Bell Toggle */}
-            <motion.button 
+            <button 
               id="notification-button"
               type="button"
               aria-label={isPushGranted ? 'إشعارات OneSignal مفعلة' : 'تفعيل إشعارات OneSignal'}
-              whileTap={{ scale: 0.9 }}
               onClick={handleNotificationClick}
               disabled={isActivating}
-              className={`relative flex h-10 w-10 items-center justify-center rounded-2xl transition-all duration-300 cursor-pointer ${
+              className={`relative flex h-10 w-10 items-center justify-center rounded-2xl transition-all duration-200 cursor-pointer active:scale-95 ${
                 isPushGranted
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
-                  : 'bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20'
+                  ? 'glass-chip text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                  : 'glass-chip text-primary border border-primary/20'
               }`}
               title={isPushGranted ? 'إشعارات المباريات مفعلة 🔔' : 'اضغط لتفعيل إشعارات المباريات والأهداف 🔔'}
             >
@@ -328,26 +323,25 @@ export default function TopHeader() {
                   </>
                 )}
               </span>
-            </motion.button>
+            </button>
 
             {/* Theme Toggle Button */}
-            <motion.button 
+            <button 
               id="theme-toggle-button"
               type="button"
               aria-label="تبديل المظهر"
-              whileTap={{ scale: 0.9 }}
               onClick={toggleTheme}
-              className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-500 dark:text-slate-400 hover:text-primary transition-all duration-300 cursor-pointer"
+              className="flex h-10 w-10 items-center justify-center rounded-full glass-chip text-slate-500 dark:text-slate-400 hover:text-primary active:scale-95 transition-all duration-200 cursor-pointer"
             >
               {theme === 'dark' ? <Sun size={20} strokeWidth={2.5} /> : <Moon size={20} strokeWidth={2.5} />}
-            </motion.button>
+            </button>
 
             {/* Search News Button */}
             <Link 
               id="search-button-link"
               aria-label="البحث عن الأخبار"
               to="/news"
-              className="flex h-10 w-10 items-center justify-center rounded-2xl glass-card text-slate-500 dark:text-slate-400 hover:text-primary transition-all duration-300 cursor-pointer"
+              className="flex h-10 w-10 items-center justify-center rounded-full glass-chip text-slate-500 dark:text-slate-400 hover:text-primary transition-all duration-300 cursor-pointer"
               title="البحث عن الأخبار"
             >
               <Search size={20} strokeWidth={2.5} />
@@ -356,7 +350,7 @@ export default function TopHeader() {
             {/* User Profile Quick Link on Desktop */}
             <Link
               to="/profile"
-              className="hidden md:flex items-center justify-center h-10 w-10 rounded-2xl glass-card text-slate-600 dark:text-slate-300 hover:text-primary transition-all overflow-hidden cursor-pointer"
+              className="hidden md:flex items-center justify-center h-10 w-10 rounded-full glass-chip text-slate-600 dark:text-slate-300 hover:text-primary transition-all overflow-hidden cursor-pointer"
               title="الملف الشخصي"
             >
               {profile?.avatar ? (
